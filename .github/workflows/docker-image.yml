@@ -19,9 +19,9 @@ jobs:
       uses: stardustventures/caprover-deploy@v4
       with:
         # CapRover admin panel URL. Ex. https://captain.root.domain.com
-        server: https://captain.comment.opendemocracy.net
+        server: https://captain.staging-caprover.opendemocracy.net
         # CapRover admin password. Use $\{{ secrets.CAPROVER_PASSWORD }} for better security.
-        password: ${{ secrets.CAPROVER_PASSWORD }}
+        password: ${{ secrets.CAPROVER_STAGING_PASSWORD }}
         # Application name on the CapRover server. Must exists.
         appname: comment-talk
         # Container image registry url
