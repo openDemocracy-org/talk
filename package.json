@@ -254,7 +254,7 @@
     "@types/webpack-assets-manifest": "^3.0.1",
     "@types/webpack-bundle-analyzer": "^3.8.0",
     "@types/webpack-dev-server": "^3.11.0",
-    "@types/ws": "^7.2.3",
+    "@types/ws": "^7.4.4",
     "@types/xregexp": "^4.3.0",
     "@typescript-eslint/eslint-plugin": "^3.4.0",
     "@typescript-eslint/eslint-plugin-tslint": "^3.4.0",
