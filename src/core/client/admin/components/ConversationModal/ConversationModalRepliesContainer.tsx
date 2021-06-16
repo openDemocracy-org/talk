@@ -61,7 +61,7 @@ const ConversationModalRepliesContainer: FunctionComponent<Props> = ({
         ))}
       <div className={styles.footer}>
         {!showReplies && comment.replyCount > 0 && (
-          <Localized id="conversation-modal-replies-show">
+          <Localized id="conversation-modal-showReplies">
             <Button variant="outlined" fullWidth onClick={onShowReplies}>
               Show replies
             </Button>
@@ -70,7 +70,7 @@ const ConversationModalRepliesContainer: FunctionComponent<Props> = ({
         {showReplies &&
           comment.replyCount > replies.length &&
           replies.length > 0 && (
-            <Localized id="conversation-modal-replies-show-more">
+            <Localized id="conversation-modal-showMoreReplies">
               <Button variant="outlined" fullWidth onClick={loadMore}>
                 Show more replies
               </Button>
@@ -101,7 +101,7 @@ const enhanced = withPaginationContainer<
     comment: graphql`
       fragment ConversationModalRepliesContainer_comment on Comment
         @argumentDefinitions(
-          count: { type: "Int!", defaultValue: 5 }
+          count: { type: "Int", defaultValue: 5 }
           cursor: { type: "Cursor" }
           orderBy: { type: "COMMENT_SORT!", defaultValue: CREATED_AT_ASC }
         ) {
@@ -120,16 +120,8 @@ const enhanced = withPaginationContainer<
     `,
   },
   {
-    direction: "forward",
     getConnectionFromProps(props) {
       return props.comment && props.comment.replies;
-    },
-    // This is also the default implementation of `getFragmentVariables` if it isn't provided.
-    getFragmentVariables(prevVars, totalCount) {
-      return {
-        ...prevVars,
-        count: totalCount,
-      };
     },
     getVariables(props, { count, cursor }, fragmentVariables) {
       return {

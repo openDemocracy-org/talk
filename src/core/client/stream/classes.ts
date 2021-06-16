@@ -434,16 +434,22 @@ const CLASSES = {
   },
 
   /**
-   * rejectedTombstone is shown when a comment got rejected.
+   * moderationRejectedTombstone is shown to the moderator when a comment got rejected.
    */
-  rejectedTombstone: {
-    $root: "coral coral-rejectedtombstone",
-    goToModerateButton: "coral coral-rejectedtombstone-goToModerateButton",
+  moderationRejectedTombstone: {
+    $root: "coral coral-moderationRejectedTombstone",
+    goToModerateButton:
+      "coral coral-moderationRejectedTombstone-goToModerateButton",
   },
+  /**
+   * rejectedTombstone is shown when a comment has been rejected.
+   */
+  rejectedTombstone: "coral coral-rejectedTombstone",
+
   /**
    * deletedTombstone is shown when a comment has been deleted.
    */
-  deletedTombstone: "coral coral-rejectedtombstone",
+  deletedTombstone: "coral coral-deletedTombstone",
 
   /**
    * ignoredTombstown is shown when a comment got ignored.
@@ -1057,6 +1063,19 @@ const CLASSES = {
       siteName: "coral coral-discussions-story-siteName",
     },
     viewHistoryButton: "coral coral-discussions-viewHistoryButton",
+  },
+
+  ratingsAndReview: {
+    noReviews: "coral coral-ratingsReview-noReviewsYet",
+    ratingsFilter: "coral coral-ratingsReview-filter",
+    stars: {
+      rating: "coral coral-ratingsReview-rating",
+      readonly: "coral coral-ratingsReview-rating-readonly",
+      icon: "coral coral-ratingsReview-icon",
+    },
+    input: {
+      title: "coral coral-ratingsReview-input-title",
+    },
   },
 };
 

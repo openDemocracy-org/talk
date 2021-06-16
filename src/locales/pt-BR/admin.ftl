@@ -35,6 +35,9 @@ comments-reacted =
 ## User Statuses
 userStatus-active = Ativo
 userStatus-banned = Banido
+userStatus-siteBanned = Site banido
+userStatus-banned-all = Banido (todos)
+userStatus-banned-count = Baniu ({$count})
 userStatus-suspended = Suspenso
 userStatus-premod = Sempre pré-moderado
 userStatus-warned = Avisado
@@ -713,6 +716,11 @@ configure-moderation-akismet-explanation =
   e são colocados na fila pendente para revisão por um moderador.
   Se aprovado por um moderador, o comentário será publicado.
 
+configure-moderation-premModeration-premodSuspectWordsEnable =
+  Pré-moderar comentários contendo Palavras Suspeitas
+configure-moderation-premModeration-premodSuspectWordsDescription =
+  Você pode ver e editar a Lista de Palavras Suspeitas <wordListLink>aqui</wordListLink>
+
 #### Akismet
 configure-moderation-akismet-filter = Filtro de Detecção de Spam
 configure-moderation-akismet-ipBased = Detecção de spam baseada em IP
@@ -783,6 +791,10 @@ configure-wordList-suspect-explanation =
   Comentários contendo uma palavra ou frase na Lista de Palavras Suspeitas
   são <strong> colocados na Fila de Reportados para revisão de moderadores e são
   publicado (se os comentários não forem pré-moderados). </ strong>
+configure-wordList-suspect-explanationSuspectWordsList =
+  Comentários contendo uma palavra ou frase na Lista de Palavras Suspeitas são
+  <strong>enviados para a fila Pendente para revisão do moderador and não são
+  publicados a menos que o moderador aprove.</strong>
 configure-wordList-suspect-wordList = Lista de Palavras Suspeitas
 configure-wordList-suspect-wordListDetailInstructions =
   Separe palavras e frases suspeitas com uma nova linha. Palavras/frases não são sensíveis a caixa alta ou baixa.
@@ -953,6 +965,7 @@ moderate-searchBar-currentlyModerating =
   .title = Atualmente moderando
 moderate-searchBar-searchResults = Pesquisar resultados
 moderate-searchBar-searchResultsMostRecentFirst = Pesquisar resultados (Mais recentes primeiro)
+moderate-searchBar-searchResultsMostRelevantFirst = Pesquisar resultados (Mais relevantes primeiro)
 moderate-searchBar-moderateAllStories = Moderar todas as histórias
 moderate-searchBar-comboBoxTextField =
   .aria-label = Pesquisar ou pular para a história....
@@ -980,12 +993,17 @@ moderate-user-drawer-rejected-no-comments = {$username} não tem comentários re
 moderate-user-drawer-user-not-found = Usuário não encontrado.
 moderate-user-drawer-status-label = Status:
 moderate-user-drawer-bio-title = Biografia dos usuários
+moderate-user-drawer-username-not-available = Nome de usuário indisponível
+moderate-user-drawer-username-not-available-tooltip-title = Nome de usuário indisponível
+moderate-user-drawer-username-not-available-tooltip-body = Usuário não completou o processo de criação de conta
 
 moderate-user-drawer-account-history-system = <icon>computer</icon> Sistema
 moderate-user-drawer-account-history-suspension-ended = Suspensão terminada
 moderate-user-drawer-account-history-suspension-removed = Suspensão removida
 moderate-user-drawer-account-history-banned = Banida
 moderate-user-drawer-account-history-ban-removed = Banimento removido
+moderate-user-drawer-account-history-site-banned = Site banido
+moderate-user-drawer-account-history-site-ban-removed = Banimento do site removido
 moderate-user-drawer-account-history-no-history = Nenhuma ação foi realizada nesta conta
 moderate-user-drawer-username-change = Nome de usuário alterado
 moderate-user-drawer-username-change-new = Novo:
@@ -1083,6 +1101,8 @@ community-filter-allRoles = Todas as Funções
 community-filter-allStatuses = Todos os Status
 
 community-column-username = Nome do Usuário
+community-column-username-not-available = Nome de Usuário indisponível
+community-column-email-not-available = Email indisponível
 community-column-username-deleted = Deletado
 community-column-email = E-mail
 community-column-memberSince = Membro desde
@@ -1104,6 +1124,7 @@ community-userStatus-removeBan = Remover Banimento
 community-userStatus-removeUserBan = Remover banimento
 community-userStatus-suspendUser = Suspender Usuário
 community-userStatus-suspend = Suspender
+community-userStatus-suspendEverywhere = Suspender em todos os lugares
 community-userStatus-removeSuspension = Remover Suspensão
 community-userStatus-removeUserSuspension = Remover Suspensão
 community-userStatus-unknown = Desconhecido
@@ -1120,6 +1141,11 @@ community-banModal-cancel = Cancelar
 community-banModal-banUser = Banir Usuário
 community-banModal-customize = Customizar mensagem de e-mail de banimento
 community-banModal-reject-existing = Rejeitar todos os comentários feitos por usuário
+
+community-banModal-noSites = Nenhum site
+community-banModal-banFrom = Banir a partir de
+community-banModal-allSites = Todos os sites
+community-banModal-specificSites = Sites específicos
 
 community-suspendModal-areYouSure = Banir <strong>{ $username }</strong>?
 community-suspendModal-consequence =
@@ -1197,6 +1223,7 @@ community-warnModal-message-description = Explique a este usuário como ele deve
 community-warnModal-cancel = Cancelar
 community-warnModal-warnUser = Avisar usuário
 community-userStatus-warn = Avisar
+community-userStatus-warnEverywhere = Avisar em todos os lugares
 
 ## Stories
 stories-emptyMessage = Atualmente não há histórias publicadas.

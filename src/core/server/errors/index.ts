@@ -472,10 +472,28 @@ export class StoryNotFoundError extends CoralError {
 }
 
 export class CommentNotFoundError extends CoralError {
-  constructor(commentID: string, commentRevisionID?: string) {
+  constructor(commentID: string) {
     super({
       code: ERROR_CODES.COMMENT_NOT_FOUND,
-      context: { pvt: { commentID, commentRevisionID } },
+      context: { pub: { commentID } },
+    });
+  }
+}
+
+export class CommentRevisionNotFoundError extends CoralError {
+  constructor(commentID: string, commentRevisionID: string) {
+    super({
+      code: ERROR_CODES.COMMENT_NOT_FOUND,
+      context: { pub: { commentID, commentRevisionID } },
+    });
+  }
+}
+
+export class AuthorAlreadyHasRatedStory extends CoralError {
+  constructor(userID: string, storyID: string) {
+    super({
+      code: ERROR_CODES.AUTHOR_ALREADY_HAS_RATED_STORY,
+      context: { pvt: { userID, storyID } },
     });
   }
 }
@@ -693,6 +711,15 @@ export class UserBanned extends CoralError {
     super({
       code: ERROR_CODES.USER_BANNED,
       context: { pvt: { resource, operation, userID } },
+    });
+  }
+}
+
+export class UserSiteBanned extends CoralError {
+  constructor(userID: string, siteID: string, siteName: string) {
+    super({
+      code: ERROR_CODES.USER_SITE_BANNED,
+      context: { pvt: { siteID, userID }, pub: { siteName } },
     });
   }
 }

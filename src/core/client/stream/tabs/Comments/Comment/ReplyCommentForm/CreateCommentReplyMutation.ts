@@ -63,7 +63,7 @@ function sharedUpdater(
     return;
   }
 
-  incrementStoryCommentCounts(store, input.storyID);
+  incrementStoryCommentCounts(store, input.storyID, commentEdge);
   prependCommentEdgeToProfile(environment, store, commentEdge);
   tagExpertAnswers(environment, store, input, commentEdge, uuidGenerator);
   if (input.local) {
@@ -252,7 +252,7 @@ const mutation = graphql`
       edge {
         cursor
         node {
-          ...AllCommentsTabContainer_comment @relay(mask: false)
+          ...AllCommentsTabCommentContainer_comment
           id
           status
           story {
@@ -327,6 +327,7 @@ async function commit(
               cursor: currentDate,
               node: {
                 id,
+                enteredLive: false,
                 createdAt: currentDate,
                 status: "NONE",
                 pending: false,

@@ -4,7 +4,7 @@ import CaseSensitivePathsPlugin from "case-sensitive-paths-webpack-plugin";
 import CompressionPlugin from "compression-webpack-plugin";
 import ForkTsCheckerWebpackPlugin from "fork-ts-checker-webpack-plugin";
 import HtmlWebpackPlugin from "html-webpack-plugin";
-import { identity } from "lodash";
+import { identity, uniq } from "lodash";
 import MiniCssExtractPlugin from "mini-css-extract-plugin";
 import path from "path";
 import WatchMissingNodeModulesPlugin from "react-dev-utils/WatchMissingNodeModulesPlugin";
@@ -42,6 +42,12 @@ interface CreateWebpackOptions {
 
 const publicPath = "/";
 
+/** These alias are required in production if you want to keep the profiling tools */
+const reactProfilerAlias = {
+  "react-dom$": "react-dom/profiling",
+  "scheduler/tracing": "scheduler/tracing-profiling",
+};
+
 export default function createWebpackConfig(
   config: Config,
   { appendPlugins = [], watch = false }: CreateWebpackOptions = {}
@@ -54,6 +60,8 @@ export default function createWebpackConfig(
   const generateReport = config.get("generateReport");
 
   const isProduction = env.NODE_ENV === "production";
+  /** Enable react profiler support: https://kentcdodds.com/blog/profile-a-react-app-for-performance  */
+  const profilerSupport = isProduction && config.get("enableReactProfiler");
   const minimize = isProduction && !config.get("disableMinimize");
   const treeShake = isProduction || config.get("enableTreeShake");
   const enableBuildCache = !isProduction;
@@ -93,13 +101,13 @@ export default function createWebpackConfig(
     // Fallback locale if a translation was not found.
     // If not set, will use the text that is already
     // in the code base.
-    fallbackLocale: config.get("defaultLocale"),
+    fallbackLocale: config.get("fallbackLocale"),
 
     // Common fluent files are always included in the locale bundles.
     commonFiles: ["framework.ftl", "common.ftl", "ui.ftl"],
 
     // Locales that come with the main bundle. Others are loaded on demand.
-    bundled: [config.get("defaultLocale")],
+    bundled: uniq([config.get("defaultLocale"), config.get("fallbackLocale")]),
 
     // All available locales can be loadable on demand.
     // To restrict available locales set:
@@ -193,6 +201,8 @@ export default function createWebpackConfig(
                   passes: 2,
                 },
             mangle: minimize,
+            keep_classnames: profilerSupport,
+            keep_fnames: profilerSupport,
             output: {
               comments: !minimize,
               // Turned on because emoji and regex is not minified properly using default
@@ -244,6 +254,7 @@ export default function createWebpackConfig(
           extensions: [".js", ".ts", ".tsx"],
         }),
       ],
+      alias: profilerSupport ? reactProfilerAlias : {},
     },
     resolveLoader: {
       // Add path to our own loaders.
@@ -688,10 +699,7 @@ export default function createWebpackConfig(
         // css here and don't run into: https://github.com/webpack/webpack/issues/7094
         sideEffects: true,
       },
-      entry: [
-        // Polyfills are in the index.ts file.
-        paths.appEmbedIndex,
-      ],
+      entry: [paths.appEmbedPolyfill, paths.appEmbedIndex],
       output: {
         ...baseConfig.output,
         library: "Coral",

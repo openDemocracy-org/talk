@@ -23,19 +23,6 @@ general-tabBar-commentsTab = Комментарии
 general-tabBar-myProfileTab = Профиль
 general-tabBar-configure = Конфигурирование
 
-general-tabBar-aria-comments =
-  .aria-label = Комментарии
-  .title = Комментарии
-general-tabBar-aria-qa =
-  .aria-label = Вопрос/Ответ
-  .title = Вопрос/Ответ
-general-tabBar-aria-myProfile =
-  .aria-label = Профиль
-  .title = Профиль
-general-tabBar-aria-configure =
-  .aria-label = Конфигурирование
-  .title = Конфигурирование
-
 ## Comment Count
 
 comment-count-text =
@@ -117,6 +104,8 @@ comments-permalinkPopover-permalinkToComment =
 comments-permalinkButton-share = Поделиться
 comments-permalinkButton =
   .aria-label = Поделиться
+comments-permalink-copyLink = Скопировать ссылку
+comments-permalink-linkCopied = Ссылка скопирована
 comments-permalinkView-viewFullDiscussion = Показать все
 comments-permalinkView-commentRemovedOrDoesNotExist = Этот комментарий был удален, либо его не существует.
 
@@ -717,7 +706,7 @@ configure-openStream-theStreamIsNowClosed = Комментирование в р
 
 configure-moderateThisStream = Модерировать этот раздел
 
-qa-experimental-tag-tooltip-content =
+qa-experimentalTag-tooltip-content =
   Формат вопросов/ответов в настоящее время находится в активной разработке.
   Пожалуйста, сообщайте нам о любых проблемах при использовании данного функционала.
 

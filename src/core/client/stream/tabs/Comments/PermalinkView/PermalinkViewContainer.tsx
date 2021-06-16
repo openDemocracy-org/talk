@@ -21,6 +21,7 @@ import UserBoxContainer from "coral-stream/common/UserBox";
 import { ViewFullDiscussionEvent } from "coral-stream/events";
 import { SetCommentIDMutation } from "coral-stream/mutations";
 import ReplyListContainer from "coral-stream/tabs/Comments/ReplyList";
+import { CommentEnteredSubscription } from "coral-stream/tabs/Comments/Stream/Subscriptions";
 import { Flex, HorizontalGutter } from "coral-ui/components/v2";
 import { Button, CallOut } from "coral-ui/components/v3";
 
@@ -29,7 +30,7 @@ import { PermalinkViewContainer_settings as SettingsData } from "coral-stream/__
 import { PermalinkViewContainer_story as StoryData } from "coral-stream/__generated__/PermalinkViewContainer_story.graphql";
 import { PermalinkViewContainer_viewer as ViewerData } from "coral-stream/__generated__/PermalinkViewContainer_viewer.graphql";
 
-import CommentEnteredSubscription from "../Stream/AllCommentsTab/CommentEnteredSubscription";
+import { isPublished } from "../helpers";
 import ConversationThreadContainer from "./ConversationThreadContainer";
 
 import styles from "./PermalinkViewContainer.css";
@@ -86,6 +87,8 @@ const PermalinkViewContainer: FunctionComponent<Props> = (props) => {
     return getURLWithCommentID(url, undefined);
   }, [pym]);
 
+  const commentVisible = comment && isPublished(comment.status);
+
   return (
     <HorizontalGutter
       className={cn(styles.root, CLASSES.permalinkView.$root, {
@@ -125,14 +128,14 @@ const PermalinkViewContainer: FunctionComponent<Props> = (props) => {
           </Localized>
         )}
       </Flex>
-      {!comment && (
+      {!commentVisible && (
         <CallOut>
           <Localized id="comments-permalinkView-commentRemovedOrDoesNotExist">
             This comment has been removed or does not exist.
           </Localized>
         </CallOut>
       )}
-      {comment && (
+      {comment && commentVisible && (
         <HorizontalGutter>
           <ConversationThreadContainer
             viewer={viewer}
@@ -147,7 +150,8 @@ const PermalinkViewContainer: FunctionComponent<Props> = (props) => {
               story={story}
               settings={settings}
               liveDirectRepliesInsertion
-              allowTombstoneReveal
+              allowIgnoredTombstoneReveal
+              disableHideIgnoredTombstone
             />
           </div>
         </HorizontalGutter>
@@ -169,6 +173,7 @@ const enhanced = withFragmentContainer<Props>({
   comment: graphql`
     fragment PermalinkViewContainer_comment on Comment {
       id
+      status
       ...ConversationThreadContainer_comment
       ...ReplyListContainer1_comment
     }

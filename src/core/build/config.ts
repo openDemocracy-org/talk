@@ -30,6 +30,12 @@ const config = convict({
     default: "en-US",
     env: "LOCALE",
   },
+  fallbackLocale: {
+    doc: "Specify the default fallback locale to use",
+    format: LOCALES,
+    default: "en-US",
+    env: "FALLBACK_LOCALE",
+  },
   generateReport: {
     doc: "Generate a report using webpack-bundle-analyzer",
     format: Boolean,
@@ -65,6 +71,14 @@ const config = convict({
     env: "WEBPACK_TREESHAKE",
     arg: "enableTreeShake",
   },
+  /** Enable react profiler support: https://kentcdodds.com/blog/profile-a-react-app-for-performance  */
+  enableReactProfiler: {
+    doc: "Enable react profiler in production",
+    format: Boolean,
+    default: false,
+    env: "REACT_PROFILER",
+    arg: "enableReactProfiler",
+  },
   maxCores: {
     doc: "Set maximum of available cores",
     format: "nat",
@@ -76,6 +90,10 @@ const config = convict({
 
 export type Config = typeof config;
 
+/**
+ * createClientEnv returns the environment that will be available inside
+ * the webpack bundle.
+ */
 export const createClientEnv = (c: Config) => ({
   NODE_ENV: c.get("env"),
   WEBPACK: "true",

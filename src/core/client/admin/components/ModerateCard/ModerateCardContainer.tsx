@@ -16,11 +16,16 @@ import {
 import FadeInTransition from "coral-framework/components/FadeInTransition";
 import { getModerationLink } from "coral-framework/helpers";
 import parseModerationOptions from "coral-framework/helpers/parseModerationOptions";
-import { useMutation, withFragmentContainer } from "coral-framework/lib/relay";
+import {
+  useLocal,
+  useMutation,
+  withFragmentContainer,
+} from "coral-framework/lib/relay";
 import {
   GQLFEATURE_FLAG,
   GQLSTORY_MODE,
   GQLTAG,
+  GQLUSER_ROLE,
   GQLUSER_STATUS,
 } from "coral-framework/schema";
 
@@ -30,6 +35,7 @@ import {
 } from "coral-admin/__generated__/ModerateCardContainer_comment.graphql";
 import { ModerateCardContainer_settings } from "coral-admin/__generated__/ModerateCardContainer_settings.graphql";
 import { ModerateCardContainer_viewer } from "coral-admin/__generated__/ModerateCardContainer_viewer.graphql";
+import { ModerateCardContainerLocal } from "coral-admin/__generated__/ModerateCardContainerLocal.graphql";
 
 import BanCommentUserMutation from "./BanCommentUserMutation";
 import FeatureCommentMutation from "./FeatureCommentMutation";
@@ -95,6 +101,14 @@ const ModerateCardContainer: FunctionComponent<Props> = ({
   const unfeatureComment = useMutation(UnfeatureCommentMutation);
   const banUser = useMutation(BanCommentUserMutation);
 
+  const [{ moderationQueueSort }] = useLocal<
+    ModerateCardContainerLocal
+  >(graphql`
+    fragment ModerateCardContainerLocal on Local {
+      moderationQueueSort
+    }
+  `);
+
   const scoped = useMemo(
     () =>
       settings.featureFlags.includes(GQLFEATURE_FLAG.SITE_MODERATOR) &&
@@ -125,11 +139,20 @@ const ModerateCardContainer: FunctionComponent<Props> = ({
       storyID,
       siteID,
       section,
+      orderBy: moderationQueueSort,
     });
     if (loadNext) {
       loadNext();
     }
-  }, [approveComment, comment, match, readOnly]);
+  }, [
+    approveComment,
+    comment.id,
+    comment.revision,
+    loadNext,
+    match,
+    readOnly,
+    moderationQueueSort,
+  ]);
 
   const handleReject = useCallback(async () => {
     if (!comment.revision) {
@@ -148,11 +171,20 @@ const ModerateCardContainer: FunctionComponent<Props> = ({
       storyID,
       siteID,
       section,
+      orderBy: moderationQueueSort,
     });
     if (loadNext) {
       loadNext();
     }
-  }, [rejectComment, comment, match, readOnly]);
+  }, [
+    comment.revision,
+    comment.id,
+    readOnly,
+    match,
+    rejectComment,
+    loadNext,
+    moderationQueueSort,
+  ]);
 
   const handleFeature = useCallback(() => {
     if (!comment.revision) {
@@ -171,8 +203,9 @@ const ModerateCardContainer: FunctionComponent<Props> = ({
       storyID,
       siteID,
       section,
+      orderBy: moderationQueueSort,
     });
-  }, [featureComment, comment, match, readOnly]);
+  }, [featureComment, comment, match, readOnly, moderationQueueSort]);
 
   const handleUnfeature = useCallback(() => {
     if (readOnly) {
@@ -229,7 +262,7 @@ const ModerateCardContainer: FunctionComponent<Props> = ({
     if (setSelected) {
       setSelected();
     }
-  }, [selected, comment]);
+  }, [setSelected]);
 
   const handleBanModalClose = useCallback(() => {
     setShowBanModal(false);
@@ -247,12 +280,17 @@ const ModerateCardContainer: FunctionComponent<Props> = ({
   }, [comment, setShowBanModal]);
 
   const handleBanConfirm = useCallback(
-    async (rejectExistingComments: boolean, message: string) => {
+    async (
+      rejectExistingComments: boolean,
+      message: string,
+      siteIDs: string[] | null | undefined
+    ) => {
       if (comment.author) {
         await banUser({
           userID: comment.author.id,
           message,
           rejectExistingComments,
+          siteIDs,
         });
       }
       setShowBanModal(false);
@@ -347,6 +385,16 @@ const ModerateCardContainer: FunctionComponent<Props> = ({
         open={showBanModal}
         onClose={handleBanModalClose}
         onConfirm={handleBanConfirm}
+        viewerScopes={{
+          role: viewer.role,
+          sites: viewer.moderationScopes?.sites?.map((s) => s),
+        }}
+        userScopes={{
+          role: comment.author ? comment.author.role : GQLUSER_ROLE.COMMENTER,
+          sites: comment.author
+            ? comment.author.status.ban.sites?.map((s) => s)
+            : [],
+        }}
       />
     </>
   );
@@ -361,7 +409,14 @@ const enhanced = withFragmentContainer<Props>({
         username
         status {
           current
+          ban {
+            sites {
+              id
+              name
+            }
+          }
         }
+        role
       }
       statusLiveUpdated
       createdAt
@@ -430,8 +485,13 @@ const enhanced = withFragmentContainer<Props>({
   `,
   viewer: graphql`
     fragment ModerateCardContainer_viewer on User {
+      role
       moderationScopes {
         scoped
+        sites {
+          id
+          name
+        }
       }
     }
   `,

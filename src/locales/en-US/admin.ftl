@@ -35,9 +35,16 @@ comments-reacted =
 ## User Statuses
 userStatus-active = Active
 userStatus-banned = Banned
+userStatus-siteBanned = Site banned
+userStatus-banned-all = Banned (all)
+userStatus-banned-count = Banned ({$count})
 userStatus-suspended = Suspended
 userStatus-premod = Always pre-moderate
 userStatus-warned = Warned
+
+# Queue Sort
+queue-sortMenu-newest = Newest
+queue-sortMenu-oldest = Oldest
 
 ## Navigation
 navigation-moderate = Moderate
@@ -824,6 +831,8 @@ configure-advanced-embedCode-comment =
   https://docs.coralproject.net for all the configuration
   options.
 
+
+
 ## Decision History
 decisionHistory-popover =
   .description = A dialog showing the decision history
@@ -999,6 +1008,8 @@ moderate-user-drawer-account-history-suspension-ended = Suspension ended
 moderate-user-drawer-account-history-suspension-removed = Suspension removed
 moderate-user-drawer-account-history-banned = Banned
 moderate-user-drawer-account-history-ban-removed = Ban removed
+moderate-user-drawer-account-history-site-banned = Site banned
+moderate-user-drawer-account-history-site-ban-removed = Site ban removed
 moderate-user-drawer-account-history-no-history = No actions have been taken on this account
 moderate-user-drawer-username-change = Username change
 moderate-user-drawer-username-change-new = New:
@@ -1119,6 +1130,7 @@ community-userStatus-removeBan = Remove Ban
 community-userStatus-removeUserBan = Remove ban
 community-userStatus-suspendUser = Suspend User
 community-userStatus-suspend = Suspend
+community-userStatus-suspendEverywhere = Suspend everywhere
 community-userStatus-removeSuspension = Remove Suspension
 community-userStatus-removeUserSuspension = Remove suspension
 community-userStatus-unknown = Unknown
@@ -1135,6 +1147,11 @@ community-banModal-cancel = Cancel
 community-banModal-banUser = Ban User
 community-banModal-customize = Customize ban email message
 community-banModal-reject-existing = Reject all comments by this user
+
+community-banModal-noSites = No sites
+community-banModal-banFrom = Ban from
+community-banModal-allSites = All sites
+community-banModal-specificSites = Specific sites
 
 community-suspendModal-areYouSure = Suspend <strong>{ $username }</strong>?
 community-suspendModal-consequence =
@@ -1212,6 +1229,7 @@ community-warnModal-message-description = Explain to this user how they should c
 community-warnModal-cancel = Cancel
 community-warnModal-warnUser = Warn user
 community-userStatus-warn = Warn
+community-userStatus-warnEverywhere = Warn everywhere
 
 ## Stories
 stories-emptyMessage = There are currently no published stories.
@@ -1360,6 +1378,11 @@ configure-advanced-stories-custom-user-agent-detail =
   When specified, overrides the <code>User-Agent</code> header sent with each
   scrape request.
 
+configure-advanced-stories-authentication = Authentication
+configure-advanced-stories-scrapingCredentialsHeader = Scraping credentials
+configure-advanced-stories-scraping-usernameLabel = Username
+configure-advanced-stories-scraping-passwordLabel = Password
+
 commentAuthor-status-banned = Banned
 commentAuthor-status-premod = Pre-mod
 commentAuthor-status-suspended = Suspended
@@ -1405,3 +1428,10 @@ dashboard-commenters-activity-heading = New community members this week
 dashboard-comment-activity-heading = Hourly comment activity
 dashboard-comment-activity-tooltip-comments = Comments
 dashboard-comment-activity-legend = Average last 3 days
+
+conversation-modal-conversationOn = Conversation on:
+conversation-modal-moderateStory = Moderate story
+conversation-modal-showMoreParents = Show more of this conversation
+conversation-modal-showReplies = Show replies
+conversation-modal-commentNotFound = Comment not found.
+conversation-modal-showMoreReplies = Show more replies

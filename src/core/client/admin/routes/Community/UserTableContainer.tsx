@@ -7,7 +7,11 @@ import {
   useRefetch,
   withPaginationContainer,
 } from "coral-framework/lib/relay";
-import { GQLUSER_ROLE_RL, GQLUSER_STATUS_RL } from "coral-framework/schema";
+import {
+  GQLFEATURE_FLAG,
+  GQLUSER_ROLE_RL,
+  GQLUSER_STATUS_FILTER_RL,
+} from "coral-framework/schema";
 import { HorizontalGutter } from "coral-ui/components/v2";
 
 import { UserTableContainer_query as QueryData } from "coral-admin/__generated__/UserTableContainer_query.graphql";
@@ -29,14 +33,21 @@ const UserTableContainer: FunctionComponent<Props> = (props) => {
   const [loadMore, isLoadingMore] = useLoadMore(props.relay, 10);
   const [searchFilter, setSearchFilter] = useState<string>("");
   const [roleFilter, setRoleFilter] = useState<GQLUSER_ROLE_RL | null>(null);
-  const [statusFilter, setStatusFilter] = useState<GQLUSER_STATUS_RL | null>(
-    null
-  );
-  const [, isRefetching] = useRefetch(props.relay, {
+  const [
+    statusFilter,
+    setStatusFilter,
+  ] = useState<GQLUSER_STATUS_FILTER_RL | null>(null);
+  const [, isRefetching] = useRefetch(props.relay, 10, {
     searchFilter: searchFilter || null,
     roleFilter,
     statusFilter,
   });
+
+  const moderationScopesEnabled = !!(
+    props?.query?.settings.featureFlags.includes(
+      GQLFEATURE_FLAG.SITE_MODERATOR
+    ) && props?.query?.settings.multisite
+  );
 
   return (
     <IntersectionProvider>
@@ -50,6 +61,7 @@ const UserTableContainer: FunctionComponent<Props> = (props) => {
           searchFilter={searchFilter}
           viewer={props.query && props.query.viewer}
           settings={props.query && props.query.settings}
+          moderationScopesEnabled={moderationScopesEnabled}
         />
         <UserTable
           viewer={props.query && props.query.viewer}
@@ -78,10 +90,10 @@ const enhanced = withPaginationContainer<
     query: graphql`
       fragment UserTableContainer_query on Query
         @argumentDefinitions(
-          count: { type: "Int!", defaultValue: 10 }
+          count: { type: "Int", defaultValue: 10 }
           cursor: { type: "Cursor" }
           roleFilter: { type: "USER_ROLE" }
-          statusFilter: { type: "USER_STATUS" }
+          statusFilter: { type: "USER_STATUS_FILTER" }
           searchFilter: { type: "String" }
         ) {
         viewer {
@@ -89,6 +101,8 @@ const enhanced = withPaginationContainer<
           ...InviteUsersContainer_viewer
         }
         settings {
+          multisite
+          featureFlags
           ...InviteUsersContainer_settings
           ...UserRowContainer_settings
         }
@@ -111,16 +125,8 @@ const enhanced = withPaginationContainer<
     `,
   },
   {
-    direction: "forward",
     getConnectionFromProps(props) {
       return props.query && props.query.users;
-    },
-    // This is also the default implementation of `getFragmentVariables` if it isn't provided.
-    getFragmentVariables(prevVars, totalCount) {
-      return {
-        ...prevVars,
-        count: totalCount,
-      };
     },
     getVariables(props, { count, cursor }, fragmentVariables) {
       return {
@@ -138,7 +144,7 @@ const enhanced = withPaginationContainer<
         $count: Int!
         $cursor: Cursor
         $roleFilter: USER_ROLE
-        $statusFilter: USER_STATUS
+        $statusFilter: USER_STATUS_FILTER
         $searchFilter: String
       ) {
         ...UserTableContainer_query

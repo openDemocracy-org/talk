@@ -525,6 +525,18 @@ enum FEATURE_FLAG {
   ENABLE_AMP will enable support for embedding Coral within AMP pages.
   """
   ENABLE_AMP
+
+  """
+  DISABLE_LIVE_UPDATES will disable live updates at the tenant level and
+  overrides the configuration option available in the Admin UI for that tenant.
+  """
+  DISABLE_LIVE_UPDATES
+
+  """
+  EMAIL_META will add the email template context as a header to the SMTP as the
+  `X-Coral-Template` header.
+  """
+  EMAIL_META
 }
 
 # The moderation mode of the site.
@@ -598,6 +610,7 @@ type ModerationQueue {
   comments(
     first: Int = 10 @constraint(max: 50)
     after: Cursor
+    orderBy: COMMENT_SORT = CREATED_AT_DESC
   ): CommentsConnection!
 }
 
@@ -1552,6 +1565,22 @@ type StoryScrapingConfiguration {
   requests made during the scraping process.
   """
   customUserAgent: String
+
+  """
+  authentication is whether alternative authentication credentials have been
+  provided for scraping activities.
+  """
+  authentication: Boolean!
+
+  """
+  username is the username to use with basic authentication for scraping jobs.
+  """
+  username: String
+
+  """
+  password is the password to use with basic authentication for scraping jobs.
+  """
+  password: String
 }
 
 """
@@ -2107,6 +2136,11 @@ type BanStatusHistory {
   message is sent to banned user via email.
   """
   message: String!
+
+  """
+  sites are set when the ban was created to perform a site specific ban.
+  """
+  sites: [Site!]
 }
 
 """
@@ -2117,6 +2151,11 @@ type BanStatus {
   active when true, indicates that the given user is banned.
   """
   active: Boolean!
+
+  """
+  sites is a list of sites that the user has been site banned on.
+  """
+  sites: [Site!]
 
   """
   history is the list of all ban events against a specific User.
@@ -2361,6 +2400,38 @@ type UserStatus {
       roles: [ADMIN, MODERATOR]
       permit: [SUSPENDED, BANNED, PENDING_DELETION, WARNED]
     )
+}
+
+enum USER_STATUS_FILTER {
+  """
+  ACTIVE is used when a User is not suspended or banned.
+  """
+  ACTIVE
+
+  """
+  BANNED is used when a User is banned.
+  """
+  BANNED
+
+  """
+  SUSPENDED is used when a User is currently suspended.
+  """
+  SUSPENDED
+
+  """
+  PREMOD is used when a User is currently set to require pre-moderation.
+  """
+  PREMOD
+
+  """
+  WARNED is used when a user has been warned about behaviour and has not acknowledged
+  """
+  WARNED
+
+  """
+  SITE_BANNED is used when a User is site banned.
+  """
+  SITE_BANNED
 }
 
 """
@@ -2705,6 +2776,7 @@ type User {
   notifications: UserNotificationSettings!
     @auth(
       userIDField: "id"
+      roles: [ADMIN]
       permit: [SUSPENDED, BANNED, PENDING_DELETION, WARNED]
     )
 
@@ -3230,27 +3302,29 @@ type CommentTagCounts {
 }
 
 """
-Comment is a comment left by a User on an Story or another Comment as a reply.
+Comment is a comment left by a [User](/reference/object/User) on an
+[Story](/reference/object/Story) or another [Comment](/reference/object/Comment)
+as a reply.
 """
 type Comment @cacheControl(maxAge: 5) {
   """
-  id is the identifier of the Comment.
+  id is the identifier of the [Comment](/reference/object/Comment).
   """
   id: ID!
 
   """
-  body is the content of the Comment, and is an alias to the body of the
-  `currentRevision.body`.
+  body is the content of the [Comment](/reference/object/Comment), and is an alias to the body of the
+  `revision.body`.
   """
   body: String
 
   """
-  revision is the current revision of the Comment's body.
+  revision is the current revision of the [Comment](/reference/object/Comment)'s body.
   """
   revision: CommentRevision
 
   """
-  revisionHistory stores the previous CommentRevision's, with the most recent
+  revisionHistory stores the previous [CommentRevision](/reference/object/CommentRevision)'s, with the most recent
   edit last.
   """
   revisionHistory: [CommentRevision!]!
@@ -3892,6 +3966,7 @@ type Query {
     section: SectionFilter
     tag: TAG
     query: String
+    orderBy: COMMENT_SORT = CREATED_AT_DESC
   ): CommentsConnection! @auth(roles: [ADMIN, MODERATOR])
 
   """
@@ -3933,7 +4008,7 @@ type Query {
     after: Cursor
     role: USER_ROLE
     query: String
-    status: USER_STATUS
+    status: USER_STATUS_FILTER
   ): UsersConnection! @auth(roles: [ADMIN, MODERATOR])
 
   site(id: ID!): Site @auth(roles: [ADMIN, MODERATOR])
@@ -4764,6 +4839,22 @@ input StoryScrapingConfigurationInput {
   requests made during the scraping process.
   """
   customUserAgent: String
+
+  """
+  authentication is whether alternative authentication credentials have been
+  provided for scraping activities.
+  """
+  authentication: Boolean!
+
+  """
+  username is the username to use with basic authentication for scraping jobs.
+  """
+  username: String
+
+  """
+  password is the password to use with basic authentication for scraping jobs.
+  """
+  password: String
 }
 
 """
@@ -6890,7 +6981,7 @@ input ModerationScopesInput {
   siteIDs is an array of ID's that should be the list of sites that a moderator
   is limited to. If none are passed, it will remove the scoping for this User.
   """
-  siteIDs: [String!]
+  siteIDs: [ID!]
 }
 
 input UpdateUserModerationScopesInput {
@@ -7099,6 +7190,11 @@ input BanUserInput {
   message is sent to banned user via email.
   """
   message: String!
+
+  """
+  site ID's to scope the ban to.
+  """
+  siteIDs: [ID!]
 
   """
   whether or not to reject all the user's previous comments when banning them.
@@ -8071,7 +8167,7 @@ type Mutation {
   banUser will ban a specific User from interacting with Comments.
   """
   banUser(input: BanUserInput!): BanUserPayload!
-    @auth(roles: [ADMIN, MODERATOR], unscoped: true)
+    @auth(roles: [ADMIN, MODERATOR])
 
   """
   removeUserBan will remove an active ban from a User if they have one.
@@ -8461,6 +8557,7 @@ type Subscription {
     storyID: ID
     siteID: ID
     section: SectionFilter
+    orderBy: COMMENT_SORT
     queue: MODERATION_QUEUE
   ): CommentEnteredModerationQueuePayload! @auth(roles: [MODERATOR, ADMIN])
 
@@ -8472,6 +8569,7 @@ type Subscription {
     storyID: ID
     siteID: ID
     section: SectionFilter
+    orderBy: COMMENT_SORT
     queue: MODERATION_QUEUE
   ): CommentLeftModerationQueuePayload! @auth(roles: [MODERATOR, ADMIN])
 

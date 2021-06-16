@@ -4,6 +4,7 @@ export const ERROR_TRANSLATIONS: Record<ERROR_CODES, string> = {
   COMMENT_BODY_EXCEEDS_MAX_LENGTH: "error-commentBodyExceedsMaxLength",
   COMMENT_BODY_TOO_SHORT: "error-commentBodyTooShort",
   COMMENT_NOT_FOUND: "error-commentNotFound",
+  COMMENT_REVISION_NOT_FOUND: "error-commentRevisionNotFound",
   COMMENTING_DISABLED: "error-commentingDisabled",
   DUPLICATE_EMAIL: "error-duplicateEmail",
   DUPLICATE_STORY_ID: "error-duplicateStoryID",
@@ -40,6 +41,7 @@ export const ERROR_TRANSLATIONS: Record<ERROR_CODES, string> = {
   USER_ALREADY_SUSPENDED: "error-userAlreadySuspended",
   USER_ALREADY_BANNED: "error-userAlreadyBanned",
   USER_BANNED: "error-userBanned",
+  USER_SITE_BANNED: "error-userSiteBanned",
   USER_SUSPENDED: "error-userSuspended",
   USER_WARNED: "error-userWarned",
   INTEGRATION_DISABLED: "error-integrationDisabled",
@@ -63,4 +65,5 @@ export const ERROR_TRANSLATIONS: Record<ERROR_CODES, string> = {
   VALIDATION: "error-validation",
   USER_BIO_TOO_LONG: "error-userBioTooLong",
   COMMENT_EDIT_WINDOW_EXPIRED: "error-commentEditWindowExpired",
+  AUTHOR_ALREADY_HAS_RATED_STORY: "error-authorAlreadyHasRatedStory",
 };

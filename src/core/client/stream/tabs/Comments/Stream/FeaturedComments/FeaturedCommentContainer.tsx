@@ -7,14 +7,14 @@ import { getURLWithCommentID } from "coral-framework/helpers";
 import { useViewerEvent } from "coral-framework/lib/events";
 import { useMutation } from "coral-framework/lib/relay";
 import withFragmentContainer from "coral-framework/lib/relay/withFragmentContainer";
-import { GQLUSER_STATUS } from "coral-framework/schema";
+import { GQLSTORY_MODE, GQLUSER_STATUS } from "coral-framework/schema";
 import CLASSES from "coral-stream/classes";
 import HTMLContent from "coral-stream/common/HTMLContent";
 import Timestamp from "coral-stream/common/Timestamp";
 import { ViewConversationEvent } from "coral-stream/events";
 import { SetCommentIDMutation } from "coral-stream/mutations";
 import { Box, Flex, HorizontalGutter, Icon } from "coral-ui/components/v2";
-import { Button } from "coral-ui/components/v3";
+import { Button, StarRating } from "coral-ui/components/v3";
 
 import { FeaturedCommentContainer_comment as CommentData } from "coral-stream/__generated__/FeaturedCommentContainer_comment.graphql";
 import { FeaturedCommentContainer_settings as SettingsData } from "coral-stream/__generated__/FeaturedCommentContainer_settings.graphql";
@@ -25,6 +25,7 @@ import { UserTagsContainer } from "../../Comment";
 import MediaSectionContainer from "../../Comment/MediaSection";
 import ReactionButtonContainer from "../../Comment/ReactionButton";
 import { UsernameWithPopoverContainer } from "../../Comment/Username";
+import IgnoredTombstoneOrHideContainer from "../../IgnoredTombstoneOrHideContainer";
 
 import styles from "./FeaturedCommentContainer.css";
 
@@ -38,9 +39,10 @@ interface Props {
 const FeaturedCommentContainer: FunctionComponent<Props> = (props) => {
   const { comment, settings, story, viewer } = props;
   const setCommentID = useMutation(SetCommentIDMutation);
-  const banned = Boolean(
-    viewer && viewer.status.current.includes(GQLUSER_STATUS.BANNED)
-  );
+  const isBanned = !!viewer?.status.current.includes(GQLUSER_STATUS.BANNED);
+  const isRatingsAndReviews =
+    story.settings.mode === GQLSTORY_MODE.RATINGS_AND_REVIEWS;
+
   const emitViewConversationEvent = useViewerEvent(ViewConversationEvent);
   const onGotoConversation = useCallback(
     (e: MouseEvent) => {
@@ -56,104 +58,109 @@ const FeaturedCommentContainer: FunctionComponent<Props> = (props) => {
   );
 
   return (
-    <div
-      className={cn(CLASSES.featuredComment.$root, styles.root)}
-      data-testid={`featuredComment-${comment.id}`}
-    >
-      <HorizontalGutter>
-        <HTMLContent
-          className={cn(styles.body, CLASSES.featuredComment.content)}
-        >
-          {comment.body || ""}
-        </HTMLContent>
-        <MediaSectionContainer
-          comment={comment}
-          settings={settings}
-          defaultExpanded={viewer?.mediaSettings?.unfurlEmbeds}
-        />
-      </HorizontalGutter>
-      <Flex
-        direction="row"
-        alignItems="center"
-        mt={3}
-        className={CLASSES.featuredComment.authorBar.$root}
+    <IgnoredTombstoneOrHideContainer viewer={props.viewer} comment={comment}>
+      <div
+        className={cn(CLASSES.featuredComment.$root, styles.root)}
+        data-testid={`featuredComment-${comment.id}`}
       >
-        {comment.author && (
-          <UsernameWithPopoverContainer
-            className={CLASSES.featuredComment.authorBar.username}
-            usernameClassName={styles.username}
-            comment={comment}
-            viewer={viewer}
-            settings={settings}
-          />
-        )}
-        <Box ml={1} container="span">
-          <UserTagsContainer
-            className={CLASSES.featuredComment.authorBar.userTag}
-            story={story}
-            comment={comment}
-            settings={settings}
-          />
-        </Box>
-        <Box ml={2}>
-          <Timestamp className={CLASSES.featuredComment.authorBar.timestamp}>
-            {comment.createdAt}
-          </Timestamp>
-        </Box>
-      </Flex>
-      <Flex
-        justifyContent="space-between"
-        mt={2}
-        className={CLASSES.featuredComment.actionBar.$root}
-      >
-        <ReactionButtonContainer
-          comment={comment}
-          settings={settings}
-          viewer={viewer}
-          readOnly={banned}
-          className={CLASSES.featuredComment.actionBar.reactButton}
-          reactedClassName={CLASSES.featuredComment.actionBar.reactedButton}
-        />
-        <Flex alignItems="center">
-          {comment.replyCount > 0 && (
-            <Flex
-              alignItems="center"
-              className={cn(
-                styles.replies,
-                CLASSES.featuredComment.actionBar.replies
-              )}
-            >
-              <Icon size="sm">comment</Icon>
-              <Localized id="comments-featured-replies">
-                <Box mx={1}>Replies</Box>
-              </Localized>
-              <Box>{comment.replyCount}</Box>
-            </Flex>
+        <HorizontalGutter>
+          {isRatingsAndReviews && comment.rating && (
+            <StarRating rating={comment.rating} />
           )}
+          <HTMLContent
+            className={cn(styles.body, CLASSES.featuredComment.content)}
+          >
+            {comment.body || ""}
+          </HTMLContent>
+          <MediaSectionContainer
+            comment={comment}
+            settings={settings}
+            defaultExpanded={viewer?.mediaSettings?.unfurlEmbeds}
+          />
+        </HorizontalGutter>
+        <Flex
+          direction="row"
+          alignItems="center"
+          mt={3}
+          className={CLASSES.featuredComment.authorBar.$root}
+        >
+          {comment.author && (
+            <UsernameWithPopoverContainer
+              className={CLASSES.featuredComment.authorBar.username}
+              usernameClassName={styles.username}
+              comment={comment}
+              viewer={viewer}
+              settings={settings}
+            />
+          )}
+          <Box ml={1} container="span">
+            <UserTagsContainer
+              className={CLASSES.featuredComment.authorBar.userTag}
+              story={story}
+              comment={comment}
+              settings={settings}
+            />
+          </Box>
+          <Box ml={2}>
+            <Timestamp className={CLASSES.featuredComment.authorBar.timestamp}>
+              {comment.createdAt}
+            </Timestamp>
+          </Box>
+        </Flex>
+        <Flex
+          justifyContent="space-between"
+          mt={2}
+          className={CLASSES.featuredComment.actionBar.$root}
+        >
+          <ReactionButtonContainer
+            comment={comment}
+            settings={settings}
+            viewer={viewer}
+            readOnly={isBanned}
+            className={CLASSES.featuredComment.actionBar.reactButton}
+            reactedClassName={CLASSES.featuredComment.actionBar.reactedButton}
+          />
           <Flex alignItems="center">
-            <Button
-              className={cn(
-                CLASSES.featuredComment.actionBar.goToConversation,
-                styles.gotoConversation
-              )}
-              variant="flat"
-              fontSize="small"
-              color="none"
-              paddingSize="none"
-              onClick={onGotoConversation}
-              href={getURLWithCommentID(story.url, comment.id)}
-            >
-              <Icon size="sm" className={styles.icon}>
-                forum
-              </Icon>
-              <Localized id="comments-featured-gotoConversation">
-                <span>Go to conversation</span>
-              </Localized>
-            </Button>
+            {comment.replyCount > 0 && (
+              <Flex
+                alignItems="center"
+                className={cn(
+                  styles.replies,
+                  CLASSES.featuredComment.actionBar.replies
+                )}
+              >
+                <Icon size="sm">comment</Icon>
+                <Localized id="comments-featured-replies">
+                  <Box mx={1}>Replies</Box>
+                </Localized>
+                <Box>{comment.replyCount}</Box>
+              </Flex>
+            )}
+            <Flex alignItems="center">
+              <Button
+                className={cn(
+                  CLASSES.featuredComment.actionBar.goToConversation,
+                  styles.gotoConversation
+                )}
+                variant="flat"
+                fontSize="small"
+                color="none"
+                paddingSize="none"
+                onClick={onGotoConversation}
+                href={getURLWithCommentID(story.url, comment.id)}
+              >
+                <Icon size="sm" className={styles.icon}>
+                  forum
+                </Icon>
+                <Localized id="comments-featured-gotoConversation">
+                  <span>Go to conversation</span>
+                </Localized>
+              </Button>
+            </Flex>
           </Flex>
         </Flex>
-      </Flex>
-    </div>
+      </div>
+    </IgnoredTombstoneOrHideContainer>
   );
 };
 
@@ -173,6 +180,7 @@ const enhanced = withFragmentContainer<Props>({
       role
       ...UsernameWithPopoverContainer_viewer
       ...ReactionButtonContainer_viewer
+      ...IgnoredTombstoneOrHideContainer_viewer
     }
   `,
   story: graphql`
@@ -182,6 +190,9 @@ const enhanced = withFragmentContainer<Props>({
         tags {
           FEATURED
         }
+      }
+      settings {
+        mode
       }
       ...UserTagsContainer_story
     }
@@ -198,6 +209,7 @@ const enhanced = withFragmentContainer<Props>({
           username
         }
       }
+      rating
       body
       createdAt
       lastViewerAction
@@ -206,6 +218,7 @@ const enhanced = withFragmentContainer<Props>({
       ...ReactionButtonContainer_comment
       ...MediaSectionContainer_comment
       ...UserTagsContainer_comment
+      ...IgnoredTombstoneOrHideContainer_comment
     }
   `,
   settings: graphql`
