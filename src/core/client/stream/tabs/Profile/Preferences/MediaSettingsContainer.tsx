@@ -6,7 +6,11 @@ import { Field, Form } from "react-final-form";
 import { graphql } from "react-relay";
 
 import { InvalidRequestError } from "coral-framework/lib/errors";
-import { useMutation, withFragmentContainer } from "coral-framework/lib/relay";
+import {
+  MutationInput,
+  useMutation,
+  withFragmentContainer,
+} from "coral-framework/lib/relay";
 import CLASSES from "coral-stream/classes";
 import {
   CheckBox,
@@ -20,6 +24,7 @@ import { Button, CallOut } from "coral-ui/components/v3";
 
 import { MediaSettingsContainer_settings } from "coral-stream/__generated__/MediaSettingsContainer_settings.graphql";
 import { MediaSettingsContainer_viewer } from "coral-stream/__generated__/MediaSettingsContainer_viewer.graphql";
+import { UpdateUserMediaSettingsMutation as UpdateUserMediaSettingsMutationValues } from "coral-stream/__generated__/UpdateUserMediaSettingsMutation.graphql";
 
 import UpdateUserMediaSettingsMutation from "./UpdateUserMediaSettingsMutation";
 
@@ -44,7 +49,7 @@ const MediaSettingsContainer: FunctionComponent<Props> = ({
     setShowError(false);
   }, [setShowError]);
   const onSubmit = useCallback(
-    async (values) => {
+    async (values: MutationInput<UpdateUserMediaSettingsMutationValues>) => {
       try {
         await updateMediaSettings(values);
         setShowSuccess(true);
@@ -75,7 +80,10 @@ const MediaSettingsContainer: FunctionComponent<Props> = ({
 
   return (
     <>
-      <HorizontalGutter>
+      <HorizontalGutter
+        container="section"
+        aria-labelledby="profile-preferences-mediaPreferences-title"
+      >
         <Form initialValues={viewer.mediaSettings} onSubmit={onSubmit}>
           {({
             handleSubmit,
@@ -86,7 +94,12 @@ const MediaSettingsContainer: FunctionComponent<Props> = ({
           }) => (
             <form className={styles.form} onSubmit={handleSubmit}>
               <Localized id="profile-preferences-mediaPreferences">
-                <div className={styles.title}>Media Preferences</div>
+                <div
+                  className={styles.title}
+                  id="profile-preferences-mediaPreferences-title"
+                >
+                  Media Preferences
+                </div>
               </Localized>
               <div className={styles.options}>
                 <FieldSet>
@@ -138,6 +151,7 @@ const MediaSettingsContainer: FunctionComponent<Props> = ({
                       icon={<Icon size="sm">warning</Icon>}
                       titleWeight="semiBold"
                       title={<span>{submitError}</span>}
+                      role="alert"
                     />
                   )}
                   {submitSucceeded && showSuccess && (
@@ -151,6 +165,7 @@ const MediaSettingsContainer: FunctionComponent<Props> = ({
                           <span>Your media preferences have been updated</span>
                         </Localized>
                       }
+                      aria-live="polite"
                     />
                   )}
                 </div>

@@ -1,25 +1,30 @@
 import Queue from "bull";
-import { Db } from "mongodb";
 
+import { MongoContext } from "coral-server/data/context";
 import { createTimer } from "coral-server/helpers";
 import logger from "coral-server/logger";
-import {
-  Comment,
-  getLatestRevision,
-  retrieveAllCommentsUserConnection,
-} from "coral-server/models/comment";
+import { Comment, getLatestRevision } from "coral-server/models/comment";
 import { Connection } from "coral-server/models/helpers";
+import { Tenant } from "coral-server/models/tenant";
 import Task, { JobProcessor } from "coral-server/queue/Task";
+import {
+  moderate,
+  retrieveAllCommentsUserConnection,
+  retrieveCommentsBySitesUserConnection,
+} from "coral-server/services/comments";
 import { AugmentedRedis } from "coral-server/services/redis";
 import { TenantCache } from "coral-server/services/tenant/cache";
-import { rejectComment } from "coral-server/stacks";
 
-import { GQLCOMMENT_SORT } from "coral-server/graph/schema/__generated__/types";
+import {
+  GQLCOMMENT_SORT,
+  GQLCOMMENT_STATUS,
+} from "coral-server/graph/schema/__generated__/types";
+import { rejectComment } from "coral-server/stacks";
 
 const JOB_NAME = "rejector";
 
 export interface RejectorProcessorOptions {
-  mongo: Db;
+  mongo: MongoContext;
   redis: AugmentedRedis;
   tenantCache: TenantCache;
 }
@@ -28,61 +33,129 @@ export interface RejectorData {
   authorID: string;
   moderatorID: string;
   tenantID: string;
+  siteIDs?: string[];
 }
 
 function getBatch(
-  mongo: Db,
+  mongo: MongoContext,
   tenantID: string,
   authorID: string,
-  connection?: Readonly<Connection<Readonly<Comment>>>
+  siteIDs?: string[],
+  connection?: Readonly<Connection<Readonly<Comment>>>,
+  isArchived = false
 ) {
-  return retrieveAllCommentsUserConnection(mongo, tenantID, authorID, {
+  const connectionInput = {
     orderBy: GQLCOMMENT_SORT.CREATED_AT_DESC,
     first: 100,
     after: connection ? connection.pageInfo.endCursor : undefined,
-  });
+  };
+  if (siteIDs) {
+    return retrieveCommentsBySitesUserConnection(
+      mongo,
+      tenantID,
+      authorID,
+      siteIDs,
+      connectionInput,
+      isArchived
+    );
+  }
+  return retrieveAllCommentsUserConnection(
+    mongo,
+    tenantID,
+    authorID,
+    connectionInput,
+    isArchived
+  );
 }
 
-const createJobProcessor = ({
-  mongo,
-  redis,
-  tenantCache,
-}: RejectorProcessorOptions): JobProcessor<RejectorData> => async (job) => {
-  // Pull out the job data.
-  const { authorID, moderatorID, tenantID } = job.data;
-  const log = logger.child(
-    {
-      jobID: job.id,
-      jobName: JOB_NAME,
-      authorID,
-      moderatorID,
-      tenantID,
-    },
-    true
-  );
-  // Mark the start time.
-  const timer = createTimer();
-
-  log.debug("starting to reject author comments");
-
-  // Get the tenant.
-  const tenant = await tenantCache.retrieveByID(tenantID);
-  if (!tenant) {
-    log.error("referenced tenant was not found");
-    return;
-  }
-
+const rejectArchivedComments = async (
+  mongo: MongoContext,
+  redis: AugmentedRedis,
+  tenant: Readonly<Tenant>,
+  authorID: string,
+  moderatorID: string,
+  siteIDs?: string[]
+) => {
   // Get the current time.
-  const currentTime = new Date();
+  const now = new Date();
 
   // Find all comments written by the author that should be rejected.
-  let connection = await getBatch(mongo, tenantID, authorID);
+  let connection = await getBatch(
+    mongo,
+    tenant.id,
+    authorID,
+    siteIDs,
+    undefined,
+    true
+  );
   while (connection.nodes.length > 0) {
     for (const comment of connection.nodes) {
       // Get the latest revision of the comment.
       const revision = getLatestRevision(comment);
+      const input = {
+        commentID: comment.id,
+        commentRevisionID: revision.id,
+        status: GQLCOMMENT_STATUS.REJECTED,
+        moderatorID,
+      };
 
-      // Reject the comment.
+      const updateAllCommentCountsArgs = {
+        // Rejecting a comment does not change the action counts.
+        actionCounts: {},
+        options: {
+          updateShared: false,
+          updateSite: false,
+          updateStory: true,
+          updateUser: true,
+        },
+      };
+
+      const { result } = await moderate(
+        mongo,
+        redis,
+        tenant,
+        input,
+        now,
+        true,
+        updateAllCommentCountsArgs
+      );
+      if (!result.after) {
+        continue;
+      }
+    }
+    // If there was not another page, abort processing.
+    if (!connection.pageInfo.hasNextPage) {
+      break;
+    }
+    // Load the next page.
+    connection = await getBatch(
+      mongo,
+      tenant.id,
+      authorID,
+      siteIDs,
+      connection,
+      true
+    );
+  }
+};
+
+const rejectLiveComments = async (
+  mongo: MongoContext,
+  redis: AugmentedRedis,
+  tenant: Readonly<Tenant>,
+  authorID: string,
+  moderatorID: string,
+  siteIDs?: string[]
+) => {
+  // Get the current time.
+  const now = new Date();
+
+  // Find all comments written by the author that should be rejected.
+  let connection = await getBatch(mongo, tenant.id, authorID, siteIDs);
+  while (connection.nodes.length > 0) {
+    for (const comment of connection.nodes) {
+      // Get the latest revision of the comment.
+      const revision = getLatestRevision(comment);
       await rejectComment(
         mongo,
         redis,
@@ -91,7 +164,7 @@ const createJobProcessor = ({
         comment.id,
         revision.id,
         moderatorID,
-        currentTime
+        now
       );
     }
     // If there was not another page, abort processing.
@@ -99,12 +172,70 @@ const createJobProcessor = ({
       break;
     }
     // Load the next page.
-    connection = await getBatch(mongo, tenantID, authorID, connection);
+    connection = await getBatch(
+      mongo,
+      tenant.id,
+      authorID,
+      siteIDs,
+      connection
+    );
   }
-
-  // Compute the end time.
-  log.debug({ took: timer() }, "rejected the author's comments");
 };
+
+const createJobProcessor =
+  ({
+    mongo,
+    redis,
+    tenantCache,
+  }: RejectorProcessorOptions): JobProcessor<RejectorData> =>
+  async (job) => {
+    // Pull out the job data.
+    const { authorID, moderatorID, tenantID, siteIDs } = job.data;
+    const log = logger.child(
+      {
+        jobID: job.id,
+        jobName: JOB_NAME,
+        authorID,
+        moderatorID,
+        tenantID,
+        siteIDs,
+      },
+      true
+    );
+    // Mark the start time.
+    const timer = createTimer();
+
+    log.debug("starting to reject author comments");
+
+    // Get the tenant.
+    const tenant = await tenantCache.retrieveByID(tenantID);
+    if (!tenant) {
+      log.error("referenced tenant was not found");
+      return;
+    }
+
+    await rejectLiveComments(
+      mongo,
+      redis,
+      tenant,
+      authorID,
+      moderatorID,
+      siteIDs
+    );
+    if (mongo.archive) {
+      await rejectArchivedComments(
+        mongo,
+        redis,
+        tenant,
+        authorID,
+        moderatorID,
+        siteIDs
+      );
+    }
+
+    // Compute the end time.
+    log.debug({ took: timer() }, "rejected the author's comments");
+  };
 
 export type RejectorQueue = Task<RejectorData>;
 

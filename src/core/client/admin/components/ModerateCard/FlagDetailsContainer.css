@@ -1,3 +1,7 @@
-.detailsDivider {
-  border-top: 1px solid $colors-grey-100;
+.latestReports {
+  color: var(--palette-grey-500);
+  font-family: var(--font-family-primary);
+  font-weight: var(--font-weight-primary-semi-bold);
+  font-size: var(--font-size-1);
+  text-transform: uppercase;
 }

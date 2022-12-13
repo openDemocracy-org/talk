@@ -28,15 +28,14 @@ export type MutationResponsePromise<
   U extends string | number | symbol
 > = Promise<MutationResponse<T, U>>;
 
-export type MutationProp<
-  T extends Mutation<any, any, any>
-> = T extends Mutation<any, infer I, infer R>
-  ? Parameters<T["commit"]>[1] extends undefined
-    ? () => R
-    : keyof Parameters<T["commit"]>[1] extends never
-    ? () => R
-    : (input: I) => R
-  : never;
+export type MutationProp<T extends Mutation<any, any, any>> =
+  T extends Mutation<any, infer I, infer R>
+    ? Parameters<T["commit"]>[1] extends undefined
+      ? () => R
+      : keyof Parameters<T["commit"]>[1] extends never
+      ? () => R
+      : (input: I) => R
+    : never;
 
 type RemoveClientMutationID<T> = T extends Promise<infer U>
   ? Promise<
@@ -69,7 +68,7 @@ export function useMutation<I, R>(
   const context = useCoralContext();
   return useCallback<MutationProp<typeof mutation>>(
     ((input: I) => {
-      // TODO: (cvle) These events are deprecated.
+      // TODO: (cvle) Naming of these events are deprecated.
       context.eventEmitter.emit(`mutation.${mutation.name}`, input);
       return mutation.commit(context.relayEnvironment, input, context);
     }) as any,
@@ -98,7 +97,7 @@ export function withMutation<N extends string, I, R>(
         );
 
         private commit = (input: I) => {
-          // TODO: (cvle) These events are deprecated.
+          // TODO: (cvle) Naming of these events are deprecated.
           this.props.context.eventEmitter.emit(
             `mutation.${mutation.name}`,
             input

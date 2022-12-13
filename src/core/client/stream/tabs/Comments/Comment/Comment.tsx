@@ -7,14 +7,18 @@ import Timestamp from "coral-stream/common/Timestamp";
 import { Flex, HorizontalGutter, MatchMedia } from "coral-ui/components/v2";
 import { StarRating } from "coral-ui/components/v3";
 
+import { CommentContainer_comment as CommentData } from "coral-stream/__generated__/CommentContainer_comment.graphql";
+
 import EditedMarker from "./EditedMarker";
 import InReplyTo from "./InReplyTo";
 
 import styles from "./Comment.css";
 
 export interface CommentProps {
+  id: string;
+  showCommentID: boolean;
   className?: string;
-  username: React.ReactNode;
+  usernameEl: React.ReactNode;
   body: string | null;
   rating?: number | null;
   createdAt: string;
@@ -22,19 +26,19 @@ export interface CommentProps {
   footer?: React.ReactNode;
   showEditedMarker?: boolean;
   highlight?: boolean;
-  parentAuthorName?: string | null;
+  readonly parent: CommentData["parent"];
   tags?: React.ReactNode | null;
   badges?: React.ReactNode | null;
   collapsed?: boolean;
   media?: React.ReactNode;
+  enableJumpToParent?: boolean;
 }
 
 const Comment: FunctionComponent<CommentProps> = (props) => {
   return (
     <HorizontalGutter
-      role="article"
       size="half"
-      className={cn(styles.root, {
+      className={cn(props.className, styles.root, {
         [styles.highlight]: props.highlight,
         [CLASSES.comment.highlight]: props.highlight,
       })}
@@ -46,7 +50,7 @@ const Comment: FunctionComponent<CommentProps> = (props) => {
         className={CLASSES.comment.topBar.$root}
       >
         <Flex alignItems="center" wrap>
-          {props.username && (
+          {props.usernameEl && (
             <MatchMedia lteWidth="mobile">
               {(matches) => (
                 <div
@@ -54,7 +58,7 @@ const Comment: FunctionComponent<CommentProps> = (props) => {
                     [styles.usernameFullRow]: matches,
                   })}
                 >
-                  {props.username}
+                  {props.usernameEl}
                 </div>
               )}
             </MatchMedia>
@@ -87,15 +91,19 @@ const Comment: FunctionComponent<CommentProps> = (props) => {
         )}
       </Flex>
 
-      {props.parentAuthorName && (
+      {props.parent && (
         <div className={styles.subBar}>
-          <InReplyTo username={props.parentAuthorName} />
+          <InReplyTo
+            parent={props.parent}
+            enableJumpToParent={props.enableJumpToParent !== false}
+          />
         </div>
       )}
 
       {props.rating && <StarRating rating={props.rating} />}
 
       <HorizontalGutter size="oneAndAHalf">
+        {props.showCommentID && <div>{props.id}</div>}
         <HTMLContent className={CLASSES.comment.content}>
           {props.body || ""}
         </HTMLContent>

@@ -1,5 +1,6 @@
-const typescriptEslintRecommended = require("@typescript-eslint/eslint-plugin/dist/configs/eslint-recommended")
-  .overrides[0];
+const typescriptEslintRecommended =
+  require("@typescript-eslint/eslint-plugin/dist/configs/eslint-recommended")
+    .overrides[0];
 const typescriptRecommended = require("@typescript-eslint/eslint-plugin/dist/configs/recommended.js");
 const typescriptRecommendedTypeChecking = require("@typescript-eslint/eslint-plugin/dist/configs/recommended-requiring-type-checking.js");
 const typescriptEslintPrettier = require("eslint-config-prettier/@typescript-eslint");
@@ -36,6 +37,8 @@ const typescriptOverrides = {
     jsxA11y.rules,
     reactPrettier.rules,
     {
+      // TODO: (cvle) make this an error
+      "react-hooks/exhaustive-deps": "warn",
       "@typescript-eslint/adjacent-overload-signatures": "error",
       // TODO: (cvle) change `readonly` param to `array-simple` when upgraded typescript.
       "@typescript-eslint/array-type": [
@@ -151,10 +154,13 @@ const jestOverrides = {
   env: {
     jest: true,
   },
-  files: ["test/**/*.ts", "test/**/*.tsx"],
+  files: ["test/**/*.ts", "test/**/*.tsx", "**/*.spec.ts", "**/*.spec.tsx"],
   globals: {
     expectAndFail: "readonly",
     fail: "readonly",
+  },
+  rules: {
+    "no-restricted-globals": "off",
   },
 };
 
@@ -177,9 +183,16 @@ module.exports = {
     "plugin:jsdoc/recommended",
     "plugin:prettier/recommended",
     "plugin:react-hooks/recommended",
+    "plugin:react/recommended",
+    "prettier",
   ],
   parserOptions: {
     ecmaVersion: 2018,
+  },
+  settings: {
+    react: {
+      version: "detect",
+    },
   },
   rules: {
     "arrow-body-style": "off",
@@ -217,6 +230,30 @@ module.exports = {
     "no-irregular-whitespace": "off",
     "no-multiple-empty-lines": "off",
     "no-new-wrappers": "error",
+    "no-restricted-globals": [
+      "error",
+      {
+        name: "window",
+        message:
+          "Get it from 'CoralContext' if possible. Otherwise ignore and make sure using 'window' globally will work in all environments: 'SSR', 'Testing', and 'Browser'",
+      },
+      {
+        name: "document",
+        message: "Replace with `window.document`",
+      },
+      {
+        name: "localStorage",
+        message: "Replace with `window.localStorage`",
+      },
+      {
+        name: "sessionStorage",
+        message: "Replace with `window.sessionStorage`",
+      },
+      {
+        name: "confirm",
+        message: "Replace with `window.confirm`",
+      },
+    ],
     "no-prototype-builtins": "error",
     "no-shadow": "error",
     "no-throw-literal": "error",

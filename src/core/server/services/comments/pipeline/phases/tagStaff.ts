@@ -1,4 +1,8 @@
 import {
+  canModerate,
+  isSiteModerationScoped,
+} from "coral-server/models/user/helpers";
+import {
   IntermediateModerationPhase,
   IntermediatePhaseResult,
 } from "coral-server/services/comments/pipeline";
@@ -7,7 +11,6 @@ import {
   GQLTAG,
   GQLUSER_ROLE,
 } from "coral-server/graph/schema/__generated__/types";
-import { roleIsStaff } from "coral-server/models/user/helpers";
 
 function roleAsTag(role: GQLUSER_ROLE) {
   switch (role) {
@@ -24,8 +27,12 @@ function roleAsTag(role: GQLUSER_ROLE) {
 
 export const tagStaff: IntermediateModerationPhase = ({
   author,
+  story,
 }): IntermediatePhaseResult | void => {
-  if (!roleIsStaff(author.role)) {
+  const isSiteMod = isSiteModerationScoped(author.moderationScopes);
+  const isModForSite = canModerate(author, story);
+
+  if (isSiteMod && !isModForSite) {
     return;
   }
 

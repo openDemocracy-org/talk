@@ -53,6 +53,7 @@ const DownloadCommentsContainer: FunctionComponent<Props> = ({ viewer }) => {
   const canDownload =
     !lastDownloadedAt || sinceLastDownload >= DOWNLOAD_LIMIT_TIMEFRAME_DURATION;
   const tilCanDownload = DOWNLOAD_LIMIT_TIMEFRAME_DURATION - sinceLastDownload;
+  const canNextDownload = new Date(Date.now() + tilCanDownload * 1000);
 
   const { scaled, unit } = reduceSeconds(tilCanDownload, [
     TIME.DAY,
@@ -68,15 +69,23 @@ const DownloadCommentsContainer: FunctionComponent<Props> = ({ viewer }) => {
   }, [setShowErrorMessage]);
 
   return (
-    <div className={cn(styles.root, CLASSES.downloadCommentHistory.$root)}>
+    <section
+      className={cn(styles.root, CLASSES.downloadCommentHistory.$root)}
+      aria-labelledby="profile-account-download-comments-title"
+    >
       <Flex justifyContent="space-between" alignItems="flex-start">
         <div>
           <Localized id="profile-account-download-comments-title">
-            <div className={styles.title}>Download my comment history</div>
+            <h1
+              className={styles.title}
+              id="profile-account-download-comments-title"
+            >
+              Download my comment history
+            </h1>
           </Localized>
           <Localized
             id="profile-account-download-comments-description"
-            strong={<strong />}
+            elems={{ strong: <strong /> }}
           >
             <div className={styles.description}>
               You will receive an email with a link to download your comment
@@ -98,7 +107,7 @@ const DownloadCommentsContainer: FunctionComponent<Props> = ({ viewer }) => {
           {lastDownloadedAt && !showSuccessMessage && (
             <Localized
               id="profile-account-download-comments-yourMostRecentRequest"
-              $timeStamp={formatter(lastDownloadedAt)}
+              vars={{ timeStamp: formatter(canNextDownload) }}
             >
               <div
                 className={cn(
@@ -108,7 +117,7 @@ const DownloadCommentsContainer: FunctionComponent<Props> = ({ viewer }) => {
               >
                 Your most recent request was within the last 14 days. You may
                 request to download your comments again on:{" "}
-                {formatter(lastDownloadedAt)}.
+                {formatter(canNextDownload)}.
               </div>
             </Localized>
           )}
@@ -128,8 +137,7 @@ const DownloadCommentsContainer: FunctionComponent<Props> = ({ viewer }) => {
           title={
             <Localized
               id="profile-account-download-comments-requestSubmitted"
-              $value={scaled}
-              $unit={unit}
+              vars={{ value: scaled, unit }}
             >
               <span>
                 Your request has been successfully submitted. You may request to
@@ -137,6 +145,7 @@ const DownloadCommentsContainer: FunctionComponent<Props> = ({ viewer }) => {
               </span>
             </Localized>
           }
+          aria-live="polite"
         />
       )}
       {showErrorMessage && (
@@ -153,15 +162,15 @@ const DownloadCommentsContainer: FunctionComponent<Props> = ({ viewer }) => {
           title={
             <Localized
               id="profile-account-download-comments-error"
-              $value={scaled}
-              $unit={unit}
+              vars={{ value: scaled, unit }}
             >
               <span>We were unable to complete your download request.</span>
             </Localized>
           }
+          role="alert"
         />
       )}
-    </div>
+    </section>
   );
 };
 

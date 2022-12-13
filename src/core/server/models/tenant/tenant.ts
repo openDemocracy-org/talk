@@ -1,6 +1,5 @@
 import { isEmpty } from "lodash";
 import { DateTime } from "luxon";
-import { Db } from "mongodb";
 import { v4 as uuid } from "uuid";
 
 import { DEFAULT_SESSION_DURATION } from "coral-common/constants";
@@ -9,6 +8,8 @@ import TIME from "coral-common/time";
 import { DeepPartial, Sub } from "coral-common/types";
 import { isBeforeDate } from "coral-common/utils";
 import { dotize } from "coral-common/utils/dotize";
+import { MongoContext } from "coral-server/data/context";
+import { DuplicateEmailDomainError } from "coral-server/errors";
 import {
   defaultRTEConfiguration,
   generateSigningSecret,
@@ -16,7 +17,6 @@ import {
   SigningSecretResource,
 } from "coral-server/models/settings";
 import { I18n } from "coral-server/services/i18n";
-import { tenants as collection } from "coral-server/services/mongodb/collections";
 
 import {
   GQLAnnouncement,
@@ -27,9 +27,18 @@ import {
 } from "coral-server/graph/schema/__generated__/types";
 
 import {
+  getDefaultBadgeConfiguration,
   getDefaultReactionConfiguration,
-  getDefaultStaffConfiguration,
 } from "./helpers";
+
+/**
+ * LEGACY_FEATURE_FLAGS are feature flags, that are no longer used.
+ */
+export enum LEGACY_FEATURE_FLAGS {
+  ENABLE_AMP = "ENABLE_AMP",
+  FLATTEN_REPLIES = "FLATTEN_REPLIES",
+  FOR_REVIEW = "FOR_REVIEW",
+}
 
 /**
  * TenantResource references a given resource that should be owned by a specific
@@ -93,7 +102,7 @@ export interface TenantSettings
   /**
    * featureFlags is the set of flags enabled on this Tenant.
    */
-  featureFlags?: GQLFEATURE_FLAG[];
+  featureFlags?: Array<GQLFEATURE_FLAG | LEGACY_FEATURE_FLAGS>;
 
   /**
    * webhooks stores the configurations for this Tenant's webhook rules.
@@ -132,7 +141,7 @@ export interface TenantComputedProperties {
  * @param input the customizable parts of the Tenant available during creation
  */
 export async function createTenant(
-  mongo: Db,
+  mongo: MongoContext,
   i18n: I18n,
   input: CreateTenantInput,
   now = new Date()
@@ -146,6 +155,8 @@ export async function createTenant(
 
     // Default to post moderation.
     moderation: GQLMODERATION_MODE.POST,
+
+    premoderateAllCommentsSites: [],
 
     // Default to enabled.
     live: {
@@ -245,7 +256,7 @@ export async function createTenant(
       },
     },
     reaction: getDefaultReactionConfiguration(bundle),
-    staff: getDefaultStaffConfiguration(bundle),
+    badges: getDefaultBadgeConfiguration(bundle),
     stories: {
       scraping: {
         enabled: true,
@@ -261,6 +272,10 @@ export async function createTenant(
     newCommenters: {
       premodEnabled: false,
       approvedCommentsThreshold: 2,
+      moderation: {
+        mode: GQLMODERATION_MODE.POST,
+        premodSites: [],
+      },
     },
     premoderateSuspectWords: false,
     createdAt: now,
@@ -269,6 +284,10 @@ export async function createTenant(
     },
     memberBios: false,
     rte: defaultRTEConfiguration,
+    amp: false,
+    flattenReplies: false,
+    disableDefaultFonts: false,
+    emailDomainModeration: [],
   };
 
   // Create the new Tenant by merging it together with the defaults.
@@ -278,24 +297,27 @@ export async function createTenant(
   };
 
   // Insert the Tenant into the database.
-  await collection(mongo).insertOne(tenant);
+  await mongo.tenants().insertOne(tenant);
 
   return tenant;
 }
 
-export async function retrieveTenantByDomain(mongo: Db, domain: string) {
-  return collection(mongo).findOne({ domain });
+export async function retrieveTenantByDomain(
+  mongo: MongoContext,
+  domain: string
+) {
+  return mongo.tenants().findOne({ domain });
 }
 
-export async function retrieveTenant(mongo: Db, id: string) {
-  return collection(mongo).findOne({ id });
+export async function retrieveTenant(mongo: MongoContext, id: string) {
+  return mongo.tenants().findOne({ id });
 }
 
 export async function retrieveManyTenants(
-  mongo: Db,
+  mongo: MongoContext,
   ids: ReadonlyArray<string>
 ) {
-  const cursor = collection(mongo).find({
+  const cursor = mongo.tenants().find({
     id: {
       $in: ids,
     },
@@ -307,10 +329,10 @@ export async function retrieveManyTenants(
 }
 
 export async function retrieveManyTenantsByDomain(
-  mongo: Db,
+  mongo: MongoContext,
   domains: ReadonlyArray<string>
 ) {
-  const cursor = collection(mongo).find({
+  const cursor = mongo.tenants().find({
     domain: {
       $in: domains,
     },
@@ -323,18 +345,18 @@ export async function retrieveManyTenantsByDomain(
   );
 }
 
-export async function retrieveAllTenants(mongo: Db) {
-  return collection(mongo).find({}).toArray();
+export async function retrieveAllTenants(mongo: MongoContext) {
+  return mongo.tenants().find({}).toArray();
 }
 
-export async function countTenants(mongo: Db) {
-  return collection(mongo).find({}).count();
+export async function countTenants(mongo: MongoContext) {
+  return mongo.tenants().find({}).count();
 }
 
 export type UpdateTenantInput = Omit<DeepPartial<Tenant>, "id" | "domain">;
 
 export async function updateTenant(
-  mongo: Db,
+  mongo: MongoContext,
   id: string,
   update: UpdateTenantInput
 ) {
@@ -347,7 +369,7 @@ export async function updateTenant(
   }
 
   // Get the tenant from the database.
-  const result = await collection(mongo).findOneAndUpdate(
+  const result = await mongo.tenants().findOneAndUpdate(
     { id },
     // Only update fields that have been updated.
     { $set },
@@ -365,12 +387,12 @@ export async function updateTenant(
 }
 
 export async function enableTenantFeatureFlag(
-  mongo: Db,
+  mongo: MongoContext,
   id: string,
   flag: GQLFEATURE_FLAG
 ) {
   // Update the Tenant.
-  const result = await collection(mongo).findOneAndUpdate(
+  const result = await mongo.tenants().findOneAndUpdate(
     { id },
     {
       // Add the flag to the set of enabled flags.
@@ -392,12 +414,12 @@ export async function enableTenantFeatureFlag(
 }
 
 export async function disableTenantFeatureFlag(
-  mongo: Db,
+  mongo: MongoContext,
   id: string,
   flag: GQLFEATURE_FLAG
 ) {
   // Update the Tenant.
-  const result = await collection(mongo).findOneAndUpdate(
+  const result = await mongo.tenants().findOneAndUpdate(
     { id },
     {
       // Pull the flag from the set of enabled flags.
@@ -424,7 +446,7 @@ export interface CreateAnnouncementInput {
 }
 
 export async function createTenantAnnouncement(
-  mongo: Db,
+  mongo: MongoContext,
   id: string,
   input: CreateAnnouncementInput,
   now = new Date()
@@ -435,7 +457,7 @@ export async function createTenantAnnouncement(
     createdAt: now,
   };
 
-  const result = await collection(mongo).findOneAndUpdate(
+  const result = await mongo.tenants().findOneAndUpdate(
     { id },
     {
       $set: {
@@ -449,8 +471,116 @@ export async function createTenantAnnouncement(
   return result.value;
 }
 
-export async function deleteTenantAnnouncement(mongo: Db, id: string) {
-  const result = await collection(mongo).findOneAndUpdate(
+export interface CreateEmailDomainInput {
+  domain: string;
+  newUserModeration: "BAN" | "PREMOD";
+}
+
+export async function createTenantEmailDomain(
+  mongo: MongoContext,
+  id: string,
+  input: CreateEmailDomainInput
+) {
+  // Search to see if this email domain has already been configured.
+  const duplicateDomain = await mongo.tenants().findOne({
+    id,
+    emailDomainModeration: {
+      $elemMatch: { domain: input.domain },
+    },
+  });
+  if (duplicateDomain) {
+    throw new DuplicateEmailDomainError(input.domain);
+  }
+
+  const emailDomain = {
+    id: uuid(),
+    domain: input.domain,
+    newUserModeration: input.newUserModeration,
+  };
+
+  const result = await mongo.tenants().findOneAndUpdate(
+    { id },
+    {
+      $push: { emailDomainModeration: emailDomain },
+    },
+    {
+      returnOriginal: false,
+    }
+  );
+  return result.value;
+}
+
+export interface UpdateEmailDomainInput {
+  id: string;
+  domain: string;
+  newUserModeration: "BAN" | "PREMOD";
+}
+
+export async function updateTenantEmailDomain(
+  mongo: MongoContext,
+  id: string,
+  input: UpdateEmailDomainInput
+) {
+  // Search to see if this email domain has already been configured
+  // for an email domain with a different id.
+  const duplicateDomain = await mongo.tenants().findOne({
+    id,
+    emailDomainModeration: {
+      $elemMatch: { domain: input.domain, id: { $ne: input.id } },
+    },
+  });
+  if (duplicateDomain) {
+    throw new DuplicateEmailDomainError(input.domain);
+  }
+
+  const result = await mongo.tenants().findOneAndUpdate(
+    {
+      id,
+      emailDomainModeration: {
+        $elemMatch: { id: input.id },
+      },
+    },
+    {
+      $set: {
+        "emailDomainModeration.$.domain": input.domain,
+        "emailDomainModeration.$.newUserModeration": input.newUserModeration,
+      },
+    },
+    {
+      returnOriginal: false,
+    }
+  );
+  return result.value;
+}
+
+export interface DeleteEmailDomainInput {
+  id: string;
+}
+
+export async function deleteTenantEmailDomain(
+  mongo: MongoContext,
+  id: string,
+  input: DeleteEmailDomainInput
+) {
+  const result = await mongo.tenants().findOneAndUpdate(
+    { id },
+    {
+      $pull: {
+        emailDomainModeration: { id: input.id },
+      },
+    },
+    {
+      returnOriginal: false,
+    }
+  );
+  return result.value;
+}
+
+export async function deleteTenantAnnouncement(
+  mongo: MongoContext,
+  id: string
+) {
+  const result = await mongo.tenants().findOneAndUpdate(
     { id },
     {
       $unset: {

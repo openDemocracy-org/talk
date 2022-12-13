@@ -293,6 +293,9 @@ const CLASSES = {
      */
     highlight: "coral coral-comment-highlight",
 
+    notSeen: "coral-comment-notSeen",
+    focus: "coral-comment-focus",
+
     /**
      * reacted signifies the number of reactions of the comment.
      * The no of reactions is appended: e.g. `coral-reacted-1`.
@@ -624,6 +627,7 @@ const CLASSES = {
     closeButton: "coral coral-reportPopover-closeButton",
     cancelButton: "coral coral-reportPopover-cancelButton",
     submitButton: "coral coral-reportPopover-submitButton",
+    copyButton: "coral coral-reportPopover-copyButton",
   },
 
   /**
@@ -1077,6 +1081,8 @@ const CLASSES = {
       title: "coral coral-ratingsReview-input-title",
     },
   },
+
+  mobileToolbar: "coral coral-mobileToolbar",
 };
 
 export default CLASSES;

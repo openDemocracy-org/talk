@@ -10,6 +10,7 @@ import {
 } from "coral-framework/lib/relay";
 import { ShowAuthPopupMutation } from "coral-stream/common/AuthPopup";
 import { VIEWER_STATUS_CONTAINER_ID } from "coral-stream/constants";
+import { useShadowRootOrDocument } from "coral-ui/encapsulation";
 
 import { ReactionButtonContainer_comment as CommentData } from "coral-stream/__generated__/ReactionButtonContainer_comment.graphql";
 import { ReactionButtonContainer_settings as SettingsData } from "coral-stream/__generated__/ReactionButtonContainer_settings.graphql";
@@ -40,6 +41,7 @@ const ReactionButtonContainer: FunctionComponent<Props> = ({
   reactedClassName,
   isQA = false,
 }) => {
+  const root = useShadowRootOrDocument();
   const showAuthPopup = useMutation(ShowAuthPopupMutation);
   const createCommentReaction = useMutation(CreateCommentReactionMutation);
   const removeCommentReaction = useMutation(RemoveCommentReactionMutation);
@@ -74,7 +76,7 @@ const ReactionButtonContainer: FunctionComponent<Props> = ({
           // If we can find the viewer status container, then we should scroll
           // to it because it will contain the reason why we failed to update
           // the reaction count!
-          const el = document.getElementById(VIEWER_STATUS_CONTAINER_ID);
+          const el = root.getElementById(VIEWER_STATUS_CONTAINER_ID);
           if (el) {
             el.scrollIntoView();
           }
@@ -91,6 +93,7 @@ const ReactionButtonContainer: FunctionComponent<Props> = ({
     refreshViewer,
     removeCommentReaction,
     showAuthPopup,
+    root,
   ]);
 
   const {

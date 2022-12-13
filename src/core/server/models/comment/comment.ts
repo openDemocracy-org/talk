@@ -1,13 +1,15 @@
 import { isEmpty } from "lodash";
-import { Db } from "mongodb";
+import { Collection } from "mongodb";
 import * as uuid from "uuid";
 
 import { RequireProperty, Sub } from "coral-common/types";
 import { dotize } from "coral-common/utils/dotize";
+import { MongoContext } from "coral-server/data/context";
 import {
   CommentEditWindowExpiredError,
   CommentNotFoundError,
   CommentRevisionNotFoundError,
+  StoryNotFoundError,
 } from "coral-server/errors";
 import { createTimer } from "coral-server/helpers";
 import logger from "coral-server/logger";
@@ -27,7 +29,6 @@ import {
   resolveConnection,
 } from "coral-server/models/helpers";
 import { TenantResource } from "coral-server/models/tenant";
-import { comments as collection } from "coral-server/services/mongodb/collections";
 
 import {
   GQLCOMMENT_SORT,
@@ -36,8 +37,15 @@ import {
   GQLTAG,
 } from "coral-server/graph/schema/__generated__/types";
 
+import { retrieveManyStories, retrieveStory, Story } from "../story";
 import { PUBLISHED_STATUSES } from "./constants";
-import { CommentStatusCounts, createEmptyCommentStatusCounts } from "./counts";
+import {
+  CommentStatusCounts,
+  createEmptyCommentStatusCounts,
+  createEmptyGQLCommentTagCounts,
+  hasInvalidCommentTagCounts,
+  hasInvalidGQLCommentTagCounts,
+} from "./counts";
 import { hasAncestors } from "./helpers";
 import { Revision } from "./revision";
 import { CommentTag } from "./tag";
@@ -141,6 +149,13 @@ export interface Comment extends TenantResource {
    * undefined, this Comment is not deleted.
    */
   deletedAt?: Date;
+
+  /**
+   * seen will return true if the current viewer has already seen this comment.
+   * Seen being defined as they have loaded the comment into their stream via
+   * pagination or the initial load of stream comments.
+   */
+  seen?: boolean;
 }
 
 export type CreateCommentInput = Omit<
@@ -159,7 +174,7 @@ export type CreateCommentInput = Omit<
   Partial<Pick<Comment, "actionCounts" | "siteID">>;
 
 export async function createComment(
-  mongo: Db,
+  mongo: MongoContext,
   tenantID: string,
   input: CreateCommentInput,
   now = new Date()
@@ -199,7 +214,7 @@ export async function createComment(
   };
 
   // Insert it into the database.
-  await collection(mongo).insertOne(comment);
+  await mongo.comments().insertOne(comment);
 
   return { comment, revision };
 }
@@ -209,13 +224,13 @@ export async function createComment(
  * parent comment so it can reference direct children.
  */
 export async function pushChildCommentIDOntoParent(
-  mongo: Db,
+  mongo: MongoContext,
   tenantID: string,
   parentID: string,
   childID: string
 ) {
   // This pushes the new child ID onto the parent comment.
-  const result = await collection(mongo).findOneAndUpdate(
+  const result = await mongo.comments().findOneAndUpdate(
     {
       tenantID,
       id: parentID,
@@ -296,7 +311,7 @@ export interface EditComment {
  * @param input input for editing the comment
  */
 export async function editComment(
-  mongo: Db,
+  mongo: MongoContext,
   tenantID: string,
   input: EditCommentInput,
   now = new Date()
@@ -332,7 +347,7 @@ export async function editComment(
     update.$inc = dotize({ actionCounts });
   }
 
-  const result = await collection(mongo).findOneAndUpdate(
+  const result = await mongo.comments().findOneAndUpdate(
     {
       id,
       tenantID,
@@ -353,7 +368,7 @@ export async function editComment(
   );
   if (!result.value) {
     // Try to get the comment.
-    const comment = await retrieveComment(mongo, tenantID, id);
+    const comment = await retrieveComment(mongo.comments(), tenantID, id);
     if (!comment) {
       // TODO: (wyattjoh) return better error
       throw new Error("comment not found");
@@ -388,25 +403,31 @@ export async function editComment(
   };
 }
 
-export async function retrieveComment(mongo: Db, tenantID: string, id: string) {
-  return collection(mongo).findOne({ id, tenantID });
+export async function retrieveComment(
+  collection: Collection<Readonly<Comment>>,
+  tenantID: string,
+  id: string
+) {
+  return await collection.findOne({ id, tenantID });
 }
 
 export async function retrieveManyComments(
-  mongo: Db,
+  collection: Collection<Readonly<Comment>>,
   tenantID: string,
   ids: ReadonlyArray<string>
 ) {
-  const cursor = collection(mongo).find({
+  // Try and find it in live comments collection
+  const cursor = collection.find({
     id: {
       $in: ids,
     },
     tenantID,
   });
 
-  const comments = await cursor.toArray();
-
-  return ids.map((id) => comments.find((comment) => comment.id === id) || null);
+  const foundComments = await cursor.toArray();
+  return ids.map(
+    (id) => foundComments.find((comment) => comment.id === id) || null
+  );
 }
 
 export type CommentConnectionInput = OrderedConnectionInput<
@@ -439,7 +460,7 @@ function cursorGetterFactory(
  * @param input connection configuration
  */
 export const retrieveCommentRepliesConnection = (
-  mongo: Db,
+  collection: Collection<Readonly<Comment>>,
   tenantID: string,
   storyID: string,
   parentID: string,
@@ -451,11 +472,38 @@ export const retrieveCommentRepliesConnection = (
     storyID,
   };
 
-  return retrievePublishedCommentConnection(mongo, tenantID, {
+  return retrievePublishedCommentConnection(collection, tenantID, {
     ...input,
     filter,
   });
 };
+
+/**
+ * retrieveChildrenForParentConnection returns a Connection<Comment> for
+ * a given comment's child comments
+ *
+ * @param mongo database connection
+ * @param tenantID the tenant id
+ * @param storyID the id of the story the comment belongs to
+ * @param comment the comment to retrieve child comments of
+ * @param input connection configuration
+ */
+export async function retrieveChildrenForParentConnection(
+  collection: Collection<Readonly<Comment>>,
+  tenantID: string,
+  comment: Comment,
+  input: CommentConnectionInput
+): Promise<Readonly<Connection<Readonly<Comment>>>> {
+  const filter = {
+    ancestorIDs: { $in: [comment.id] },
+    ...input.filter,
+  };
+
+  return retrieveCommentStoryConnection(collection, tenantID, comment.storyID, {
+    ...input,
+    filter,
+  });
+}
 
 /**
  * retrieveCommentParentsConnection will return a comment connection used to
@@ -467,7 +515,7 @@ export const retrieveCommentRepliesConnection = (
  * @param pagination pagination options to paginate the results
  */
 export async function retrieveCommentParentsConnection(
-  mongo: Db,
+  collection: Collection<Readonly<Comment>>,
   tenantID: string,
   comment: Comment,
   { last: limit, before: skip = 0 }: { last: number; before?: number }
@@ -499,7 +547,7 @@ export async function retrieveCommentParentsConnection(
   const ancestorIDs = comment.ancestorIDs.slice(skip, skip + limit);
 
   // Retrieve the parents via the subset list.
-  const nodes = await retrieveManyComments(mongo, tenantID, ancestorIDs);
+  const nodes = await retrieveManyComments(collection, tenantID, ancestorIDs);
 
   // Loop over the list to ensure that none of the entries is null (indicating
   // that there was a misplaced parent). We can assert the type here because we
@@ -538,12 +586,12 @@ export async function retrieveCommentParentsConnection(
  * @param input connection configuration
  */
 export const retrieveCommentStoryConnection = (
-  mongo: Db,
+  collection: Collection<Readonly<Comment>>,
   tenantID: string,
   storyID: string,
   input: CommentConnectionInput
 ) =>
-  retrievePublishedCommentConnection(mongo, tenantID, {
+  retrievePublishedCommentConnection(collection, tenantID, {
     ...input,
     filter: {
       ...input.filter,
@@ -561,12 +609,12 @@ export const retrieveCommentStoryConnection = (
  * @param input connection configuration
  */
 export const retrieveCommentUserConnection = (
-  mongo: Db,
+  collection: Collection<Readonly<Comment>>,
   tenantID: string,
   userID: string,
   input: CommentConnectionInput
 ) =>
-  retrievePublishedCommentConnection(mongo, tenantID, {
+  retrievePublishedCommentConnection(collection, tenantID, {
     ...input,
     filter: {
       ...input.filter,
@@ -584,16 +632,42 @@ export const retrieveCommentUserConnection = (
  * @param input connection configuration
  */
 export const retrieveAllCommentsUserConnection = (
-  mongo: Db,
+  collection: Collection<Readonly<Comment>>,
   tenantID: string,
   userID: string,
   input: CommentConnectionInput
 ) =>
-  retrieveCommentConnection(mongo, tenantID, {
+  retrieveCommentConnection(collection, tenantID, {
     ...input,
     filter: {
       ...input.filter,
       authorID: userID,
+    },
+  });
+
+/**
+ * retrieveCommentsBySitesUserConnection returns a Connection<Comment> for a given User's
+ * comments regardless of comment status, filtered by siteIDs.
+ *
+ * @param mongo database connection
+ * @param tenantID the Tenant's ID
+ * @param userID the User id for the comment to retrieve
+ * @param siteIDs the siteIDs to use to filter by Site id for the comments to retrieve
+ * @param input connection configuration
+ */
+export const retrieveCommentsBySitesUserConnection = (
+  collection: Collection<Readonly<Comment>>,
+  tenantID: string,
+  userID: string,
+  siteIDs: string[],
+  input: CommentConnectionInput
+) =>
+  retrieveCommentConnection(collection, tenantID, {
+    ...input,
+    filter: {
+      ...input.filter,
+      authorID: userID,
+      siteID: { $in: siteIDs },
     },
   });
 
@@ -607,13 +681,13 @@ export const retrieveAllCommentsUserConnection = (
  * @param input connection configuration
  */
 export const retrieveRejectedCommentUserConnection = (
-  mongo: Db,
+  collection: Collection<Readonly<Comment>>,
   tenantID: string,
   userID: string,
   input: CommentConnectionInput
 ) =>
   retrieveStatusCommentConnection(
-    mongo,
+    collection,
     tenantID,
     [GQLCOMMENT_STATUS.REJECTED],
     {
@@ -634,11 +708,16 @@ export const retrieveRejectedCommentUserConnection = (
  * @param input connection configuration
  */
 export const retrievePublishedCommentConnection = (
-  mongo: Db,
+  collection: Collection<Readonly<Comment>>,
   tenantID: string,
   input: CommentConnectionInput
 ) =>
-  retrieveStatusCommentConnection(mongo, tenantID, PUBLISHED_STATUSES, input);
+  retrieveStatusCommentConnection(
+    collection,
+    tenantID,
+    PUBLISHED_STATUSES,
+    input
+  );
 
 /**
  * retrieveStatusCommentConnection will retrieve a connection that contains
@@ -650,12 +729,12 @@ export const retrievePublishedCommentConnection = (
  * @param input connection configuration
  */
 export const retrieveStatusCommentConnection = (
-  mongo: Db,
+  collection: Collection<Readonly<Comment>>,
   tenantID: string,
   statuses: GQLCOMMENT_STATUS[],
   input: CommentConnectionInput
 ) =>
-  retrieveCommentConnection(mongo, tenantID, {
+  retrieveCommentConnection(collection, tenantID, {
     ...input,
     filter: {
       ...input.filter,
@@ -664,12 +743,12 @@ export const retrieveStatusCommentConnection = (
   });
 
 export async function retrieveCommentConnection(
-  mongo: Db,
+  collection: Collection<Readonly<Comment>>,
   tenantID: string,
   input: CommentConnectionInput
 ): Promise<Readonly<Connection<Readonly<Comment>>>> {
   // Create the query.
-  const query = new Query(collection(mongo)).where({ tenantID });
+  const query = new Query(collection).where({ tenantID });
 
   // If a filter is being applied, filter it as well.
   if (input.filter) {
@@ -743,13 +822,16 @@ export interface UpdateCommentStatus {
 }
 
 export async function updateCommentStatus(
-  mongo: Db,
+  mongo: MongoContext,
   tenantID: string,
   id: string,
   revisionID: string,
-  status: GQLCOMMENT_STATUS
+  status: GQLCOMMENT_STATUS,
+  isArchived = false
 ): Promise<UpdateCommentStatus | null> {
-  const result = await collection(mongo).findOneAndUpdate(
+  const coll =
+    isArchived && mongo.archive ? mongo.archivedComments() : mongo.comments();
+  const result = await coll.findOneAndUpdate(
     {
       id,
       tenantID,
@@ -787,13 +869,13 @@ export async function updateCommentStatus(
  * @param actionCounts the action counts to merge into the Comment
  */
 export async function updateCommentActionCounts(
-  mongo: Db,
+  mongo: MongoContext,
   tenantID: string,
   id: string,
   revisionID: string,
   actionCounts: EncodedCommentActionCounts
 ) {
-  const result = await collection(mongo).findOneAndUpdate(
+  const result = await mongo.comments().findOneAndUpdate(
     { id, tenantID },
     // Update all the specific action counts that are associated with each of
     // the counts.
@@ -824,12 +906,15 @@ export async function updateCommentActionCounts(
  * Story.
  */
 export async function removeStoryComments(
-  mongo: Db,
+  mongo: MongoContext,
   tenantID: string,
-  storyID: string
+  storyID: string,
+  isArchive = false
 ) {
+  const coll =
+    isArchive && mongo.archive ? mongo.archivedComments() : mongo.comments();
   // Delete all the comments written on a specific story.
-  return collection(mongo).deleteMany({
+  return coll.deleteMany({
     tenantID,
     storyID,
   });
@@ -839,12 +924,12 @@ export async function removeStoryComments(
  * mergeManyCommentStories will update many comment's storyID's.
  */
 export async function mergeManyCommentStories(
-  mongo: Db,
+  mongo: MongoContext,
   tenantID: string,
   newStoryID: string,
   oldStoryIDs: string[]
 ) {
-  return collection(mongo).updateMany(
+  return mongo.comments().updateMany(
     {
       tenantID,
       storyID: {
@@ -860,12 +945,12 @@ export async function mergeManyCommentStories(
 }
 
 export async function addCommentTag(
-  mongo: Db,
+  mongo: MongoContext,
   tenantID: string,
   commentID: string,
   tag: CommentTag
 ) {
-  const result = await collection(mongo).findOneAndUpdate(
+  const result = await mongo.comments().findOneAndUpdate(
     {
       tenantID,
       id: commentID,
@@ -889,7 +974,11 @@ export async function addCommentTag(
     }
   );
   if (!result.value) {
-    const comment = await retrieveComment(mongo, tenantID, commentID);
+    const comment = await retrieveComment(
+      mongo.comments(),
+      tenantID,
+      commentID
+    );
     if (!comment) {
       throw new CommentNotFoundError(commentID);
     }
@@ -905,12 +994,12 @@ export async function addCommentTag(
 }
 
 export async function removeCommentTag(
-  mongo: Db,
+  mongo: MongoContext,
   tenantID: string,
   commentID: string,
   tagType: GQLTAG
 ) {
-  const result = await collection(mongo).findOneAndUpdate(
+  const result = await mongo.comments().findOneAndUpdate(
     {
       tenantID,
       id: commentID,
@@ -927,7 +1016,11 @@ export async function removeCommentTag(
     }
   );
   if (!result.value) {
-    const comment = await retrieveComment(mongo, tenantID, commentID);
+    const comment = await retrieveComment(
+      mongo.comments(),
+      tenantID,
+      commentID
+    );
     if (!comment) {
       throw new CommentNotFoundError(commentID);
     }
@@ -938,11 +1031,178 @@ export async function removeCommentTag(
   return result.value;
 }
 
+function isCountEmpty(counts: GQLCommentTagCounts): boolean {
+  for (const [, value] of Object.entries(counts)) {
+    const v = value as number;
+    if (v > 0) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 export async function retrieveStoryCommentTagCounts(
-  mongo: Db,
+  mongo: MongoContext,
   tenantID: string,
   storyIDs: ReadonlyArray<string>
 ): Promise<GQLCommentTagCounts[]> {
+  const stories = await retrieveManyStories(mongo, tenantID, storyIDs);
+
+  const result = new Map<string, GQLCommentTagCounts>();
+
+  for (const story of stories) {
+    if (story === null || story === undefined) {
+      continue;
+    }
+
+    if (hasInvalidCommentTagCounts(story?.commentCounts.tags)) {
+      const tagsResult = await initializeCommentTagCountsForStory(
+        mongo,
+        tenantID,
+        story.id
+      );
+      result.set(story.id, tagsResult.tagCounts);
+    } else {
+      result.set(story.id, story.commentCounts.tags.tags);
+    }
+  }
+
+  return storyIDs.map((id) => {
+    const tags = result.get(id);
+    if (!tags) {
+      logger.warn(
+        { tenantID, storyID: id },
+        "found undefined/null comment count tags"
+      );
+      return createEmptyGQLCommentTagCounts();
+    }
+    if (hasInvalidGQLCommentTagCounts(tags)) {
+      logger.warn(
+        { tenantID, storyID: id },
+        "found invalid comment count tags"
+      );
+      return createEmptyGQLCommentTagCounts();
+    }
+
+    return tags;
+  });
+}
+
+export async function calculateCommentTagCounts(
+  mongo: MongoContext,
+  tenantID: string,
+  storyIDs: ReadonlyArray<string>
+): Promise<GQLCommentTagCounts[]> {
+  const stories = await retrieveManyStories(mongo, tenantID, storyIDs);
+
+  const liveStories = stories
+    .filter((s) => s !== null && s !== undefined)
+    .filter((s) => !s?.isArchived && !s?.isArchiving)
+    .map((s) => s?.id) as string[];
+  const archivedStories = stories
+    .filter((s) => s !== null && s !== undefined)
+    .filter((s) => s?.isArchived)
+    .map((s) => s?.id) as string[];
+
+  const liveCounts: StoryCommentTagCounts[] =
+    liveStories.length > 0
+      ? await retrieveStoryCommentTagCountsFromDb(
+          mongo,
+          tenantID,
+          liveStories,
+          false
+        )
+      : [];
+
+  let archivedCounts: StoryCommentTagCounts[] = [];
+  if (mongo.archive && archivedStories.length > 0) {
+    archivedCounts = await retrieveStoryCommentTagCountsFromDb(
+      mongo,
+      tenantID,
+      archivedStories,
+      true
+    );
+  }
+
+  return storyIDs.map((id) => {
+    const liveCount = liveCounts.find((c) => c.id === id);
+    const archivedCount = archivedCounts.find((c) => c.id === id);
+
+    if (liveCount && !isCountEmpty(liveCount.counts)) {
+      return liveCount.counts;
+    } else if (archivedCount && !isCountEmpty(archivedCount.counts)) {
+      return archivedCount.counts;
+    } else {
+      return createEmptyGQLCommentTagCounts();
+    }
+  });
+}
+
+interface InitializeCommentTagCountsResult {
+  story: Readonly<Story>;
+  tagCounts: GQLCommentTagCounts;
+}
+
+export async function initializeCommentTagCountsForStory(
+  mongo: MongoContext,
+  tenantID: string,
+  storyID: string
+): Promise<InitializeCommentTagCountsResult> {
+  logger.info(
+    { tenantID, storyID },
+    "initializing comment tag counts for story"
+  );
+
+  const story = await retrieveStory(mongo, tenantID, storyID);
+  if (!story) {
+    throw new StoryNotFoundError(storyID);
+  }
+
+  const tagCounts = await calculateCommentTagCounts(mongo, tenantID, [storyID]);
+
+  if (!tagCounts || tagCounts.length <= 0) {
+    throw new Error("unable to initialize the comment tag counts");
+  }
+
+  let total = 0;
+  for (const [, value] of Object.entries(tagCounts[0])) {
+    total += value;
+  }
+
+  const result = await mongo.stories().findOneAndUpdate(
+    { tenantID, id: storyID },
+    {
+      $set: {
+        "commentCounts.tags": {
+          total,
+          tags: tagCounts[0],
+        },
+      },
+    }
+  );
+
+  if (!result.ok || !result.value) {
+    throw new Error("unable to initialize the comment tag counts");
+  }
+
+  return {
+    story: result.value,
+    tagCounts: tagCounts[0],
+  };
+}
+
+interface StoryCommentTagCounts {
+  id: string;
+  counts: GQLCommentTagCounts;
+}
+
+async function retrieveStoryCommentTagCountsFromDb(
+  mongo: MongoContext,
+  tenantID: string,
+  storyIDs: ReadonlyArray<string>,
+  isArchived: boolean
+): Promise<StoryCommentTagCounts[]> {
   // Build up the $match query.
   const $match: FilterQuery<Comment> = {
     tenantID,
@@ -961,11 +1221,7 @@ export async function retrieveStoryCommentTagCounts(
   // Get the start time.
   const timer = createTimer();
 
-  // Load the counts from the database for this particular tag query.
-  const cursor = collection<{
-    _id: { tag: GQLTAG; storyID: string };
-    total: number;
-  }>(mongo).aggregate([
+  const aggregation = [
     { $match },
     { $unwind: "$tags" },
     {
@@ -974,7 +1230,19 @@ export async function retrieveStoryCommentTagCounts(
         total: { $sum: 1 },
       },
     },
-  ]);
+  ];
+
+  // Load the counts from the database for this particular tag query.
+  const cursor =
+    isArchived && mongo.archive
+      ? mongo.archivedComments().aggregate<{
+          _id: { tag: GQLTAG; storyID: string };
+          total: number;
+        }>(aggregation)
+      : mongo.comments().aggregate<{
+          _id: { tag: GQLTAG; storyID: string };
+          total: number;
+        }>(aggregation);
 
   // Get all of the counts.
   const tags = await cursor.toArray();
@@ -988,9 +1256,7 @@ export async function retrieveStoryCommentTagCounts(
     // Get the tags associated with this storyID.
     const tagCounts = tags.filter(({ _id }) => _id.storyID === storyID) || [];
 
-    // Then remap these tags to strip the storyID as the returned order already
-    // preserves the storyID information.
-    return tagCounts.reduce(
+    const reducedCounts = tagCounts.reduce(
       (counts, { _id: { tag: code }, total }) => ({
         ...counts,
         [code]: total,
@@ -998,30 +1264,30 @@ export async function retrieveStoryCommentTagCounts(
       // Keep this collection of empty tag counts up to date to ensure we
       // provide an accurate model. The type system should warn you if there is
       // missing/extra tags here.
-      {
-        [GQLTAG.FEATURED]: 0,
-        [GQLTAG.UNANSWERED]: 0,
-        [GQLTAG.REVIEW]: 0,
-        [GQLTAG.QUESTION]: 0,
-      }
+      createEmptyGQLCommentTagCounts()
     );
+
+    return {
+      id: storyID,
+      counts: reducedCounts,
+    };
   });
 }
 
 export async function retrieveManyRecentStatusCounts(
-  mongo: Db,
+  mongo: MongoContext,
   tenantID: string,
   since: Date,
   authorIDs: ReadonlyArray<string>
 ) {
   // Get all the statuses for the given date stamp.
-  const cursor = collection<{
+  const cursor = mongo.comments().aggregate<{
     _id: {
       status: GQLCOMMENT_STATUS;
       authorID: string;
     };
     count: number;
-  }>(mongo).aggregate([
+  }>([
     {
       $match: {
         tenantID,
@@ -1064,7 +1330,7 @@ export async function retrieveManyRecentStatusCounts(
 }
 
 export async function retrieveRecentStatusCounts(
-  mongo: Db,
+  mongo: MongoContext,
   tenantID: string,
   since: Date,
   authorID: string
@@ -1085,7 +1351,7 @@ export async function retrieveRecentStatusCounts(
  * @param limit the maximum number of story id's we want to return.
  */
 export async function retrieveOngoingDiscussions(
-  mongo: Db,
+  mongo: MongoContext,
   tenantID: string,
   authorID: string,
   limit: number
@@ -1098,8 +1364,9 @@ export async function retrieveOngoingDiscussions(
   // have to collect _all_ the stories that a user has commented on (their id's
   // at least) before limiting the result. This may change on different versions
   // of MongoDB though.
-  const results = await collection<{ _id: string }>(mongo)
-    .aggregate([
+  const results = await mongo
+    .comments()
+    .aggregate<{ _id: string }>([
       {
         $match: {
           tenantID,
@@ -1127,14 +1394,14 @@ export async function retrieveOngoingDiscussions(
 }
 
 export async function hasAuthorStoryRating(
-  mongo: Db,
+  mongo: MongoContext,
   tenantID: string,
   storyID: string,
   authorID: string
 ): Promise<boolean> {
   const timer = createTimer();
 
-  const comment = await collection(mongo).findOne({
+  const comment = await mongo.comments().findOne({
     tenantID,
     storyID,
     authorID,
@@ -1151,25 +1418,25 @@ export async function hasAuthorStoryRating(
 }
 
 export async function retrieveAuthorStoryRating(
-  mongo: Db,
+  mongo: MongoContext,
   tenantID: string,
   storyID: string,
   authorID: string
 ) {
   const timer = createTimer();
 
-  const comment = await collection<RequireProperty<Comment, "rating">>(
-    mongo
-  ).findOne({
-    tenantID,
-    storyID,
-    authorID,
-    parentID: null,
-    status: {
-      $in: [...PUBLISHED_STATUSES, GQLCOMMENT_STATUS.PREMOD],
-    },
-    rating: { $gt: 0 },
-  });
+  const comment = await mongo
+    .comments()
+    .findOne<RequireProperty<Comment, "rating">>({
+      tenantID,
+      storyID,
+      authorID,
+      parentID: null,
+      status: {
+        $in: [...PUBLISHED_STATUSES, GQLCOMMENT_STATUS.PREMOD],
+      },
+      rating: { $gt: 0 },
+    });
 
   logger.info({ took: timer() }, "check comment rated query");
 
@@ -1177,17 +1444,27 @@ export async function retrieveAuthorStoryRating(
 }
 
 export async function retrieveStoryRatings(
-  mongo: Db,
+  mongo: MongoContext,
   tenantID: string,
   storyID: string
 ) {
   const timer = createTimer();
 
-  const results = await collection<{
-    average: number;
-    count: number;
-  }>(mongo)
-    .aggregate([
+  const story = await retrieveStory(mongo, tenantID, storyID);
+  if (!story) {
+    throw new StoryNotFoundError(storyID);
+  }
+
+  const collection =
+    story.isArchived && mongo.archive
+      ? mongo.archivedComments()
+      : mongo.comments();
+
+  const results = await collection
+    .aggregate<{
+      average: number;
+      count: number;
+    }>([
       {
         $match: {
           tenantID,
@@ -1225,19 +1502,19 @@ export async function retrieveStoryRatings(
   return { average, count };
 }
 
-export async function retrieveManyStoryRatings(
-  mongo: Db,
+async function retrieveManyRatingsFromCollection(
+  collection: Collection<Readonly<Comment>>,
   tenantID: string,
-  storyIDs: ReadonlyArray<string>
+  storyIDs: string[]
 ) {
-  const timer = createTimer();
-
-  const results = await collection<{
-    _id: string;
-    average: number;
-    count: number;
-  }>(mongo)
-    .aggregate([
+  const results = await collection
+    .aggregate<
+      Readonly<{
+        _id: string;
+        average: number;
+        count: number;
+      }>
+    >([
       {
         $match: {
           tenantID,
@@ -1284,17 +1561,66 @@ export async function retrieveManyStoryRatings(
     ])
     .toArray();
 
+  return results;
+}
+
+export async function retrieveManyStoryRatings(
+  mongo: MongoContext,
+  tenantID: string,
+  storyIDs: ReadonlyArray<string>
+) {
+  const timer = createTimer();
+
+  const stories = await retrieveManyStories(mongo, tenantID, storyIDs);
+
+  const liveStoryIDs = stories
+    .filter((s) => s !== null && !s.isArchived && !s.isArchiving)
+    // assert id must be non-null since we filtered out null results
+    .map((s) => s!.id);
+  const archivedStoryIDs = stories
+    .filter((s) => s !== null && s.isArchived && !s.isArchiving)
+    // assert id must be non-null since we filtered out null results
+    .map((s) => s!.id);
+
+  const liveResults = await retrieveManyRatingsFromCollection(
+    mongo.comments(),
+    tenantID,
+    liveStoryIDs
+  );
+
+  let archivedResults: Readonly<{
+    _id: string;
+    average: number;
+    count: number;
+  }>[] = [];
+  if (mongo.archive) {
+    archivedResults = await retrieveManyRatingsFromCollection(
+      mongo.archivedComments(),
+      tenantID,
+      archivedStoryIDs
+    );
+  }
+
   // TODO: If this query becomes too expensive, we can use redis to help.
   logger.info({ took: timer() }, "multi story ratings query");
 
-  return storyIDs.map(
-    (storyID) =>
-      results.find(({ _id }) => _id === storyID) || { average: 0, count: 0 }
-  );
+  return storyIDs.map((storyID) => {
+    const liveVal = liveResults.find(({ _id }) => _id === storyID);
+    if (liveVal) {
+      return liveVal;
+    }
+
+    const archivedVal = archivedResults.find(({ _id }) => _id === storyID);
+    if (archivedVal) {
+      return archivedVal;
+    }
+
+    return { average: 0, count: 0 };
+  });
 }
 
 export async function retrieveFeaturedComments(
-  mongo: Db,
+  mongo: MongoContext,
   tenantID: string,
   siteID: string,
   limit: number
@@ -1305,7 +1631,8 @@ export async function retrieveFeaturedComments(
     "tags.type": GQLTAG.FEATURED,
     status: { $in: PUBLISHED_STATUSES },
   };
-  const results = await collection(mongo)
+  const results = await mongo
+    .comments()
     .aggregate([
       {
         $match,

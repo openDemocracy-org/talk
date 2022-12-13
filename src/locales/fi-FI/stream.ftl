@@ -69,7 +69,7 @@ comments-postCommentForm-submit = Lähetä
 comments-replyList-showAll = Näytä kaikki
 comments-replyList-showMoreReplies = Näytä lisää vastauksia
 
-comments-postCommentForm-gifSearch = Hae GIF kuvaa
+comments-postComment-gifSearch = Hae GIF kuvaa
 comments-postComment-gifSearch-search =
   .aria-label = Hae
 comments-postComment-gifSearch-loading = Ladataan...
@@ -206,10 +206,6 @@ comments-userIgnorePopover-cancel = Peruuta
 comments-userBanPopover-title = Asetetaanko {$username} kirjoituskieltoon?
 comments-userBanPopover-description =
   Kirjoituskiellossa oleva käyttäjä ei voi enää kirjoittaa kommentteja,
-  reagoida niihin tai ilmoittaa muiden kommentteja asiattomiksi.
-  Myös tämä kommentti hylätään.
-comments-userBanPopover-scopedDescription =
-  {$sitename} sivustolta kirjoituskiellossa oleva käyttäjä ei voi enää kirjoittaa kommentteja,
   reagoida niihin tai ilmoittaa muiden kommentteja asiattomiksi.
   Myös tämä kommentti hylätään.
 comments-userBanPopover-cancel = Peruuta
@@ -635,27 +631,6 @@ configure-premodLink-commentsContainingLinks =
   Linkkejä sisältävien kommenttien ennakkotarkastus
 configure-premodLink-description =
   Ylläpidon on hyväksyttävä linkkejä sisältävä kommentti ennen kuin se julkaistaan.
-
-configure-liveUpdates-title =
-configure-enableLiveUpdates-title = Reaaliaikainen päivitys käytössä
-configure-liveUpdates-description =
-configure-enableLiveUpdates-description =
-  Kun reaaliaikainen päivitys on käytössä, uusien kommenttien ja
-  vastausten näkyminen ei vaadi sivulatausta, vaan tiedot päivittyvät välittömästi.
-  Voit poistaa ominaisuuden käytöstä, jos se aiheuttaa kommenttien latautumisen
-  hitautta poikkeuksellisen suosituissa jutuissa.
-configure-enableLiveUpdates-enable = Ota käyttöön
-
-configure-disableLiveUpdates-title = Poista reaaliaikainen päivitys käytöstä
-configure-disableLiveUpdates-description =
-  Kun reaaliaikainen päivitys ei ole käytössä, uudet kommentit ja vastaukset eivät enää
-  päivity välittömästi. Uusien kommenttien näkymiseksi kommentoijien on päivitettävä sivu manuaalisesti.
-  Reaaliaikainen päivitys on suositeltua poistaa käytöstä jos se aiheuttaa kommenttien latautumisen
-  hitautta poikkeuksellisen suosituissa jutuissa.
-configure-disableLiveUpdates-disable = Poista käytöstä
-
-configure-liveUpdates-disabledSuccess = Reaaliaikainen päivitys on nyt poistettu käytöstä
-configure-liveUpdates-enabledSuccess = Reaaliaikainen päivitys on nyt käytössä
 
 configure-messageBox-title =
 configure-addMessage-title =

@@ -1,6 +1,11 @@
 $commenterActionEditColor: var(--palette-primary-500);
 $commenterActionEditColorActive: var(--palette-primary-300);
 
+.root {
+  &:focus {
+    outline: none;
+  }
+}
 .tagIcon {
   margin-right: var(--spacing-1);
 }
@@ -35,7 +40,7 @@ $commenterActionEditColorActive: var(--palette-primary-300);
 
 .actionBar {
   min-width: 100px;
-  @media (min-width: $breakpoints-xs) {
+  :global(.coral-width-gte-xs) & {
     min-width: 150px;
   }
 }
@@ -66,4 +71,51 @@ $commenterActionEditColorActive: var(--palette-primary-300);
   text-overflow: ellipsis;
   text-align: left;
   max-width: 100%;
+}
+
+.indentedCommentRoot {
+  padding-top: 9px;
+  padding-bottom: 7px;
+}
+
+.commentSeenEnabled {
+  padding-left: 2px;
+  padding-right: 2px;
+  transition: background 600ms ease-out;
+
+  &.indented {
+    padding-left: 0px;
+    padding-right: 2px;
+  }
+
+  &.flattenedPadding {
+    padding-left: 18px;
+  }
+}
+
+.traversalFocus {
+  border-top: 2px solid;
+  border-bottom: 2px solid;
+  border-right: 2px solid;
+  border-color: var(--palette-primary-500);
+  padding-top: 7px;
+  padding-bottom: 5px;
+  padding-left: 0px;
+  padding-right: 0px;
+
+  &:not(.indented) {
+    border-left: 2px solid;
+    border-color: var(--palette-primary-500);
+  }
+  &.flattenedPadding {
+    padding-left: 18px;
+  }
+}
+
+.notSeen {
+  background-color: $colors-yellow-100;
+}
+
+.flattenedPadding {
+  padding-left: 18px;
 }

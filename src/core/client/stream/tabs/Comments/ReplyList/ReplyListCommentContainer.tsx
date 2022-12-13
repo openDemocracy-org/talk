@@ -13,6 +13,8 @@ import { ReplyListCommentContainer_viewer } from "coral-stream/__generated__/Rep
 
 import CollapsableComment from "../Comment/CollapsableComment";
 import CommentContainer from "../Comment/CommentContainer";
+import { isReplyFlattened } from "../Comment/flattenReplies";
+import { useCommentSeenEnabled } from "../commentSeen";
 import DeletedTombstoneContainer from "../DeletedTombstoneContainer";
 import IgnoredTombstoneOrHideContainer from "../IgnoredTombstoneOrHideContainer";
 
@@ -24,7 +26,6 @@ interface Props {
   settings: ReplyListCommentContainer_settings;
   story: ReplyListCommentContainer_story;
   allowIgnoredTombstoneReveal?: boolean;
-  disableHideIgnoredTombstone?: boolean;
   localReply?: boolean;
   indentLevel?: number;
   disableReplies?: boolean;
@@ -39,7 +40,6 @@ const ReplyListCommentContainer: FunctionComponent<Props> = ({
   settings,
   story,
   allowIgnoredTombstoneReveal,
-  disableHideIgnoredTombstone,
   localReply,
   indentLevel,
   disableReplies,
@@ -47,42 +47,50 @@ const ReplyListCommentContainer: FunctionComponent<Props> = ({
   showConversationLink,
   replyListElement,
 }) => {
+  const commentSeenEnabled = useCommentSeenEnabled();
   return (
     <FadeInTransition active={Boolean(comment.enteredLive)}>
       <IgnoredTombstoneOrHideContainer
         viewer={viewer}
         comment={comment}
         allowTombstoneReveal={allowIgnoredTombstoneReveal}
-        disableHide={disableHideIgnoredTombstone}
       >
-        <HorizontalGutter>
+        <HorizontalGutter spacing={commentSeenEnabled ? 0 : undefined}>
           <CollapsableComment>
-            {({ collapsed, toggleCollapsed }) => (
-              <>
-                <DeletedTombstoneContainer comment={comment}>
-                  <CommentContainer
-                    viewer={viewer}
-                    comment={comment}
-                    story={story}
-                    collapsed={collapsed}
-                    settings={settings}
-                    indentLevel={indentLevel}
-                    localReply={localReply}
-                    disableReplies={disableReplies}
-                    showConversationLink={!!showConversationLink}
-                    toggleCollapsed={toggleCollapsed}
-                    showRemoveAnswered={showRemoveAnswered}
-                  />
-                </DeletedTombstoneContainer>
-                <div
-                  className={cn({
-                    [styles.hiddenReplies]: collapsed,
-                  })}
-                >
-                  {replyListElement}
-                </div>
-              </>
-            )}
+            {({ collapsed, toggleCollapsed }) => {
+              const collapseEnabled = !isReplyFlattened(
+                settings.flattenReplies,
+                indentLevel
+              );
+              return (
+                <>
+                  <DeletedTombstoneContainer comment={comment}>
+                    <CommentContainer
+                      viewer={viewer}
+                      comment={comment}
+                      story={story}
+                      collapsed={collapsed && collapseEnabled}
+                      settings={settings}
+                      indentLevel={indentLevel}
+                      localReply={localReply}
+                      disableReplies={disableReplies}
+                      showConversationLink={!!showConversationLink}
+                      toggleCollapsed={
+                        collapseEnabled ? toggleCollapsed : undefined
+                      }
+                      showRemoveAnswered={showRemoveAnswered}
+                    />
+                  </DeletedTombstoneContainer>
+                  <div
+                    className={cn({
+                      [styles.hiddenReplies]: collapsed && collapseEnabled,
+                    })}
+                  >
+                    {replyListElement}
+                  </div>
+                </>
+              );
+            }}
           </CollapsableComment>
         </HorizontalGutter>
       </IgnoredTombstoneOrHideContainer>
@@ -105,6 +113,8 @@ const enhanced = withFragmentContainer<Props>({
   settings: graphql`
     fragment ReplyListCommentContainer_settings on Settings {
       ...CommentContainer_settings
+      flattenReplies
+      featureFlags
     }
   `,
   comment: graphql`

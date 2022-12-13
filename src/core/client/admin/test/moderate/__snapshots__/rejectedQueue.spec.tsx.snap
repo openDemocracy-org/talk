@@ -16,7 +16,7 @@ exports[`approves comment in rejected queue: count should be 1 1`] = `
 exports[`approves comment in rejected queue: dangling 1`] = `
 <div
   className="Card-root ModerateCard-root ModerateCard-dangling ModerateCard-selected"
-  data-testid="moderate-comment-comment-0"
+  data-testid="moderate-comment-card-comment-0"
   id="moderate-comment-comment-0"
   onClick={[Function]}
   tabIndex={0}
@@ -60,7 +60,7 @@ exports[`approves comment in rejected queue: dangling 1`] = `
             type="button"
           >
             <time
-              className="RelativeTime-root Timestamp-text"
+              className="RelativeTime-root Timestamp-text ModerateCard-timestamp"
               dateTime="2018-07-06T18:24:00.000Z"
               title="2018-07-06T18:24:00.000Z"
             >
@@ -91,7 +91,7 @@ exports[`approves comment in rejected queue: dangling 1`] = `
           className="ModerateCard-content"
         >
           <div
-            className="CommentContent-root"
+            className="CommentContent-root CommentContent-highlight"
             dangerouslySetInnerHTML={
               Object {
                 "__html": "This is the last random sentence I will be writing and I am going to stop mid-sent",
@@ -134,7 +134,9 @@ exports[`approves comment in rejected queue: dangling 1`] = `
         <div
           className="Box-root HorizontalGutter-root HorizontalGutter-spacing-3"
         >
-          <div>
+          <div
+            data-testid="moderate-comment-storyInfo"
+          >
             <div
               className="ModerateCard-storyLabel"
             >
@@ -168,8 +170,63 @@ exports[`approves comment in rejected queue: dangling 1`] = `
             className="Box-root HorizontalGutter-root HorizontalGutter-full"
           >
             <div
+              className="Box-root Flex-root Flex-flex gutter Flex-spacing-2"
+            />
+          </div>
+          <div
+            className="Box-root HorizontalGutter-root HorizontalGutter-full"
+          >
+            <div
               className="Box-root Flex-root Flex-flex Flex-itemGutter gutter"
             >
+              <span
+                className="Marker-root Marker-colorPending Marker-variantRegular"
+              >
+                Link
+              </span>
+              <span
+                className="Marker-root Marker-colorReported Marker-variantRegular"
+              >
+                Banned word
+              </span>
+              <span
+                className="Marker-root Marker-colorReported Marker-variantRegular"
+              >
+                Suspect word
+              </span>
+              <span
+                className="Marker-root Marker-colorReported Marker-variantRegular"
+              >
+                Spam detected
+              </span>
+              <span
+                className="Marker-root Marker-colorReported Marker-variantRegular"
+              >
+                Toxic
+              </span>
+              <span
+                className="Marker-root Marker-colorReported Marker-variantRegular"
+              >
+                Repeat comment
+              </span>
+              <span
+                className="Marker-root Marker-colorReported Marker-variantRegular"
+              >
+                Recent history
+              </span>
+              <span
+                className="Marker-root Marker-colorReported Marker-variantRegular"
+              >
+                <span>
+                  Offensive
+                </span>
+                 
+                <span
+                  className="Count-root"
+                >
+                  2
+                </span>
+              </span>
               <span
                 className="Marker-root Marker-colorReported Marker-variantRegular"
               >
@@ -180,7 +237,7 @@ exports[`approves comment in rejected queue: dangling 1`] = `
                 <span
                   className="Count-root"
                 >
-                  2
+                  3
                 </span>
               </span>
               <button
@@ -281,7 +338,7 @@ exports[`renders rejected queue with comments 1`] = `
     >
       <div
         className="Card-root ModerateCard-root ModerateCard-selected"
-        data-testid="moderate-comment-comment-0"
+        data-testid="moderate-comment-card-comment-0"
         id="moderate-comment-comment-0"
         onClick={[Function]}
         tabIndex={0}
@@ -325,7 +382,7 @@ exports[`renders rejected queue with comments 1`] = `
                   type="button"
                 >
                   <time
-                    className="RelativeTime-root Timestamp-text"
+                    className="RelativeTime-root Timestamp-text ModerateCard-timestamp"
                     dateTime="2018-07-06T18:24:00.000Z"
                     title="2018-07-06T18:24:00.000Z"
                   >
@@ -356,7 +413,7 @@ exports[`renders rejected queue with comments 1`] = `
                 className="ModerateCard-content"
               >
                 <div
-                  className="CommentContent-root"
+                  className="CommentContent-root CommentContent-highlight"
                   dangerouslySetInnerHTML={
                     Object {
                       "__html": "This is the last random sentence I will be writing and I am going to stop mid-sent",
@@ -399,7 +456,9 @@ exports[`renders rejected queue with comments 1`] = `
               <div
                 className="Box-root HorizontalGutter-root HorizontalGutter-spacing-3"
               >
-                <div>
+                <div
+                  data-testid="moderate-comment-storyInfo"
+                >
                   <div
                     className="ModerateCard-storyLabel"
                   >
@@ -433,8 +492,63 @@ exports[`renders rejected queue with comments 1`] = `
                   className="Box-root HorizontalGutter-root HorizontalGutter-full"
                 >
                   <div
+                    className="Box-root Flex-root Flex-flex gutter Flex-spacing-2"
+                  />
+                </div>
+                <div
+                  className="Box-root HorizontalGutter-root HorizontalGutter-full"
+                >
+                  <div
                     className="Box-root Flex-root Flex-flex Flex-itemGutter gutter"
                   >
+                    <span
+                      className="Marker-root Marker-colorPending Marker-variantRegular"
+                    >
+                      Link
+                    </span>
+                    <span
+                      className="Marker-root Marker-colorReported Marker-variantRegular"
+                    >
+                      Banned word
+                    </span>
+                    <span
+                      className="Marker-root Marker-colorReported Marker-variantRegular"
+                    >
+                      Suspect word
+                    </span>
+                    <span
+                      className="Marker-root Marker-colorReported Marker-variantRegular"
+                    >
+                      Spam detected
+                    </span>
+                    <span
+                      className="Marker-root Marker-colorReported Marker-variantRegular"
+                    >
+                      Toxic
+                    </span>
+                    <span
+                      className="Marker-root Marker-colorReported Marker-variantRegular"
+                    >
+                      Repeat comment
+                    </span>
+                    <span
+                      className="Marker-root Marker-colorReported Marker-variantRegular"
+                    >
+                      Recent history
+                    </span>
+                    <span
+                      className="Marker-root Marker-colorReported Marker-variantRegular"
+                    >
+                      <span>
+                        Offensive
+                      </span>
+                       
+                      <span
+                        className="Count-root"
+                      >
+                        2
+                      </span>
+                    </span>
                     <span
                       className="Marker-root Marker-colorReported Marker-variantRegular"
                     >
@@ -445,7 +559,7 @@ exports[`renders rejected queue with comments 1`] = `
                       <span
                         className="Count-root"
                       >
-                        2
+                        3
                       </span>
                     </span>
                     <button
@@ -528,33 +642,22 @@ exports[`renders rejected queue with comments 1`] = `
                 </i>
               </button>
             </div>
-            <button
-              className="BaseButton-root"
-              onBlur={[Function]}
-              onClick={[Function]}
-              onFocus={[Function]}
-              onMouseOut={[Function]}
-              onMouseOver={[Function]}
-              onTouchEnd={[Function]}
-              type="button"
+            <div
+              className="ModeratedByContainer-moderatedBy"
             >
-              <div
-                className="ModeratedByContainer-moderatedBy"
-              >
-                Moderated By
-              </div>
-              <div
-                className="ModeratedByContainer-moderatedByUsername"
-              >
-                System
-              </div>
-            </button>
+              Moderated By
+            </div>
+            <div
+              className="ModeratedByContainer-moderatedByUsername"
+            >
+              System
+            </div>
           </div>
         </div>
       </div>
       <div
         className="Card-root ModerateCard-root"
-        data-testid="moderate-comment-comment-1"
+        data-testid="moderate-comment-card-comment-1"
         id="moderate-comment-comment-1"
         onClick={[Function]}
         tabIndex={0}
@@ -598,7 +701,7 @@ exports[`renders rejected queue with comments 1`] = `
                   type="button"
                 >
                   <time
-                    className="RelativeTime-root Timestamp-text"
+                    className="RelativeTime-root Timestamp-text ModerateCard-timestamp"
                     dateTime="2018-07-06T18:24:00.000Z"
                     title="2018-07-06T18:24:00.000Z"
                   >
@@ -620,6 +723,41 @@ exports[`renders rejected queue with comments 1`] = `
                     Feature
                   </span>
                 </button>
+              </div>
+              <div
+                className="Box-root Flex-root Flex-flex Flex-alignCenter"
+              >
+                <i
+                  aria-hidden="true"
+                  className="Icon-root Icon-sm InReplyTo-icon"
+                >
+                  reply
+                </i>
+                <span>
+                   
+                </span>
+                <span
+                  className="InReplyTo-inReplyTo"
+                >
+                  Reply to 
+                  <button
+                    aria-label="User luke2"
+                    className="BaseButton-root InReplyTo-usernameButton"
+                    onBlur={[Function]}
+                    onClick={[Function]}
+                    onFocus={[Function]}
+                    onMouseOut={[Function]}
+                    onMouseOver={[Function]}
+                    onTouchEnd={[Function]}
+                    type="button"
+                  >
+                    <span
+                      className="InReplyTo-username"
+                    >
+                      luke2
+                    </span>
+                  </button>
+                </span>
               </div>
             </div>
             <div
@@ -672,7 +810,9 @@ exports[`renders rejected queue with comments 1`] = `
               <div
                 className="Box-root HorizontalGutter-root HorizontalGutter-spacing-3"
               >
-                <div>
+                <div
+                  data-testid="moderate-comment-storyInfo"
+                >
                   <div
                     className="ModerateCard-storyLabel"
                   >
@@ -701,6 +841,13 @@ exports[`renders rejected queue with comments 1`] = `
                       Moderate Story
                     </a>
                   </div>
+                </div>
+                <div
+                  className="Box-root HorizontalGutter-root HorizontalGutter-full"
+                >
+                  <div
+                    className="Box-root Flex-root Flex-flex gutter Flex-spacing-2"
+                  />
                 </div>
                 <div
                   className="Box-root HorizontalGutter-root HorizontalGutter-full"
@@ -752,7 +899,7 @@ exports[`renders rejected queue with comments 1`] = `
             </div>
           </div>
           <div
-            className="Box-root Flex-root ModerateCard-aside ModerateCard-asideWithoutReplyTo Flex-flex Flex-itemGutter Flex-alignCenter Flex-directionColumn gutter"
+            className="Box-root Flex-root ModerateCard-aside Flex-flex Flex-itemGutter Flex-alignCenter Flex-directionColumn gutter"
           >
             <div
               className="ModerateCard-decision"
@@ -801,27 +948,16 @@ exports[`renders rejected queue with comments 1`] = `
                 </i>
               </button>
             </div>
-            <button
-              className="BaseButton-root"
-              onBlur={[Function]}
-              onClick={[Function]}
-              onFocus={[Function]}
-              onMouseOut={[Function]}
-              onMouseOver={[Function]}
-              onTouchEnd={[Function]}
-              type="button"
+            <div
+              className="ModeratedByContainer-moderatedBy"
             >
-              <div
-                className="ModeratedByContainer-moderatedBy"
-              >
-                Moderated By
-              </div>
-              <div
-                className="ModeratedByContainer-moderatedByUsername"
-              >
-                System
-              </div>
-            </button>
+              Moderated By
+            </div>
+            <div
+              className="ModeratedByContainer-moderatedByUsername"
+            >
+              System
+            </div>
           </div>
         </div>
       </div>
@@ -833,7 +969,7 @@ exports[`renders rejected queue with comments 1`] = `
 exports[`renders rejected queue with comments and load more 1`] = `
 <div
   className="Card-root ModerateCard-root"
-  data-testid="moderate-comment-comment-2"
+  data-testid="moderate-comment-card-comment-2"
   id="moderate-comment-comment-2"
   onClick={[Function]}
   tabIndex={0}
@@ -877,7 +1013,7 @@ exports[`renders rejected queue with comments and load more 1`] = `
             type="button"
           >
             <time
-              className="RelativeTime-root Timestamp-text"
+              className="RelativeTime-root Timestamp-text ModerateCard-timestamp"
               dateTime="2018-07-06T18:24:00.000Z"
               title="2018-07-06T18:24:00.000Z"
             >
@@ -951,7 +1087,9 @@ exports[`renders rejected queue with comments and load more 1`] = `
         <div
           className="Box-root HorizontalGutter-root HorizontalGutter-spacing-3"
         >
-          <div>
+          <div
+            data-testid="moderate-comment-storyInfo"
+          >
             <div
               className="ModerateCard-storyLabel"
             >
@@ -980,6 +1118,13 @@ exports[`renders rejected queue with comments and load more 1`] = `
                 Moderate Story
               </a>
             </div>
+          </div>
+          <div
+            className="Box-root HorizontalGutter-root HorizontalGutter-full"
+          >
+            <div
+              className="Box-root Flex-root Flex-flex gutter Flex-spacing-2"
+            />
           </div>
           <div
             className="Box-root HorizontalGutter-root HorizontalGutter-full"
@@ -1093,27 +1238,16 @@ exports[`renders rejected queue with comments and load more 1`] = `
           </i>
         </button>
       </div>
-      <button
-        className="BaseButton-root"
-        onBlur={[Function]}
-        onClick={[Function]}
-        onFocus={[Function]}
-        onMouseOut={[Function]}
-        onMouseOver={[Function]}
-        onTouchEnd={[Function]}
-        type="button"
+      <div
+        className="ModeratedByContainer-moderatedBy"
       >
-        <div
-          className="ModeratedByContainer-moderatedBy"
-        >
-          Moderated By
-        </div>
-        <div
-          className="ModeratedByContainer-moderatedByUsername"
-        >
-          System
-        </div>
-      </button>
+        Moderated By
+      </div>
+      <div
+        className="ModeratedByContainer-moderatedByUsername"
+      >
+        System
+      </div>
     </div>
   </div>
 </div>

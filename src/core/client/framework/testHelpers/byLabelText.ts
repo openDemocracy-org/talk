@@ -4,24 +4,26 @@ import { ReactTestInstance } from "react-test-renderer";
 import { queryAllByText } from "./byText";
 import matchText, { TextMatchOptions, TextMatchPattern } from "./matchText";
 
-const ariaLabelMatcher = (
-  pattern: TextMatchPattern,
-  options?: TextMatchOptions
-) => (i: ReactTestInstance) => {
-  // Only look at dom components.
-  if (typeof i.type !== "string" || !i.props["aria-label"]) {
-    return false;
-  }
-  return matchText(pattern, i.props["aria-label"], {
-    collapseWhitespace: false,
-    ...options,
-  });
-};
+const ariaLabelMatcher =
+  (pattern: TextMatchPattern, options?: TextMatchOptions) =>
+  (i: ReactTestInstance) => {
+    // Only look at dom components.
+    if (typeof i.type !== "string" || !i.props["aria-label"]) {
+      return false;
+    }
+    return matchText(pattern, i.props["aria-label"], {
+      collapseWhitespace: false,
+      ...options,
+    });
+  };
+interface SelectorOptions {
+  selector?: string;
+}
 
 export function getByLabelText(
   container: ReactTestInstance,
   pattern: TextMatchPattern,
-  options?: TextMatchOptions
+  options?: TextMatchOptions & SelectorOptions
 ) {
   const results = queryAllByLabelText(container, pattern, options);
   if (results.length === 1) {
@@ -36,7 +38,7 @@ export function getByLabelText(
 export function getAllByLabelText(
   container: ReactTestInstance,
   pattern: TextMatchPattern,
-  options?: TextMatchOptions
+  options?: TextMatchOptions & SelectorOptions
 ) {
   const results = queryAllByLabelText(container, pattern, options);
   if (results.length) {
@@ -48,7 +50,7 @@ export function getAllByLabelText(
 export function queryByLabelText(
   container: ReactTestInstance,
   pattern: TextMatchPattern,
-  options?: TextMatchOptions
+  options?: TextMatchOptions & SelectorOptions
 ) {
   const results = queryAllByLabelText(container, pattern, options);
   if (results.length) {
@@ -60,9 +62,9 @@ export function queryByLabelText(
 export function queryAllByLabelText(
   container: ReactTestInstance,
   pattern: TextMatchPattern,
-  options?: TextMatchOptions
+  options?: TextMatchOptions & SelectorOptions
 ) {
-  const matches = container.findAll(ariaLabelMatcher(pattern, options));
+  let matches = container.findAll(ariaLabelMatcher(pattern, options));
   // Find matching aria-labelledby and id pairs.
   queryAllByText(container, pattern, options).forEach((i) => {
     if (typeof i.type !== "string") {
@@ -95,5 +97,8 @@ export function queryAllByLabelText(
       }
     }
   );
+  if (options && options.selector) {
+    matches = matches.filter((m) => m.type === options.selector);
+  }
   return uniq(matches);
 }

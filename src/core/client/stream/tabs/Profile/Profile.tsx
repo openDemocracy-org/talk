@@ -3,6 +3,7 @@ import cn from "classnames";
 import React, { FunctionComponent, useCallback, useMemo } from "react";
 import { graphql } from "react-relay";
 
+import { useCoralContext } from "coral-framework/lib/bootstrap";
 import { useViewerEvent } from "coral-framework/lib/events";
 import { useLocal } from "coral-framework/lib/relay";
 import { PropTypesOf } from "coral-framework/types";
@@ -40,6 +41,7 @@ export interface ProfileProps {
 }
 
 const Profile: FunctionComponent<ProfileProps> = (props) => {
+  const { window } = useCoralContext();
   const emitSetProfileTabEvent = useViewerEvent(SetProfileTabEvent);
   const [local, setLocal] = useLocal<ProfileLocal>(graphql`
     fragment ProfileLocal on Local {
@@ -60,7 +62,14 @@ const Profile: FunctionComponent<ProfileProps> = (props) => {
         setLocal({ profileTab: tab });
       }
     },
-    [setLocal, local.profileTab, props.ssoURL, props.isSSO]
+    [
+      props.isSSO,
+      props.ssoURL,
+      local.profileTab,
+      emitSetProfileTabEvent,
+      setLocal,
+      window,
+    ]
   );
 
   const showAccountTab = useMemo(() => {
@@ -77,50 +86,55 @@ const Profile: FunctionComponent<ProfileProps> = (props) => {
     <HorizontalGutter size="double">
       <UserBoxContainer viewer={props.viewer} settings={props.settings} />
       <DeletionRequestCalloutContainer viewer={props.viewer} />
-      <TabBar
-        variant="streamSecondary"
-        activeTab={local.profileTab}
-        onTabClick={onTabClick}
-        className={CLASSES.tabBarMyProfile.$root}
-      >
-        <Tab
-          tabID="MY_COMMENTS"
-          variant="streamSecondary"
-          className={cn(CLASSES.tabBarMyProfile.myComments, {
-            [CLASSES.tabBarMyProfile.active]:
-              local.profileTab === "MY_COMMENTS",
-          })}
-        >
-          <Localized id="profile-myCommentsTab-comments">
-            <span>My comments</span>
-          </Localized>
-        </Tab>
-        <Tab
-          tabID="PREFERENCES"
-          variant="streamSecondary"
-          className={cn(CLASSES.tabBarMyProfile.preferences, {
-            [CLASSES.tabBarMyProfile.active]:
-              local.profileTab === "PREFERENCES",
-          })}
-        >
-          <Localized id="profile-preferencesTab">
-            <span>Preferences</span>
-          </Localized>
-        </Tab>
-        {showAccountTab && (
-          <Tab
-            tabID="ACCOUNT"
+      <Localized id="general-secondaryTablist" attrs={{ "aria-label": true }}>
+        <nav aria-label="Secondary Tablist">
+          <TabBar
             variant="streamSecondary"
-            className={cn(CLASSES.tabBarMyProfile.settings, {
-              [CLASSES.tabBarMyProfile.active]: local.profileTab === "ACCOUNT",
-            })}
+            activeTab={local.profileTab}
+            onTabClick={onTabClick}
+            className={CLASSES.tabBarMyProfile.$root}
           >
-            <Localized id="profile-accountTab">
-              <span>Account</span>
-            </Localized>
-          </Tab>
-        )}
-      </TabBar>
+            <Tab
+              tabID="MY_COMMENTS"
+              variant="streamSecondary"
+              className={cn(CLASSES.tabBarMyProfile.myComments, {
+                [CLASSES.tabBarMyProfile.active]:
+                  local.profileTab === "MY_COMMENTS",
+              })}
+            >
+              <Localized id="profile-myCommentsTab-comments">
+                <span>My comments</span>
+              </Localized>
+            </Tab>
+            <Tab
+              tabID="PREFERENCES"
+              variant="streamSecondary"
+              className={cn(CLASSES.tabBarMyProfile.preferences, {
+                [CLASSES.tabBarMyProfile.active]:
+                  local.profileTab === "PREFERENCES",
+              })}
+            >
+              <Localized id="profile-preferencesTab">
+                <span>Preferences</span>
+              </Localized>
+            </Tab>
+            {showAccountTab && (
+              <Tab
+                tabID="ACCOUNT"
+                variant="streamSecondary"
+                className={cn(CLASSES.tabBarMyProfile.settings, {
+                  [CLASSES.tabBarMyProfile.active]:
+                    local.profileTab === "ACCOUNT",
+                })}
+              >
+                <Localized id="profile-accountTab">
+                  <span>Account</span>
+                </Localized>
+              </Tab>
+            )}
+          </TabBar>
+        </nav>
+      </Localized>
       <TabContent activeTab={local.profileTab}>
         <TabPane
           className={CLASSES.myCommentsTabPane.$root}

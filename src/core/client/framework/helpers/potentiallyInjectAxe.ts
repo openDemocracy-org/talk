@@ -1,10 +1,10 @@
+/* eslint-disable no-restricted-globals */
 import React from "react";
 import ReactDOM from "react-dom";
 
 import { parseQuery } from "coral-common/utils";
 
-import { getBrowserInfo } from "../lib/browserInfo";
-import { areWeInIframe } from "../utils";
+import { BrowserInfo } from "../lib/browserInfo";
 
 function extractQuery(href: string) {
   const query = href.split("?")[1];
@@ -24,9 +24,10 @@ function extractQuery(href: string) {
  * @param href url to check for the `axe` property.
  */
 export default async function potentiallyInjectAxe(
-  href = window.location.href
+  href = window.location.href,
+  browser: BrowserInfo
 ) {
-  if (process.env.NODE_ENV !== "development" || getBrowserInfo().mobile) {
+  if (process.env.NODE_ENV !== "development" || browser.mobile) {
     // Only in development and skip mobile as it doesn't work there.
     return;
   }
@@ -45,7 +46,7 @@ export default async function potentiallyInjectAxe(
     rules: [
       {
         id: "page-has-heading-one",
-        enabled: !areWeInIframe(),
+        enabled: false,
       },
       {
         id: "html-has-lang",

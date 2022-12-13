@@ -2,25 +2,44 @@
 
 exports[`post a reply: open reply form 1`] = `
 <div
-  className="coral coral-comment coral coral-reacted-0"
+  aria-labelledby="comment-comment-0-label"
+  className="CommentContainer-root coral coral-comment coral coral-reacted-0"
   data-key-stop={true}
   data-testid="comment-comment-0"
   id="comment-comment-0"
+  onFocus={[Function]}
+  role="article"
+  tabIndex={-1}
 >
+  <div
+    className="Hidden-root"
+    id="comment-comment-0-label"
+  >
+    <span>
+      Comment from Markus 
+      <time
+        className="RelativeTime-root"
+        dateTime="2018-07-06T18:24:00.000Z"
+        title="2018-07-06T18:24:00.000Z"
+      >
+        2018-07-06T18:24:00.000Z
+      </time>
+    </span>
+  </div>
   <div
     className="Box-root HorizontalGutter-root HorizontalGutter-full"
   >
     <div
-      className="IndentedComment-open coral coral-comment-collapse-toggle-indent Indent-root"
+      className="coral coral-comment-collapse-toggle-indent Indent-root"
     >
       <div
-        className="coral coral-indent coral-indent-0 Indent-open"
+        className="CommentContainer-indentedCommentRoot coral coral-indent coral-indent-0 Indent-open"
       >
         <div
-          className="Box-root Flex-root Flex-flex Flex-alignBaseline gutter Flex-spacing-1"
+          className="Box-root Flex-root Flex-flex Flex-alignFlexStart gutter Flex-spacing-1"
         >
           <button
-            aria-label="Collapse comment thread"
+            aria-label="Hide comment by Markus and its replies"
             className="BaseButton-root IndentedComment-toggleButton coral coral-comment-collapse-toggle"
             onBlur={[Function]}
             onClick={[Function]}
@@ -39,7 +58,6 @@ exports[`post a reply: open reply form 1`] = `
           </button>
           <div
             className="Box-root HorizontalGutter-root Comment-root HorizontalGutter-half"
-            role="article"
           >
             <div
               className="Box-root Flex-root coral coral-comment-topBar Flex-flex Flex-justifySpaceBetween Flex-alignFlexStart Flex-directionRow"
@@ -55,6 +73,7 @@ exports[`post a reply: open reply form 1`] = `
                   >
                     <button
                       aria-controls="username-popover-comment-0"
+                      aria-label="User Markus"
                       className="BaseButton-root CommentContainer-usernameButton coral coral-username coral-comment-username"
                       onBlur={[Function]}
                       onClick={[Function]}
@@ -72,17 +91,10 @@ exports[`post a reply: open reply form 1`] = `
                     </button>
                     <div
                       aria-hidden={true}
-                      aria-labelledby="username-popover-comment-0-ariainfo"
+                      aria-label="A popover with more user information"
                       id="username-popover-comment-0"
                       role="dialog"
-                    >
-                      <div
-                        className="AriaInfo-root"
-                        id="username-popover-comment-0-ariainfo"
-                      >
-                        A popover with more user information
-                      </div>
-                    </div>
+                    />
                   </div>
                 </div>
                 <div
@@ -217,17 +229,10 @@ exports[`post a reply: open reply form 1`] = `
                     </button>
                     <div
                       aria-hidden={true}
-                      aria-labelledby="permalink-popover-comment-0-ariainfo"
+                      aria-label="A dialog showing a permalink to the comment"
                       id="permalink-popover-comment-0"
                       role="dialog"
-                    >
-                      <div
-                        className="AriaInfo-root"
-                        id="permalink-popover-comment-0-ariainfo"
-                      >
-                        A dialog showing a permalink to the comment
-                      </div>
-                    </div>
+                    />
                   </div>
                 </div>
                 <div
@@ -286,7 +291,7 @@ exports[`post a reply: open reply form 1`] = `
                 Write a reply
               </label>
               <div
-                className="Box-root Flex-root ReplyTo-root coral coral-createReplyComment-replyTo Flex-flex Flex-alignCenter"
+                className="Box-root Flex-root ReplyingTo-root coral coral-createReplyComment-replyTo Flex-flex Flex-alignCenter"
               >
                 <i
                   aria-hidden="true"
@@ -298,11 +303,11 @@ exports[`post a reply: open reply form 1`] = `
                    
                 </span>
                 <span
-                  className="ReplyTo-text coral coral-createReplyComment-replyToText"
+                  className="ReplyingTo-text coral coral-createReplyComment-replyToText"
                 >
                   Replying to 
                   <span
-                    className="ReplyTo-username coral coral-createReplyComment-replyToUsername"
+                    className="ReplyingTo-username coral coral-createReplyComment-replyToUsername"
                   >
                     Markus
                   </span>
@@ -463,7 +468,8 @@ exports[`post a reply: open reply form 1`] = `
 
 exports[`post a reply: optimistic response 1`] = `
 <div
-  className="Box-root HorizontalGutter-root ReplyList-root HorizontalGutter-full"
+  aria-live="off"
+  className="Box-root HorizontalGutter-root ReplyList-withPadding HorizontalGutter-full"
   data-testid="commentReplyList-comment-0"
   id="coral-comments-replyList-log--comment-0"
   role="log"
@@ -472,25 +478,48 @@ exports[`post a reply: optimistic response 1`] = `
     className="Box-root HorizontalGutter-root HorizontalGutter-full"
   >
     <div
-      className="coral coral-comment coral coral-reacted-0"
+      aria-labelledby="comment-uuid-0-label"
+      className="CommentContainer-root coral coral-comment coral coral-reacted-0"
       data-key-stop={true}
       data-testid="comment-uuid-0"
       id="comment-uuid-0"
+      onFocus={[Function]}
+      role="article"
+      tabIndex={-1}
     >
+      <div
+        className="Hidden-root"
+        id="comment-uuid-0-label"
+      >
+        <span>
+          Thread Level 1:
+        </span>
+         
+        <span>
+          Reply from Markus 
+          <time
+            className="RelativeTime-root"
+            dateTime="2018-07-06T18:24:00.000Z"
+            title="2018-07-06T18:24:00.000Z"
+          >
+            2018-07-06T18:24:00.000Z
+          </time>
+        </span>
+      </div>
       <div
         className="Box-root HorizontalGutter-root HorizontalGutter-full"
       >
         <div
-          className="IndentedComment-open IndentedComment-blur coral coral-comment-collapse-toggle-indent Indent-root"
+          className="IndentedComment-blur coral coral-comment-collapse-toggle-indent Indent-root"
         >
           <div
-            className="Indent-level1 coral coral-indent coral-indent-1 Indent-open Indent-openPadded"
+            className="CommentContainer-indentedCommentRoot CommentContainer-indented Indent-level1 coral coral-indent coral-indent-1 Indent-open Indent-openPadded"
           >
             <div
-              className="Box-root Flex-root Flex-flex Flex-alignBaseline gutter Flex-spacing-1"
+              className="Box-root Flex-root Flex-flex Flex-alignFlexStart gutter Flex-spacing-1"
             >
               <button
-                aria-label="Collapse comment thread"
+                aria-label="Hide comment by Markus and its replies"
                 className="BaseButton-root IndentedComment-toggleButton coral coral-comment-collapse-toggle"
                 onBlur={[Function]}
                 onClick={[Function]}
@@ -509,7 +538,6 @@ exports[`post a reply: optimistic response 1`] = `
               </button>
               <div
                 className="Box-root HorizontalGutter-root Comment-root HorizontalGutter-half"
-                role="article"
               >
                 <div
                   className="Box-root Flex-root coral coral-comment-topBar Flex-flex Flex-justifySpaceBetween Flex-alignFlexStart Flex-directionRow"
@@ -525,6 +553,7 @@ exports[`post a reply: optimistic response 1`] = `
                       >
                         <button
                           aria-controls="username-popover-uuid-0"
+                          aria-label="User Markus"
                           className="BaseButton-root CommentContainer-usernameButton coral coral-username coral-comment-username"
                           onBlur={[Function]}
                           onClick={[Function]}
@@ -542,17 +571,10 @@ exports[`post a reply: optimistic response 1`] = `
                         </button>
                         <div
                           aria-hidden={true}
-                          aria-labelledby="username-popover-uuid-0-ariainfo"
+                          aria-label="A popover with more user information"
                           id="username-popover-uuid-0"
                           role="dialog"
-                        >
-                          <div
-                            className="AriaInfo-root"
-                            id="username-popover-uuid-0-ariainfo"
-                          >
-                            A popover with more user information
-                          </div>
-                        </div>
+                        />
                       </div>
                     </div>
                     <div
@@ -614,29 +636,40 @@ exports[`post a reply: optimistic response 1`] = `
                 <div
                   className="Comment-subBar"
                 >
-                  <div
-                    className="Box-root Flex-root coral coral-comment-inReplyTo Flex-flex Flex-alignCenter"
+                  <button
+                    className="BaseButton-root InReplyTo-button"
+                    onBlur={[Function]}
+                    onClick={[Function]}
+                    onFocus={[Function]}
+                    onMouseOut={[Function]}
+                    onMouseOver={[Function]}
+                    onTouchEnd={[Function]}
+                    type="button"
                   >
-                    <i
-                      aria-hidden="true"
-                      className="Icon-root Icon-sm InReplyTo-icon"
-                    >
-                      reply
-                    </i>
-                    <span>
-                       
-                    </span>
                     <span
-                      className="InReplyTo-inReplyTo coral coral-comment-inReplyToText"
+                      className="Box-root Flex-root coral coral-comment-inReplyTo Flex-flex Flex-alignCenter"
                     >
-                      In reply to 
-                      <span
-                        className="InReplyTo-username coral coral-comment-inReplyToUsername"
+                      <i
+                        aria-hidden="true"
+                        className="Icon-root Icon-sm InReplyTo-icon"
                       >
-                        Markus
+                        reply
+                      </i>
+                      <span>
+                         
+                      </span>
+                      <span
+                        className="InReplyTo-inReplyTo coral coral-comment-inReplyToText"
+                      >
+                        In reply to 
+                        <span
+                          className="InReplyTo-username coral coral-comment-inReplyToUsername"
+                        >
+                          Markus
+                        </span>
                       </span>
                     </span>
-                  </div>
+                  </button>
                 </div>
                 <div
                   className="Box-root HorizontalGutter-root HorizontalGutter-oneAndAHalf"
@@ -739,17 +772,10 @@ exports[`post a reply: optimistic response 1`] = `
                         </button>
                         <div
                           aria-hidden={true}
-                          aria-labelledby="permalink-popover-uuid-0-ariainfo"
+                          aria-label="A dialog showing a permalink to the comment"
                           id="permalink-popover-uuid-0"
                           role="dialog"
-                        >
-                          <div
-                            className="AriaInfo-root"
-                            id="permalink-popover-uuid-0-ariainfo"
-                          >
-                            A dialog showing a permalink to the comment
-                          </div>
-                        </div>
+                        />
                       </div>
                     </div>
                     <div

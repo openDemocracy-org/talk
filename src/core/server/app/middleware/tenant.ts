@@ -1,17 +1,22 @@
-import { Db } from "mongodb";
 import { v1 as uuid } from "uuid";
 
+import { MongoContext } from "coral-server/data/context";
 import { TenantNotFoundError } from "coral-server/errors";
 import logger from "coral-server/logger";
-import { retrieveSite, Site } from "coral-server/models/site";
+import {
+  retrieveSite,
+  retrieveSiteByOrigin,
+  Site,
+} from "coral-server/models/site";
 import { retrieveStory } from "coral-server/models/story";
 import { Tenant } from "coral-server/models/tenant";
 import { findSiteByURL } from "coral-server/services/sites";
 import { TenantCache } from "coral-server/services/tenant/cache";
 import { Request, RequestHandler } from "coral-server/types/express";
 
+import { getRequesterOrigin } from "../helpers";
+
 interface RequestQuery {
-  parentUrl?: string | null;
   storyURL?: string | null;
   storyID?: string | null;
   siteID?: string | null;
@@ -30,12 +35,7 @@ function parseQueryFromRequest(
 ): RequestQuery | null {
   // Check to see if the parameters are available on the query. If they are,
   // return it.
-  if (
-    req.query.parentUrl ||
-    req.query.storyURL ||
-    req.query.storyID ||
-    req.query.siteID
-  ) {
+  if (req.query.storyURL || req.query.storyID || req.query.siteID) {
     return req.query;
   }
 
@@ -75,7 +75,6 @@ function parseQueryFromRequest(
     siteID: parsed.searchParams.get("siteID"),
     storyURL: parsed.searchParams.get("storyURL"),
     storyID: parsed.searchParams.get("storyID"),
-    parentUrl: parsed.searchParams.get("parentUrl"),
   };
 
   return query;
@@ -89,9 +88,9 @@ function parseQueryFromRequest(
  * @param query the query that was parsed for this request
  */
 async function retrieveSiteFromQuery(
-  mongo: Db,
+  mongo: MongoContext,
   tenant: Tenant,
-  { storyURL, storyID, parentUrl, siteID }: RequestQuery
+  { storyURL, storyID, siteID }: RequestQuery
 ): Promise<Site | null> {
   // If the siteID is available, use that.
   if (siteID) {
@@ -118,13 +117,6 @@ async function retrieveSiteFromQuery(
     return retrieveSite(mongo, tenant.id, story.siteID);
   }
 
-  // As the last fallback, if the storyURL and storyID cannot be found, then pym
-  // does provide us with a parentUrl that's the URL of the page embedding
-  // Coral. We'll try to find the site based on this URL.
-  if (parentUrl) {
-    return findSiteByURL(mongo, tenant.id, parentUrl);
-  }
-
   return null;
 }
 
@@ -136,93 +128,94 @@ async function retrieveSiteFromQuery(
  * @param req the request in question
  */
 async function retrieveSiteFromRequest(
-  mongo: Db,
+  mongo: MongoContext,
   tenant: Tenant,
   req: Request
 ): Promise<Site | null> {
+  let site: Site | null = null;
   const query = parseQueryFromRequest(tenant, req);
-  if (!query) {
-    return null;
+  if (query) {
+    logger.debug({ query }, "parsed query from request");
+    site = await retrieveSiteFromQuery(mongo, tenant, query);
   }
-
-  logger.debug({ query }, "parsed query from request");
-
-  const site = await retrieveSiteFromQuery(mongo, tenant, query);
   if (!site) {
-    return null;
+    const requesterOrigin = getRequesterOrigin(req);
+    // We use the requester's origin, if the site cannot be found from the query.
+    if (requesterOrigin) {
+      site = await retrieveSiteByOrigin(mongo, tenant.id, requesterOrigin);
+    }
   }
-
-  logger.debug({ siteID: site.id }, "found associated site from request");
+  if (site) {
+    logger.debug({ siteID: site.id }, "found associated site from request");
+  }
 
   return site;
 }
 
 interface Options {
-  mongo: Db;
+  mongo: MongoContext;
   cache: TenantCache;
   passNoTenant?: boolean;
 }
 
-export const tenantMiddleware = ({
-  mongo,
-  cache,
-  passNoTenant = false,
-}: Options): RequestHandler => async (req, res, next) => {
-  try {
-    if (!req.coral) {
-      const id = uuid();
+export const tenantMiddleware =
+  ({ mongo, cache, passNoTenant = false }: Options): RequestHandler =>
+  async (req, res, next) => {
+    try {
+      if (!req.coral) {
+        const id = uuid();
 
-      // Write the ID on the request.
-      res.set("X-Trace-ID", id);
+        // Write the ID on the request.
+        res.set("X-Trace-ID", id);
 
-      // The only call to `new Date()` as a part of the request process. This
-      // is passed around the request to ensure constant-time actions.
-      const now = new Date();
+        // The only call to `new Date()` as a part of the request process. This
+        // is passed around the request to ensure constant-time actions.
+        const now = new Date();
 
-      // Set Coral on the request.
-      req.coral = {
-        id,
-        now,
-        cache: {
-          // Attach the tenant cache to the request.
-          tenant: cache,
-        },
-        logger: logger.child({ context: "http", contextID: id }, true),
-      };
-    }
-
-    // Attach the tenant to the request.
-    const tenant = await cache.retrieveByDomain(req.hostname);
-    if (!tenant) {
-      if (passNoTenant) {
-        return next();
+        // Set Coral on the request.
+        req.coral = {
+          id,
+          now,
+          cache: {
+            // Attach the tenant cache to the request.
+            tenant: cache,
+          },
+          logger: logger.child({ context: "http", contextID: id }, true),
+        };
       }
 
-      return next(new TenantNotFoundError(req.hostname));
-    }
+      // Attach the tenant to the request.
+      const tenant = await cache.retrieveByDomain(req.hostname);
+      if (!tenant) {
+        if (passNoTenant) {
+          return next();
+        }
 
-    // Get the site associated with this request if it has a Tenant.
-    if (tenant) {
-      const site = await retrieveSiteFromRequest(mongo, tenant, req);
-      if (site) {
-        req.coral.site = site;
+        return next(new TenantNotFoundError(req.hostname));
       }
+
+      // Get the site associated with this request if it has a Tenant.
+      if (tenant) {
+        const site = await retrieveSiteFromRequest(mongo, tenant, req);
+        if (site) {
+          req.coral.site = site;
+        }
+      }
+
+      // Augment the logger with the tenantID.
+      req.coral.logger = req.coral.logger.child({ tenantID: tenant.id }, true);
+
+      // Attach the tenant to the request.
+      req.coral.tenant = tenant;
+
+      // Attach the tenant's language to the request.
+      res.setHeader("Content-Language", tenant.locale);
+
+      // Attach the tenant to the view locals.
+      res.locals.tenant = tenant;
+
+      next();
+    } catch (err) {
+      next(err);
     }
-
-    // Augment the logger with the tenantID.
-    req.coral.logger = req.coral.logger.child({ tenantID: tenant.id }, true);
-
-    // Attach the tenant to the request.
-    req.coral.tenant = tenant;
-
-    // Attach the tenant's language to the request.
-    res.setHeader("Content-Language", tenant.locale);
-
-    // Attach the tenant to the view locals.
-    res.locals.tenant = tenant;
-
-    next();
-  } catch (err) {
-    next(err);
-  }
-};
+  };

@@ -32,8 +32,9 @@ const ModerateNavigationContainer: React.FunctionComponent<Props> = (props) => {
     ModerateCountsCommentLeftSubscription
   );
 
+  const shouldSubscribe = props.moderationQueues && !props.section;
   useEffect(() => {
-    if (!props.moderationQueues || props.section) {
+    if (!shouldSubscribe) {
       return;
     }
     const vars = {
@@ -48,24 +49,32 @@ const ModerateNavigationContainer: React.FunctionComponent<Props> = (props) => {
       disposable.dispose();
     };
   }, [
-    Boolean(props.moderationQueues),
     props.story,
     props.siteID,
-    props.section,
+    shouldSubscribe,
+    subscribeToCommentEntered,
+    subscribeToCommentLeft,
   ]);
+
+  const storyIsArchived = props.story?.isArchived || props.story?.isArchiving;
 
   if (!props.moderationQueues) {
     return <Navigation />;
   }
   return (
     <Navigation
-      unmoderatedCount={props.moderationQueues.unmoderated.count}
-      reportedCount={props.moderationQueues.reported.count}
-      pendingCount={props.moderationQueues.pending.count}
+      unmoderatedCount={
+        storyIsArchived ? 0 : props.moderationQueues.unmoderated.count
+      }
+      reportedCount={
+        storyIsArchived ? 0 : props.moderationQueues.reported.count
+      }
+      pendingCount={storyIsArchived ? 0 : props.moderationQueues.pending.count}
       storyID={props.story && props.story.id}
       siteID={props.siteID}
       section={props.section}
       mode={props.settings?.moderation}
+      enableForReview={props.settings?.forReviewQueue}
     />
   );
 };
@@ -74,11 +83,14 @@ const enhanced = withFragmentContainer<Props>({
   story: graphql`
     fragment ModerateNavigationContainer_story on Story {
       id
+      isArchiving
+      isArchived
     }
   `,
   settings: graphql`
     fragment ModerateNavigationContainer_settings on Settings {
       moderation
+      forReviewQueue
     }
   `,
   moderationQueues: graphql`

@@ -1,8 +1,10 @@
-import { RouterState, withRouter } from "found";
+import { useRouter } from "found";
 import React, { FunctionComponent, useEffect, useMemo, useRef } from "react";
 import { graphql } from "react-relay";
 
 import { SetRedirectPathMutation } from "coral-admin/mutations";
+import { useCoralContext } from "coral-framework/lib/bootstrap/CoralContext";
+import { globalErrorReporter } from "coral-framework/lib/errors/reporter";
 import {
   useLocal,
   useMutation,
@@ -16,21 +18,23 @@ import { AccountCompletionContainerLocal } from "coral-admin/__generated__/Accou
 import CompleteAccountMutation from "./CompleteAccountMutation";
 import SetAuthViewMutation, { View } from "./SetAuthViewMutation";
 
-interface Props extends RouterState {
+interface Props {
   auth: AccountCompletionContainer_auth;
   viewer: AccountCompletionContainer_viewer | null;
+  children?: React.ReactNode;
 }
 
 const AccountCompletionContainer: FunctionComponent<Props> = ({
   auth,
   viewer,
   children,
-  router,
 }) => {
   const completed = useRef<boolean>(false);
   const completeAccount = useMutation(CompleteAccountMutation);
   const setAuthView = useMutation(SetAuthViewMutation);
   const setRedirectPath = useMutation(SetRedirectPathMutation);
+  const { window } = useCoralContext();
+  const { router } = useRouter();
 
   const [
     {
@@ -106,10 +110,18 @@ const AccountCompletionContainer: FunctionComponent<Props> = ({
         if (redirectPath && !redirectPath.startsWith("/admin")) {
           window.location.href = redirectPath;
         } else {
-          router.replace({ pathname: redirectPath || "/admin" });
+          const pathname = redirectPath || "/admin";
+          // TODO: (cvle) for some reason having a GET Parameter at the end will lead to 404.
+          // This seems to be an issue in found. Needs more investigation.
+          if (pathname.includes("?")) {
+            // Workaround for now.
+            location.href = pathname;
+          } else {
+            router.replace({ pathname });
+          }
         }
       } catch (err) {
-        window.console.error(err);
+        globalErrorReporter.report(err);
       }
     }
 
@@ -131,6 +143,7 @@ const AccountCompletionContainer: FunctionComponent<Props> = ({
     router,
     setRedirectPath,
     viewer,
+    window,
   ]);
 
   // If the view is different than the current view, then set the view!
@@ -175,6 +188,6 @@ const enhanced = withFragmentContainer<Props>({
       }
     }
   `,
-})(withRouter(AccountCompletionContainer));
+})(AccountCompletionContainer);
 
 export default enhanced;

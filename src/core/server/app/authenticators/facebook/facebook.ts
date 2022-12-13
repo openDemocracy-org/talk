@@ -1,8 +1,8 @@
 import crypto from "crypto";
 import Joi from "joi";
-import { Db } from "mongodb";
 
 import { Config } from "coral-server/config";
+import { MongoContext } from "coral-server/data/context";
 import { validateSchema } from "coral-server/helpers";
 import { FacebookAuthIntegration } from "coral-server/models/settings";
 import {
@@ -19,7 +19,7 @@ import { ExchangeResponse, OAuth2Authenticator } from "../oauth2";
 
 interface Options {
   config: Config;
-  mongo: Db;
+  mongo: MongoContext;
   signingConfig: JWTSigningConfig;
   integration: Required<FacebookAuthIntegration>;
   callbackPath: string;
@@ -50,14 +50,16 @@ interface FacebookUserProfile {
 const VERSION = "v3.2";
 
 export class FacebookAuthenticator extends OAuth2Authenticator {
-  private readonly mongo: Db;
+  private readonly mongo: MongoContext;
+  private readonly config: Config;
   private readonly profileURL = `https://graph.facebook.com/${VERSION}/me`;
   private readonly integration: Readonly<Required<FacebookAuthIntegration>>;
 
-  constructor({ integration, mongo, ...options }: Options) {
+  constructor({ integration, mongo, config, ...options }: Options) {
     super({
       ...options,
       ...integration,
+      config,
       authorizationURL: `https://www.facebook.com/${VERSION}/dialog/oauth`,
       tokenURL: `https://graph.facebook.com/${VERSION}/oauth/access_token`,
       scope: "email",
@@ -68,6 +70,7 @@ export class FacebookAuthenticator extends OAuth2Authenticator {
 
     this.integration = integration;
     this.mongo = mongo;
+    this.config = config;
   }
 
   /**
@@ -105,68 +108,71 @@ export class FacebookAuthenticator extends OAuth2Authenticator {
     return validateSchema(FacebookUserProfileSchema, profile);
   }
 
-  public authenticate: RequestHandler<
-    TenantCoralRequest,
-    Promise<void>
-  > = async (req, res, next) => {
-    const { tenant, now } = req.coral;
+  public authenticate: RequestHandler<TenantCoralRequest, Promise<void>> =
+    async (req, res, next) => {
+      const { tenant, now } = req.coral;
 
-    let response: ExchangeResponse;
+      let response: ExchangeResponse;
 
-    try {
-      // If we don't have a code on the request, then we should redirect the user.
-      if (!req.query.code) {
-        return this.redirect(req, res);
+      try {
+        // If we don't have a code on the request, then we should redirect the user.
+        if (!req.query.code) {
+          return this.redirect(req, res);
+        }
+
+        // Exchange the code for a token.
+        response = await this.exchange(req, res);
+      } catch (err) {
+        return next(err);
       }
 
-      // Exchange the code for a token.
-      response = await this.exchange(req, res);
-    } catch (err) {
-      return next(err);
-    }
+      const {
+        state,
+        tokens: { accessToken },
+      } = response;
 
-    const {
-      state,
-      tokens: { accessToken },
-    } = response;
+      try {
+        // Get the profile of the user.
+        const { id, picture, email } = await this.getProfile(accessToken);
 
-    try {
-      // Get the profile of the user.
-      const { id, picture, email } = await this.getProfile(accessToken);
+        // Create the user profile that will be used to lookup the User.
+        const profile: FacebookProfile = {
+          type: "facebook",
+          id,
+        };
 
-      // Create the user profile that will be used to lookup the User.
-      const profile: FacebookProfile = {
-        type: "facebook",
-        id,
-      };
+        let user = await retrieveUserWithProfile(
+          this.mongo,
+          tenant.id,
+          profile
+        );
+        if (user) {
+          return this.success(state, user, req, res);
+        }
 
-      let user = await retrieveUserWithProfile(this.mongo, tenant.id, profile);
-      if (user) {
+        if (!this.integration.allowRegistration) {
+          throw new Error("registration is disabled");
+        }
+
+        // Create the user this time.
+        user = await findOrCreate(
+          this.config,
+          this.mongo,
+          tenant,
+          {
+            role: GQLUSER_ROLE.COMMENTER,
+            email,
+            emailVerified: false,
+            avatar: picture?.data.url,
+            profile,
+          },
+          {},
+          now
+        );
+
         return this.success(state, user, req, res);
+      } catch (err) {
+        return this.fail(state, err, req, res);
       }
-
-      if (!this.integration.allowRegistration) {
-        throw new Error("registration is disabled");
-      }
-
-      // Create the user this time.
-      user = await findOrCreate(
-        this.mongo,
-        tenant,
-        {
-          role: GQLUSER_ROLE.COMMENTER,
-          email,
-          emailVerified: false,
-          avatar: picture?.data.url,
-          profile,
-        },
-        {},
-        now
-      );
-
-      return this.success(state, user, req, res);
-    } catch (err) {
-      return this.fail(state, err, req, res);
-    }
-  };
+    };
 }

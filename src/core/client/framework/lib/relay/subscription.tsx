@@ -10,9 +10,8 @@ import {
 import { CoralContext, useCoralContext } from "../bootstrap";
 import { resolveModule } from "./helpers";
 
-export type SubscriptionVariables<
-  T extends { variables: any }
-> = T["variables"];
+export type SubscriptionVariables<T extends { variables: any }> =
+  T["variables"];
 export interface Subscription<N, V> {
   name: N;
   subscribe: (
@@ -22,27 +21,54 @@ export interface Subscription<N, V> {
   ) => Disposable;
 }
 
-export type SubscriptionProp<
-  T extends Subscription<any, any>
-> = T extends Subscription<any, infer V>
-  ? Parameters<T["subscribe"]>[1] extends undefined
-    ? () => Disposable
-    : keyof Parameters<T["subscribe"]>[1] extends never
-    ? () => Disposable
-    : (variables: V) => Disposable
-  : never;
+export type SubscriptionProp<T extends Subscription<any, any>> =
+  T extends Subscription<any, infer V>
+    ? Parameters<T["subscribe"]>[1] extends undefined
+      ? () => Disposable
+      : keyof Parameters<T["subscribe"]>[1] extends never
+      ? () => Disposable
+      : (variables: V) => Disposable
+    : never;
 
 export function createSubscription<N extends string, V>(
   name: N,
-  subscribe: (
+  subscriptionConfig: (
     environment: Environment,
     variables: V,
     context: CoralContext
-  ) => Disposable
+  ) => GraphQLSubscriptionConfig<any>
 ): Subscription<N, V> {
   return {
     name,
-    subscribe,
+    subscribe: (
+      environment: Environment,
+      variables: V,
+      context: CoralContext
+    ) => {
+      // TODO: (cvle) Naming of these events are deprecated.
+      context.eventEmitter.emit(`subscription.${name}.subscribe`, variables);
+      const config = subscriptionConfig(environment, variables, context);
+      const disposable = requestSubscription(environment, {
+        ...config,
+        onNext: (...args) => {
+          // TODO: (cvle) Naming of these events are deprecated.
+          context.eventEmitter.emit(`subscription.${name}.data`, variables);
+          if (config.onNext) {
+            config.onNext(...args);
+          }
+        },
+      });
+      return {
+        dispose: () => {
+          // TODO: (cvle) Naming of these events are deprecated.
+          context.eventEmitter.emit(
+            `subscription.${name}.unsubscribe`,
+            variables
+          );
+          disposable.dispose();
+        },
+      };
+    },
   };
 }
 
@@ -68,7 +94,7 @@ export function useSubscription<V>(
   // eslint-disable-next-line react-hooks/exhaustive-deps
   return useCallback<SubscriptionProp<typeof subscription>>(
     ((variables: V) => {
-      // TODO: (cvle) These events are deprecated.
+      // TODO: (cvle) Do we need to keep this one around? Was replaced by `subscription.${name}.subscribe`,`subscription.${name}.unsubscribe`, `subscription.${name}.data`
       context.eventEmitter.emit(`subscription.${subscription.name}`, variables);
       return subscription.subscribe(
         context.relayEnvironment,
@@ -88,9 +114,9 @@ export function useSubscription<V>(
  */
 export function withSubscription<N extends string, V, R>(
   subscription: Subscription<N, V>
-): InferableComponentEnhancer<
-  { [P in N]: SubscriptionProp<typeof subscription> }
-> {
+): InferableComponentEnhancer<{
+  [P in N]: SubscriptionProp<typeof subscription>;
+}> {
   return (BaseComponent: React.ComponentType<any>) => {
     {
       const sub = useSubscription(subscription);

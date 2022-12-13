@@ -1,7 +1,7 @@
 import Queue from "bull";
-import { Db } from "mongodb";
 
 import { Config } from "coral-server/config";
+import { MongoContext } from "coral-server/data/context";
 import { I18n } from "coral-server/services/i18n";
 import { JWTSigningConfig } from "coral-server/services/jwt";
 import {
@@ -11,10 +11,12 @@ import {
 } from "coral-server/services/redis";
 import { TenantCache } from "coral-server/services/tenant/cache";
 
+import { ArchiverQueue, createArchiverTask } from "./tasks/archiver";
 import { createMailerTask, MailerQueue } from "./tasks/mailer";
 import { createNotifierTask, NotifierQueue } from "./tasks/notifier";
 import { createRejectorTask, RejectorQueue } from "./tasks/rejector";
 import { createScraperTask, ScraperQueue } from "./tasks/scraper";
+import { createUnarchiverTask, UnarchiverQueue } from "./tasks/unarchiver";
 import { createWebhookTask, WebhookQueue } from "./tasks/webhook";
 
 const createQueueOptions = (config: Config): Queue.QueueOptions => {
@@ -46,7 +48,7 @@ const createQueueOptions = (config: Config): Queue.QueueOptions => {
 };
 
 export interface QueueOptions {
-  mongo: Db;
+  mongo: MongoContext;
   config: Config;
   tenantCache: TenantCache;
   i18n: I18n;
@@ -60,6 +62,8 @@ export interface TaskQueue {
   notifier: NotifierQueue;
   webhook: WebhookQueue;
   rejector: RejectorQueue;
+  archiver: ArchiverQueue;
+  unarchiver: UnarchiverQueue;
 }
 
 export function createQueue(options: QueueOptions): TaskQueue {
@@ -79,6 +83,8 @@ export function createQueue(options: QueueOptions): TaskQueue {
   });
   const webhook = createWebhookTask(queueOptions, options);
   const rejector = createRejectorTask(queueOptions, options);
+  const archiver = createArchiverTask(queueOptions, options);
+  const unarchiver = createUnarchiverTask(queueOptions, options);
 
   // Return the tasks + client.
   return {
@@ -87,5 +93,7 @@ export function createQueue(options: QueueOptions): TaskQueue {
     notifier,
     webhook,
     rejector,
+    archiver,
+    unarchiver,
   };
 }

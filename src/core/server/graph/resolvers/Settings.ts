@@ -1,6 +1,9 @@
 import { defaultRTEConfiguration } from "coral-server/models/settings";
 import validFeatureFlagsFilter from "coral-server/models/settings/validFeatureFlagsFilter";
 import {
+  areRepliesFlattened,
+  isAMPEnabled,
+  isForReviewQueueEnabled,
   retrieveAnnouncementIfEnabled,
   Tenant,
 } from "coral-server/models/tenant";
@@ -29,5 +32,25 @@ export const Settings: GQLSettingsTypeResolver<Tenant> = {
   memberBios: ({ memberBios = false }) => memberBios,
   premoderateSuspectWords: ({ premoderateSuspectWords = false }) =>
     premoderateSuspectWords,
+  premoderateAllCommentsSites: ({ premoderateAllCommentsSites = [] }) =>
+    premoderateAllCommentsSites,
   stories: ({ stories }) => stories,
+  amp: (parent, args, ctx) => isAMPEnabled(ctx.tenant),
+  flattenReplies: (parent, args, ctx) => areRepliesFlattened(ctx.tenant),
+  forReviewQueue: (parent, args, ctx) => isForReviewQueueEnabled(ctx.tenant),
+  disableDefaultFonts: ({ disableDefaultFonts }) =>
+    Boolean(disableDefaultFonts),
+  emailDomainModeration: ({ emailDomainModeration = [] }) =>
+    emailDomainModeration,
+  badges: ({ badges, staff }, args, ctx) => {
+    const badgeConfig = badges || staff;
+
+    return badgeConfig;
+  },
+  staff: ({ staff, badges }, args, ctx) => {
+    // Default to new badges config if present
+    const deprecated = badges || staff;
+
+    return deprecated;
+  },
 };

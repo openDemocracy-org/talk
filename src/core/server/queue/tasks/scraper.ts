@@ -1,7 +1,7 @@
 import Queue, { Job } from "bull";
-import { Db } from "mongodb";
 
 import { Config } from "coral-server/config";
+import { MongoContext } from "coral-server/data/context";
 import { createTimer } from "coral-server/helpers";
 import logger from "coral-server/logger";
 import Task from "coral-server/queue/Task";
@@ -10,7 +10,7 @@ import { scrape } from "coral-server/services/stories/scraper";
 const JOB_NAME = "scraper";
 
 export interface ScrapeProcessorOptions {
-  mongo: Db;
+  mongo: MongoContext;
   config: Config;
 }
 
@@ -20,33 +20,32 @@ export interface ScraperData {
   tenantID: string;
 }
 
-const createJobProcessor = ({
-  mongo,
-  config,
-}: ScrapeProcessorOptions) => async (job: Job<ScraperData>) => {
-  // Pull out the job data.
-  const { storyID, storyURL, tenantID } = job.data;
+const createJobProcessor =
+  ({ mongo, config }: ScrapeProcessorOptions) =>
+  async (job: Job<ScraperData>) => {
+    // Pull out the job data.
+    const { storyID, storyURL, tenantID } = job.data;
 
-  const log = logger.child(
-    {
-      jobID: job.id,
-      jobName: JOB_NAME,
-      storyID,
-      storyURL,
-      tenantID,
-    },
-    true
-  );
+    const log = logger.child(
+      {
+        jobID: job.id,
+        jobName: JOB_NAME,
+        storyID,
+        storyURL,
+        tenantID,
+      },
+      true
+    );
 
-  // Mark the start time.
-  const timer = createTimer();
+    // Mark the start time.
+    const timer = createTimer();
 
-  log.debug("starting to scrape the story");
-  await scrape(mongo, config, tenantID, storyID, storyURL);
+    log.debug("starting to scrape the story");
+    await scrape(mongo, config, tenantID, storyID, storyURL);
 
-  // Compute the end time.
-  log.debug({ responseTime: timer() }, "scraped the story");
-};
+    // Compute the end time.
+    log.debug({ responseTime: timer() }, "scraped the story");
+  };
 
 export type ScraperQueue = Task<ScraperData>;
 

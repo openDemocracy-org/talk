@@ -55,6 +55,25 @@ deploy_branch() {
   docker push "coralproject/talk:${CIRCLE_BRANCH}"
 }
 
+deploy_commit() {
+  SHORT_GIT_HASH=$(echo $CIRCLE_SHA1 | cut -c -6)
+  SHORT_GIT_HASH="${CIRCLE_BRANCH}-${SHORT_GIT_HASH}"
+  echo "==> tagging commit ${SHORT_GIT_HASH}"
+  docker tag "coralproject/talk:latest" "${GCR_IMAGE_NAME}:${SHORT_GIT_HASH}"
+
+  echo "==> pushing commit ${SHORT_GIT_HASH}"
+  docker push "${GCR_IMAGE_NAME}:${SHORT_GIT_HASH}"
+}
+
+deploy_develop_commit() {
+  LATEST_TAG="develop-latest"
+  echo "==> tagging ${GCR_IMAGE_NAME}:${LATEST_TAG}"
+  docker tag "coralproject/talk:latest" "${GCR_IMAGE_NAME}:${LATEST_TAG}"
+
+  echo "==> pushing ${GCR_IMAGE_NAME}:${LATEST_TAG}"
+  docker push "${GCR_IMAGE_NAME}:${LATEST_TAG}"
+}
+
 ARGS=""
 
 if [[ -n "${CIRCLE_SHA1}" ]]
@@ -86,5 +105,21 @@ then
     else
       deploy_branch
     fi
+  fi
+fi
+
+if [ "$1" = "deploy-commit" ]
+then
+  if [[ -n "${CIRCLE_SHA1}" && -n "${GCR_IMAGE_NAME}" ]]
+  then
+    deploy_commit
+  fi
+fi
+
+if [ "$1" = "deploy-develop-commit" ]
+then
+  if [[ -n "${CIRCLE_SHA1}" && -n "${GCR_IMAGE_NAME}" ]]
+  then
+    deploy_develop_commit
   fi
 fi

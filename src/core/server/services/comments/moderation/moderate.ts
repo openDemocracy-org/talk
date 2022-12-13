@@ -1,9 +1,9 @@
-import { Db } from "mongodb";
-
+import { MongoContext } from "coral-server/data/context";
 import {
   CommentNotFoundError,
   CommentRevisionNotFoundError,
 } from "coral-server/errors";
+import { EncodedCommentActionCounts } from "coral-server/models/action/comment";
 import {
   createCommentModerationAction,
   CreateCommentModerationActionInput,
@@ -15,19 +15,38 @@ import {
   updateCommentStatus,
 } from "coral-server/models/comment";
 import { Tenant } from "coral-server/models/tenant";
+import { AugmentedRedis } from "coral-server/services/redis";
+import { updateAllCommentCounts } from "coral-server/stacks/helpers";
 
-export type Moderate = CreateCommentModerationActionInput;
+export type Moderate = Omit<CreateCommentModerationActionInput, "storyID">;
 
 export default async function moderate(
-  mongo: Db,
+  mongo: MongoContext,
+  redis: AugmentedRedis,
   tenant: Tenant,
   input: Moderate,
-  now: Date
+  now: Date,
+  isArchived = false,
+  updateAllCommentCountsArgs: {
+    actionCounts: Readonly<EncodedCommentActionCounts>;
+    options?: {
+      updateShared: boolean;
+      updateStory: boolean;
+      updateSite: boolean;
+      updateUser: boolean;
+    };
+  }
 ) {
   // TODO: wrap these operations in a transaction?
+  const commentsColl =
+    isArchived && mongo.archive ? mongo.archivedComments() : mongo.comments();
 
   // Get the comment that we're moderating.
-  const comment = await retrieveComment(mongo, tenant.id, input.commentID);
+  const comment = await retrieveComment(
+    commentsColl,
+    tenant.id,
+    input.commentID
+  );
   if (!comment) {
     throw new CommentNotFoundError(input.commentID);
   }
@@ -48,7 +67,7 @@ export default async function moderate(
 
     // The comment has this revision, it just isn't the latest one. Return the
     // same comment back because we didn't modify anything.
-    return { before: comment, after: null };
+    return { result: { before: comment, after: null } };
   }
 
   // TODO: (wyattjoh) this is a pretty race condition prone check here, replace
@@ -61,7 +80,8 @@ export default async function moderate(
     tenant.id,
     input.commentID,
     input.commentRevisionID,
-    input.status
+    input.status,
+    isArchived
   );
   if (!result) {
     throw new CommentRevisionNotFoundError(
@@ -74,13 +94,29 @@ export default async function moderate(
   const action = await createCommentModerationAction(
     mongo,
     tenant.id,
-    input,
-    now
+    {
+      ...input,
+      storyID: comment.storyID,
+    },
+    now,
+    isArchived
   );
   if (!action) {
     // TODO: wrap in better error?
     throw new Error("could not create moderation action");
   }
 
-  return result;
+  // update the comment counts
+  const counts = await updateAllCommentCounts(
+    mongo,
+    redis,
+    {
+      ...result,
+      tenant,
+      actionCounts: updateAllCommentCountsArgs.actionCounts,
+    },
+    updateAllCommentCountsArgs.options
+  );
+
+  return { result, counts };
 }

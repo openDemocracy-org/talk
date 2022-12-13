@@ -35,6 +35,8 @@ framework-validation-usernamesDoNotMatch = Usernames do not match. Try again.
 framework-validation-deleteConfirmationInvalid = Incorrect confirmation. Try again.
 framework-validation-invalidWebhookEndpointEventSelection = Select at least one event to receive.
 framework-validation-media-url-invalid = Please enter a valid image URL (.png, .jpg, or .gif)
+framework-validation-invalidEmailDomain = Invalid email domain format. Please use "email.com"
+framework-validation-invalidExternalProfileURL = All external profile URL patterns must contain either $USER_NAME or $USER_ID.
 
 framework-timeago-just-now = Just now
 
@@ -134,3 +136,9 @@ framework-starRating =
     [1] 1 Star
     *[other] {$value} Stars
   }
+
+### Relay Network Request Error
+
+framework-error-relayNetworkRequestError-anUnexpectedNetworkError =
+  An unexpected network error occurred, please try again later.
+framework-error-relayNetworkRequestError-code = Code

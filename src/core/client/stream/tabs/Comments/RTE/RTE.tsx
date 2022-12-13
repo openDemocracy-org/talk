@@ -14,11 +14,15 @@ import React, {
   FocusEvent,
   FunctionComponent,
   Ref,
+  useEffect,
   useMemo,
 } from "react";
 
 import { createSanitize } from "coral-common/helpers/sanitize";
+import { useCoralContext } from "coral-framework/lib/bootstrap/CoralContext";
+import IframeEncapsulation from "coral-framework/lib/encapsulation/IframeEncapsulation";
 import CLASSES from "coral-stream/classes";
+import { RTE_ELEMENT_ID } from "coral-stream/constants";
 import { Icon } from "coral-ui/components/v2";
 import { PropTypesOf } from "coral-ui/types";
 
@@ -39,7 +43,10 @@ interface RTEFeatures {
   sarcasm?: boolean;
 }
 
-const createSanitizeToDOMFragment = (features: RTEFeatures = {}) => {
+const createSanitizeToDOMFragment = (
+  window: Window,
+  features: RTEFeatures = {}
+) => {
   /** Resused Sanitize instance */
   const sanitize = createSanitize(window, {
     features: {
@@ -53,7 +60,7 @@ const createSanitizeToDOMFragment = (features: RTEFeatures = {}) => {
     },
   });
   return (html: string) => {
-    const frag = document.createDocumentFragment();
+    const frag = window.document.createDocumentFragment();
     if (html) {
       const sanitized = sanitize(html);
       while (sanitized.firstChild) {
@@ -71,12 +78,15 @@ const createSanitizeToDOMFragment = (features: RTEFeatures = {}) => {
 export const RTELocalized = React.forwardRef<
   any,
   PropTypesOf<typeof LocalizedOriginal>
->(function RTELocalized({ ctrlKey, squire, ButtonComponent, ...props }, ref) {
+>(function RTELocalized(
+  { ctrlKey, squire, ButtonComponent, rteElementID, ...props },
+  ref
+) {
   return (
     <LocalizedOriginal {...props}>
       {React.cloneElement(
         React.Children.only(props.children as React.ReactElement),
-        { ctrlKey, squire, ButtonComponent, ref }
+        { ctrlKey, squire, ButtonComponent, rteElementID, ref }
       )}
     </LocalizedOriginal>
   );
@@ -148,6 +158,9 @@ interface Props {
   toolbarButtons?: React.ReactElement | null;
 
   onWillPaste?: (event: PasteEvent) => void;
+
+  /** onLoad is called when the RTE has been loaded */
+  onLoad?: () => void;
 }
 
 const RTE: FunctionComponent<Props> = (props) => {
@@ -170,12 +183,14 @@ const RTE: FunctionComponent<Props> = (props) => {
     features,
     onWillPaste,
     onKeyPress,
+    onLoad,
     ...rest
   } = props;
 
+  const { window } = useCoralContext();
   const sanitizeToDOMFragment = useMemo(() => {
-    return createSanitizeToDOMFragment(features);
-  }, [features]);
+    return createSanitizeToDOMFragment(window, features);
+  }, [features, window]);
 
   const featureElements = useMemo(() => {
     const x = [];
@@ -258,12 +273,13 @@ const RTE: FunctionComponent<Props> = (props) => {
       x.push(props.toolbarButtons);
     }
     return x;
-  }, [features]);
+  }, [features, props.toolbarButtons]);
 
-  return (
+  const elementTree = (
     <div role="none">
       <CoralRTE
         inputID={inputID}
+        rteElementID={RTE_ELEMENT_ID}
         className={cn(CLASSES.rte.$root, className)}
         contentClassName={cn(
           CLASSES.rte.content,
@@ -305,6 +321,26 @@ const RTE: FunctionComponent<Props> = (props) => {
         {...rest}
       />
     </div>
+  );
+
+  // Don't make things harder in test env.
+  useEffect(() => {
+    if (process.env.NODE_ENV === "test") {
+      if (props.onLoad) {
+        props.onLoad();
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  if (process.env.NODE_ENV === "test") {
+    return elementTree;
+  }
+  //
+
+  return (
+    <IframeEncapsulation onLoad={props.onLoad}>
+      {elementTree}
+    </IframeEncapsulation>
   );
 };
 

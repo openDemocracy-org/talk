@@ -7,6 +7,7 @@ import ModerateCardContainer from "coral-admin/components/ModerateCard";
 import UserHistoryDrawer from "coral-admin/components/UserHistoryDrawer";
 import { HOTKEYS } from "coral-admin/constants";
 import useMemoizer from "coral-framework/hooks/useMemoizer";
+import { useCoralContext } from "coral-framework/lib/bootstrap";
 import { Button, Flex, HorizontalGutter } from "coral-ui/components/v2";
 import { useHotkey } from "coral-ui/hooks";
 import { PropTypesOf } from "coral-ui/types";
@@ -27,7 +28,7 @@ interface Props {
   disableLoadMore: boolean;
   danglingLogic: PropTypesOf<typeof ModerateCardContainer>["danglingLogic"];
   emptyElement?: React.ReactElement;
-  allStories?: boolean;
+  showStoryInfo: boolean;
   viewNewCount?: number;
 }
 
@@ -40,17 +41,17 @@ const Queue: FunctionComponent<Props> = ({
   onLoadMore,
   danglingLogic,
   emptyElement,
-  allStories,
+  showStoryInfo,
   viewNewCount,
   onViewNew,
 }) => {
+  const { window } = useCoralContext();
   const [userDrawerVisible, setUserDrawerVisible] = useState(false);
   const [userDrawerId, setUserDrawerID] = useState("");
   const [selectedComment, setSelectedComment] = useState<number | null>(0);
   const [singleView, setSingleView] = useState(false);
-  const [conversationModalVisible, setConversationModalVisible] = useState(
-    false
-  );
+  const [conversationModalVisible, setConversationModalVisible] =
+    useState(false);
   const [conversationCommentID, setConversationCommentID] = useState("");
   const memoize = useMemoizer();
 
@@ -75,28 +76,28 @@ const Queue: FunctionComponent<Props> = ({
     const nextComment = commentsRef.current[index + 1];
     if (nextComment) {
       setSelectedComment(index + 1);
-      const container: HTMLElement | null = document.getElementById(
+      const container: HTMLElement | null = window.document.getElementById(
         `moderate-comment-${nextComment.id}`
       );
       if (container) {
         container.scrollIntoView();
       }
     }
-  }, []);
+  }, [window.document]);
 
   const selectPrev = useCallback(() => {
     const index = selectedCommentRef.current || 0;
     const prevComment = commentsRef.current[index - 1];
     if (prevComment) {
       setSelectedComment(index - 1);
-      const container: HTMLElement | null = document.getElementById(
+      const container: HTMLElement | null = window.document.getElementById(
         `moderate-comment-${prevComment.id}`
       );
       if (container) {
         container.scrollIntoView();
       }
     }
-  }, []);
+  }, [window.document]);
 
   const onSetUserDrawerUserID = useCallback((userID: string) => {
     setUserDrawerID(userID);
@@ -133,7 +134,10 @@ const Queue: FunctionComponent<Props> = ({
     <HorizontalGutter className={styles.root} size="double">
       {Boolean(viewNewCount && viewNewCount > 0) && (
         <Flex justifyContent="center" className={styles.viewNewButtonContainer}>
-          <Localized id="moderate-queue-viewNew" $count={viewNewCount}>
+          <Localized
+            id="moderate-queue-viewNew"
+            vars={{ count: viewNewCount! }}
+          >
             <Button onClick={onViewNew} className={styles.viewNewButton}>
               View {viewNewCount} new comments
             </Button>
@@ -152,7 +156,7 @@ const Queue: FunctionComponent<Props> = ({
             viewer={viewer}
             comment={comment}
             danglingLogic={danglingLogic}
-            showStoryInfo={Boolean(allStories)}
+            showStoryInfo={showStoryInfo}
             onUsernameClicked={onShowUserDrawer}
             onConversationClicked={onShowConversationModal}
             onSetSelected={memoize(i, () => setSelectedComment(i))}

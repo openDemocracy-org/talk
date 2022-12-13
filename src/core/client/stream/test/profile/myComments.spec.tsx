@@ -1,19 +1,21 @@
-import { ReactTestRenderer } from "react-test-renderer";
+import { act, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import sinon from "sinon";
 
-import {
-  act,
-  createSinonStub,
-  wait,
-  waitForElement,
-  within,
-} from "coral-framework/testHelpers";
+import { DEFAULT_AUTO_ARCHIVE_OLDER_THAN } from "coral-common/constants";
+import { createSinonStub } from "coral-framework/testHelpers";
 
+import customRenderAppWithContext from "../customRenderAppWithContext";
 import { comments, settings, stories, viewerWithComments } from "../fixtures";
-import create from "./create";
+import { createWithContext } from "./create";
 
-let testRenderer: ReactTestRenderer;
-beforeEach(() => {
+interface Options {
+  archivingEnabled: boolean;
+}
+
+const createTestRenderer = async (
+  options: Options = { archivingEnabled: false }
+) => {
   const meStub = {
     ...viewerWithComments,
     comments: createSinonStub(
@@ -71,47 +73,126 @@ beforeEach(() => {
     },
   };
 
-  ({ testRenderer } = create({
+  const { context } = createWithContext({
     // Set this to true, to see graphql responses.
     logNetwork: false,
     resolvers,
     initLocalState: (localRecord) => {
       localRecord.setValue("MY_COMMENTS", "profileTab");
       localRecord.setValue(stories[0].id, "storyID");
+      localRecord.setValue(options.archivingEnabled, "archivingEnabled");
+      localRecord.setValue(
+        DEFAULT_AUTO_ARCHIVE_OLDER_THAN,
+        "autoArchiveOlderThanMs"
+      );
     },
-  }));
-});
+  });
 
-it("renders profile", async () => {
-  const commentHistory = await waitForElement(() =>
-    within(testRenderer.root).getByTestID("profile-commentHistory")
+  customRenderAppWithContext(context);
+
+  return;
+};
+
+it("renders profile with comment history", async () => {
+  await act(async () => {
+    await createTestRenderer();
+  });
+  const commentHistory = await screen.findByTestId("profile-commentHistory");
+
+  expect(commentHistory).toBeVisible();
+
+  // renders first comment with body, view conversation link, timestamp, etc.
+  const commentOneHistory = screen.getByTestId("historyComment-comment-0");
+  expect(commentOneHistory).toBeVisible();
+  expect(within(commentOneHistory).getByText("Joining Too")).toBeVisible();
+  expect(
+    within(commentOneHistory).getByRole("link", { name: "View Conversation" })
+  ).toBeVisible();
+  expect(
+    within(commentOneHistory).getByRole("button", {
+      name: "2018-07-06T18:24:00.000Z",
+    })
+  ).toBeVisible();
+  const commentOneOnStory = within(commentOneHistory).getByTestId(
+    "profile-historyComment-comment-0-onStory"
   );
-  expect(within(commentHistory).toJSON()).toMatchSnapshot();
-  expect(await within(commentHistory).axe()).toHaveNoViolations();
+  expect(commentOneOnStory.textContent).toEqual(
+    "Comment 2018-07-06T18:24:00.000Z on titleComment on:title"
+  );
+
+  // also renders second comment with body, view conversation link, timestamp, etc.
+  const commentTwoHistory = screen.getByTestId("historyComment-comment-1");
+  expect(commentTwoHistory).toBeVisible();
+  expect(within(commentTwoHistory).getByText("What's up?")).toBeVisible();
+  expect(
+    within(commentTwoHistory).getByRole("link", { name: "View Conversation" })
+  ).toBeVisible();
+  expect(
+    within(commentTwoHistory).getByRole("button", {
+      name: "2018-07-06T18:24:00.000Z",
+    })
+  ).toBeVisible();
+  const commentTwoOnStory = within(commentTwoHistory).getByTestId(
+    "profile-historyComment-comment-1-onStory"
+  );
+  expect(commentTwoOnStory.textContent).toEqual(
+    "Comment 2018-07-06T18:24:00.000Z on titleComment on:title"
+  );
 });
 
 it("loads more comments", async () => {
-  const commentHistory = await waitForElement(() =>
-    within(testRenderer.root).getByTestID("profile-commentHistory")
-  );
+  await createTestRenderer();
+  const commentHistory = await screen.findByTestId("profile-commentHistory");
 
   // Get amount of comments before.
-  const commentsBefore = within(commentHistory).getAllByTestID(
-    /^historyComment-/
-  ).length;
+  const commentsBefore =
+    within(commentHistory).getAllByTestId(/^historyComment-/).length;
 
-  act(() => {
-    within(commentHistory).getByText("Load More").props.onClick();
+  const loadMoreButton = within(commentHistory).getByRole("button", {
+    name: "Load More",
   });
+  userEvent.click(loadMoreButton);
+  expect(loadMoreButton).toBeDisabled();
 
   // Wait for loading.
-  await act(() =>
-    wait(() =>
-      expect(within(commentHistory).queryByText("Load More")).toBeNull()
-    )
+  await waitFor(() =>
+    expect(
+      within(commentHistory).queryByRole("button", { name: "Load More" })
+    ).not.toBeInTheDocument()
   );
-
-  expect(within(commentHistory).getAllByTestID(/^historyComment-/).length).toBe(
+  expect(within(commentHistory).getAllByTestId(/^historyComment-/).length).toBe(
     commentsBefore + 1
   );
+});
+
+it("shows archived notification when archiving enabled", async () => {
+  await createTestRenderer({
+    archivingEnabled: true,
+  });
+  const commentHistory = await screen.findByTestId("profile-commentHistory");
+
+  expect(
+    within(commentHistory).getByText(
+      "This is all of your comments from the previous",
+      {
+        exact: false,
+      }
+    )
+  ).toBeDefined();
+});
+
+it("doesn't show archived notification when archiving disabled", async () => {
+  await createTestRenderer({
+    archivingEnabled: false,
+  });
+  const commentHistory = await screen.findByTestId("profile-commentHistory");
+
+  expect(
+    within(commentHistory).queryByText(
+      "This is all of your comments from the previous",
+      {
+        exact: false,
+      }
+    )
+  ).toBeNull();
 });

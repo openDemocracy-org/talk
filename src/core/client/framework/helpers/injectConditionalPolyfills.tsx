@@ -1,8 +1,10 @@
-import { getBrowserInfo } from "../lib/browserInfo";
-import polyfillCSSVars from "./polyfillCSSVars";
+/* eslint-disable no-restricted-globals */
+import { BrowserInfo } from "../lib/browserInfo";
 
-export default async function injectConditionalPolyfills() {
-  const browser = getBrowserInfo();
+export default async function injectConditionalPolyfills(
+  window: Window,
+  browser: BrowserInfo
+) {
   const pending: Promise<any>[] = [];
 
   // Polyfill Intl.
@@ -28,14 +30,13 @@ export default async function injectConditionalPolyfills() {
     pending.push(import("intersection-observer"));
   }
 
-  if (!browser.supports.proxyObject) {
-    pending.push(import("proxy-polyfill"));
+  // Polyfill Resize Observer.
+  if (!browser.supports.resizeObserver) {
+    pending.push(import("./polyfillResizeObserver"));
   }
+
   if (!browser.supports.fetch) {
     pending.push(import("whatwg-fetch"));
-  }
-  if (!browser.supports.cssVariables) {
-    pending.push(polyfillCSSVars());
   }
 
   await Promise.all(pending);

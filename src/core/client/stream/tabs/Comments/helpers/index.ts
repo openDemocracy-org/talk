@@ -10,6 +10,14 @@ export { default as isPublished } from "./isPublished";
 export { default as prependCommentEdgeToProfile } from "./prependCommentEdgeToProfile";
 export { default as getMediaValidators } from "./getMediaValidators";
 export { default as useStaticFlattenReplies } from "./useStaticFlattenReplies";
+export { default as useAMP } from "./useAMP";
 export { default as lookupFlattenReplies } from "./lookupFlattenReplies";
 export { default as getFlattenedReplyAncestorID } from "./getFlattenedReplyAncestorID";
-export { default as determineDepthTillAncestor } from "./determineDepthTillAncestor";
+export { default as getReplyAncestorID } from "./getReplyAncestorID";
+export {
+  determineDepthTillAncestor,
+  determineDepthTillStory,
+} from "./determineDepthTill";
+export { default as lookupStoryConnectionKey } from "./lookupStoryConnectionKey";
+export { default as lookupStoryConnectionTag } from "./lookupStoryConnectionTag";
+export { default as lookupStoryConnectionOrderBy } from "./lookupStoryConnectionOrderBy";

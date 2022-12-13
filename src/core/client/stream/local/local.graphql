@@ -32,6 +32,7 @@ enum COMMENTS_TAB {
 }
 
 enum COMMENT_VIEWER_ACTION {
+  CREATE
   EDIT
   APPROVE
   REJECT
@@ -41,6 +42,16 @@ type AuthPopup {
   open: Boolean!
   focus: Boolean!
   view: VIEW
+}
+
+type KeyboardShortcutsConfig {
+  source: String!
+  key: String!
+  reverse: Boolean!
+}
+
+type ExpandedMediaSettings {
+  commentIDs: [String!]!
 }
 
 extend type Comment {
@@ -55,6 +66,9 @@ extend type Comment {
 
   # If true then Comment came in live.
   enteredLive: Boolean
+
+  # True if traversal cursor is currently on this comment (Currently a feature of COMMENT_SEEN)
+  hasTraversalFocus: Boolean
 }
 
 extend type CommentsConnection {
@@ -62,11 +76,15 @@ extend type CommentsConnection {
   viewNewEdges: [CommentEdge!]
 }
 extend type Local {
+  customCSSURL: String
   activeTab: TAB!
   authPopup: AuthPopup!
   storyID: String
   storyURL: String
   storyMode: STORY_MODE
+  # Version as reported by the embed.js
+  embedVersion: String
+  amp: Boolean!
   # If set, then we are in single comment view.
   commentID: String
   siteID: String
@@ -78,4 +96,28 @@ extend type Local {
   profileTab: PROFILE_TAB!
   commentsTab: COMMENTS_TAB!
   flattenReplies: Boolean!
+  enableCommentSeen: Boolean!
+  enableZKey: Boolean!
+
+  # Current comment with traversal focus (Currently a feature of COMMENT_SEEN)
+  commentWithTraversalFocus: String
+  # Current keyboard shortcuts config that the user last used to go through comments
+  keyboardShortcutsConfig: KeyboardShortcutsConfig
+
+  # Whether the load all button has been clicked, could be by the user, Z key, or
+  # the Add a comment button in alternate oldest view
+  loadAllButtonHasBeenClicked: Boolean
+  # Whether all comments have finished loading for the stream yet or not.
+  commentsFullyLoaded: Boolean
+  # If new comments have been added while in alternate oldest first view that need to
+  # be displayed.
+  oldestFirstNewCommentsToShow: String
+  # Keeps track of comments that have been expanded/collapsed (opposite of the user's default
+  # media settings)
+  expandedMediaSettings: ExpandedMediaSettings
+
+  archivingEnabled: Boolean!
+  autoArchiveOlderThanMs: Int!
+
+  showCommentIDs: Boolean
 }

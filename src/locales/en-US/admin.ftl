@@ -2,10 +2,16 @@
 
 ## General
 general-notAvailable = Not available
+general-none = None
+general-noTextContent = No text content
+general-archived = Archived
 
 ## Story Status
 storyStatus-open = Open
 storyStatus-closed = Closed
+storyStatus-archiving = Archiving
+storyStatus-archived = Archived
+storyStatus-unarchiving = Unarchiving
 
 ## Roles
 role-admin = Admin
@@ -13,11 +19,13 @@ role-moderator = Moderator
 role-siteModerator = Site Moderator
 role-organizationModerator = Organization Moderator
 role-staff = Staff
+role-member = Member
 role-commenter = Commenter
 
 role-plural-admin = Admins
 role-plural-moderator = Moderators
 role-plural-staff = Staff
+role-plural-member = Members
 role-plural-commenter = Commenters
 
 comments-react =
@@ -167,6 +175,8 @@ configure-unsavedInputWarning =
 configure-sideBarNavigation-general = General
 configure-sideBarNavigation-authentication = Authentication
 configure-sideBarNavigation-moderation = Moderation
+configure-sideBarNavigation-moderation-comments = Comments
+configure-sideBarNavigation-moderation-users = Users
 configure-sideBarNavigation-organization = Organization
 configure-sideBarNavigation-moderationPhases = Moderation Phases
 configure-sideBarNavigation-advanced = Advanced
@@ -386,14 +396,16 @@ configure-general-guidelines-explanation =
 configure-general-guidelines-showCommunityGuidelines = Show community guidelines summary
 
 #### Bio
-configure-general-memberBio-title = Member bios
+configure-general-memberBio-title = Commenter bios
 configure-general-memberBio-explanation =
-  Allow commenters to add a bio to their profile. Note: This can increase moderator workload as member bios can be reported.
-configure-general-memberBio-label = Allow member bios
+  Allow commenters to add a bio to their profile. Note: This can increase moderator workload as commenter bios can be reported.
+configure-general-memberBio-label = Allow commenter bios
 
 #### Locale
 configure-general-locale-language = Language
 configure-general-locale-chooseLanguage = Choose the language for your Coral community.
+configure-general-locale-invalidLanguage =
+  The previously selected language <lang></lang> no longer exists. Please choose a different language.
 
 #### Sitewide Commenting
 configure-general-sitewideCommenting-title = Sitewide commenting
@@ -484,6 +496,12 @@ configure-general-commentEditing-explanation =
 configure-general-commentEditing-commentEditTimeFrame = Comment edit timeframe
 configure-general-commentEditing-seconds = Seconds
 
+#### Flatten replies
+configure-general-flattenReplies-title = Flatten replies
+configure-general-flattenReplies-enabled = Flatten replies enabled
+configure-general-flattenReplies-explanation =
+  Change how levels of replies display. When enabled, replies to comments can go up to seven levels deep before they are no longer indented on the page. When disabled, after a depth of seven replies, the rest of the conversation is displayed in a dedicated view away from the other comments.
+
 #### Closed Stream Message
 configure-general-closedStreamMessage-title = Closed comment stream message
 configure-general-closedStreamMessage-explanation = Write a message to appear when a story is closed for commenting.
@@ -526,7 +544,7 @@ configure-sites-site-edit = Edit { $site } details
 configure-sites-site-form-embed-code = Embed code
 sites-emptyMessage = We could not find any sites matching your criteria.
 sites-selector-allSites = All sites
-sites-filter-sites-allSites = All sites
+site-filter-option-allSites = All sites
 
 site-selector-all-sites = All sites
 stories-filter-sites-allSites = All sites
@@ -535,16 +553,28 @@ stories-column-site = Site
 site-table-siteName = Site name
 stories-filter-sites = Site
 
+site-search-searchButton =
+  .aria-label = Search
+site-search-textField =
+  .aria-label = Search by site name
+site-search-textField =
+  .placeholder = Search by site name
+site-search-none-found = No sites were found with that search
+specificSitesSelect-validation = You must select at least one site.
+
 stories-column-actions = Actions
 stories-column-rescrape = Re-scrape
 
-stories-actionsButton =
-  .aria-label = Select action
+stories-openInfoDrawer =
+  .aria-label = Open Info Drawer
 stories-actions-popover =
   .description = A dropdown to select story actions
 stories-actions-rescrape = Re-scrape
 stories-actions-close = Close story
 stories-actions-open = Open story
+stories-actions-archive = Archive story
+stories-actions-unarchive = Unarchive story
+stories-actions-isUnarchiving = Unarchiving
 
 ### Sections
 
@@ -662,6 +692,9 @@ configure-auth-sso-rotate-dropdown-description =
 
 configure-auth-local-loginWith = Login with email authentication
 configure-auth-local-useLoginOn = Use email authentication login on
+configure-auth-local-forceAdminLocalAuth =
+  Admin local auth has been permanently enabled.
+  This is to ensure that Coral service teams can access the administration panel.
 
 configure-auth-oidc-loginWith = Login with OpenID Connect
 configure-auth-oidc-toLearnMore = To learn more: <Link></Link>
@@ -701,15 +734,29 @@ configure-moderation-recentCommentHistory-triggerRejectionRate-description =
   over the timeframe above, as a percentage. It does not include
   comments pending for toxicity, spam or pre-moderation.
 
+#### External links for moderators
+configure-moderation-externalLinks-title = External links for moderators
+configure-moderation-externalLinks-profile-explanation = When a URL format is included
+  below, external profile links are added to the user drawer inside the moderation
+  interface. You can use the format $USER_NAME to insert the username or $USER_ID
+  to insert the user’s unique ID number.
+configure-moderation-externalLinks-profile-label = External profile URL pattern
+configure-moderation-externalLinks-profile-input =
+  .placeholder = https://example.com/users/$USER_NAME
+
 #### Pre-Moderation
 configure-moderation-preModeration-title = Pre-moderation
 configure-moderation-preModeration-explanation =
   When pre-moderation is turned on, comments will not be published unless
   approved by a moderator.
 configure-moderation-preModeration-moderation =
-  Pre-moderate all comments sitewide
+  Pre-moderate all comments
 configure-moderation-preModeration-premodLinksEnable =
-  Pre-moderate comments containing links sitewide
+  Pre-moderate all comments containing links
+
+#### Moderation all/specific sites options
+configure-moderation-specificSites = Specific sites
+configure-moderation-allSites = All sites
 
 configure-moderation-apiKey = API key
 
@@ -721,7 +768,7 @@ configure-moderation-akismet-explanation =
   If approved by a moderator, the comment will be published.
 
 configure-moderation-premModeration-premodSuspectWordsEnable =
-  Pre-moderate comments containing Suspect Words
+  Pre-moderate all comments containing Suspect Words
 configure-moderation-premModeration-premodSuspectWordsDescription =
   You can view and edit your Suspect Word list <wordListLink>here</wordListLink>
 
@@ -780,6 +827,26 @@ configure-moderation-newCommenters-approvedCommentsThreshold-description =
   not have to be premoderated
 configure-moderation-newCommenters-comments = comments
 
+#### Email domain
+configure-moderation-emailDomains-header = Email domain
+configure-moderation-emailDomains-description = Create rules to take action on accounts or comments based on the account holder's email address domain. Action only applies to newly created accounts.
+configure-moderation-emailDomains-add = Add email domain
+configure-moderation-emailDomains-edit = Edit email domain
+configure-moderation-emailDomains-addDomain = <icon>add</icon> Add domain
+configure-moderation-emailDomains-table-domain = Domain
+configure-moderation-emailDomains-table-action = Action
+configure-moderation-emailDomains-table-edit = <icon>edit</icon> Edit
+configure-moderation-emailDomains-table-delete = <icon>delete</icon> Delete
+configure-moderation-emailDomains-form-label-domain = Domain
+configure-moderation-emailDomains-form-label-moderationAction = Moderation action
+configure-moderation-emailDomains-banAllUsers = Ban all new commenter accounts
+configure-moderation-emailDomains-alwaysPremod = Always pre-moderate comments
+configure-moderation-emailDomains-form-cancel = Cancel
+configure-moderation-emailDomains-form-addDomain = Add domain
+configure-moderation-emailDomains-form-editDomain = Update
+configure-moderation-emailDomains-confirmDelete = Deleting this email domain will stop any new accounts created with it from being banned or always pre-moderated. Are you sure you want to continue?
+configure-moderation-emailDomains-form-description-add = Add a domain and select the action that should be taken when on every new account created using the specified domain.
+configure-moderation-emailDomains-form-description-edit = Update the domain or action that should be taken when on every new account using the specified domain.
 
 #### Banned Words Configuration
 configure-wordList-banned-bannedWordsAndPhrases = Banned words and phrases
@@ -807,6 +874,11 @@ configure-wordList-suspect-wordListDetailInstructions =
 configure-advanced-customCSS = Custom CSS
 configure-advanced-customCSS-override =
   URL of a CSS stylesheet that will override default Embed Stream styles.
+configure-advanced-customCSS-stylesheetURL = Custom CSS Stylesheet URL
+configure-advanced-customCSS-fontsStylesheetURL = Custom CSS Stylesheet URL for Font Faces
+configure-advanced-customCSS-containsFontFace =
+  URL to a custom CSS stylesheet that contains all @font-face
+  definitions needed by above stylesheet.
 
 configure-advanced-permittedDomains = Permitted domains
 configure-advanced-permittedDomains-description =
@@ -831,7 +903,20 @@ configure-advanced-embedCode-comment =
   https://docs.coralproject.net for all the configuration
   options.
 
+configure-advanced-amp = Accelerated Mobile Pages
+configure-advanced-amp-explanation =
+  Enable support for <LinkToAMP>AMP</LinkToAMP> on the comment stream.
+  Once enabled, you will need to add Coral’s AMP embed code to your page
+  template. See our <LinkToDocs>documentation</LinkToDocs> for more
+  details. Enable Enable Support.
 
+configure-advanced-for-review-queue = Review all user reports
+configure-advanced-for-review-queue-explanation =
+  Once a comment is approved, it won't appear again in the reported queue
+  even if additional users report it. This feature adds a "For review" queue,
+  allowing moderators to see all user reports in the system, and manually
+  mark them as "Reviewed".
+configure-advanced-for-review-queue-label = Show "For review" queue
 
 ## Decision History
 decisionHistory-popover =
@@ -884,6 +969,7 @@ moderate-navigation-unmoderated = unmoderated
 moderate-navigation-rejected = rejected
 moderate-navigation-approved = approved
 moderate-navigation-comment-count = { SHORT_NUMBER($count) }
+moderate-navigation-forReview = for review
 
 moderate-marker-preMod = Pre-mod
 moderate-marker-link = Link
@@ -904,9 +990,11 @@ moderate-marker-repeatPost = Repeat comment
 moderate-marker-other = Other
 
 moderate-markers-details = Details
+moderate-flagDetails-latestReports = Latest reports
 moderate-flagDetails-offensive = Offensive
 moderate-flagDetails-abusive = Abusive
 moderate-flagDetails-spam = Spam
+moderate-flagDetails-bio = Bio
 moderate-flagDetails-other = Other
 
 moderate-flagDetails-toxicityScore = Toxicity Score
@@ -981,6 +1069,22 @@ moderate-searchBar-seeAllResults = See all results
 
 moderateCardDetails-tab-info = Info
 moderateCardDetails-tab-edits = Edit history
+moderateCardDetails-tab-automatedActions = Automated actions
+moderateCardDetails-tab-reactions = Reactions
+moderateCardDetails-tab-reactions-loadMore = Load More
+moderateCardDetails-tab-noIssuesFound = No issues found
+moderateCardDetails-tab-missingPhase = Was not run
+
+moderateCardDetails-tab-externalMod-status = Status
+moderateCardDetails-tab-externalMod-flags = Flags
+moderateCardDetails-tab-externalMod-tags = Tags
+
+moderateCardDetails-tab-externalMod-none = None
+moderateCardDetails-tab-externalMod-approved = Approved
+moderateCardDetails-tab-externalMod-rejected = Rejected
+moderateCardDetails-tab-externalMod-premod = Pre-moderated
+moderateCardDetails-tab-externalMod-systemWithheld = System withheld
+
 ### Moderate User History Drawer
 
 moderate-user-drawer-email =
@@ -989,6 +1093,9 @@ moderate-user-drawer-created-at =
   .title = Account creation date
 moderate-user-drawer-member-id =
   .title = Member ID
+moderate-user-drawer-external-profile-URL =
+  .title = External profile URL
+moderate-user-drawer-external-profile-URL-link = External profile URL
 moderate-user-drawer-tab-all-comments = All Comments
 moderate-user-drawer-tab-rejected-comments = Rejected
 moderate-user-drawer-tab-account-history = Account History
@@ -1017,6 +1124,9 @@ moderate-user-drawer-username-change-old = Old:
 
 moderate-user-drawer-account-history-premod-set = Always pre-moderate
 moderate-user-drawer-account-history-premod-removed = Removed pre-moderate
+
+moderate-user-drawer-account-history-modMessage-sent = User messaged
+moderate-user-drawer-account-history-modMessage-acknowledged = Message acknowledged at { $acknowledgedAt }
 
 moderate-user-drawer-suspension =
   Suspension, { $value } { $unit ->
@@ -1070,6 +1180,75 @@ moderate-user-drawer-notes-button = Add note
 moderatorNote-left-by = Left by
 moderatorNote-delete = Delete
 
+moderate-user-drawer-all-comments-archiveThreshold-allOfThisUsers =
+  All of this user’s comments from the previous { $value } { $unit ->
+    [second] { $value ->
+      [1] second
+      *[other] seconds
+    }
+    [minute] { $value ->
+      [1] minute
+      *[other] minutes
+    }
+    [hour] { $value ->
+      [1] hour
+      *[other] hours
+    }
+    [day] { $value ->
+      [1] day
+      *[other] days
+    }
+    [week] { $value ->
+      [1] week
+      *[other] weeks
+    }
+    [month] { $value ->
+      [1] month
+      *[other] months
+    }
+    [year] { $value ->
+      [1] year
+      *[other] years
+    }
+    *[other] unknown unit
+  }.
+
+# For Review Queue
+
+moderate-forReview-reviewedButton =
+  .aria-label = Reviewed
+moderate-forReview-markAsReviewedButton =
+  .aria-label = Mark as reviewed
+moderate-forReview-time = Time
+moderate-forReview-comment = Comment
+moderate-forReview-reportedBy = Reported by
+moderate-forReview-reason = Reason
+moderate-forReview-description = Description
+moderate-forReview-reviewed = Reviewed
+
+moderate-forReview-detectedBannedWord = Banned word
+moderate-forReview-detectedLinks = Links
+moderate-forReview-detectedNewCommenter = New commenter
+moderate-forReview-detectedPreModUser = Pre-moderated user
+moderate-forReview-detectedRecentHistory = Recent history
+moderate-forReview-detectedRepeatPost = Repeat post
+moderate-forReview-detectedSpam = Spam
+moderate-forReview-detectedSuspectWord = Suspect word
+moderate-forReview-detectedToxic = Toxic language
+moderate-forReview-reportedAbusive = Abusive
+moderate-forReview-reportedBio = User bio
+moderate-forReview-reportedOffensive = Offensive
+moderate-forReview-reportedOther = Other
+moderate-forReview-reportedSpam = Spam
+
+# Archive
+
+moderate-archived-queue-title = This story has been archived
+moderate-archived-queue-noModerationActions =
+  No moderation actions can be made on the comments when a story is archived.
+moderate-archived-queue-toPerformTheseActions =
+  To perform these actions, unarchive the story.
+
 ## Community
 community-emptyMessage = We could not find anyone in your community matching your criteria.
 
@@ -1088,14 +1267,20 @@ community-filter-statusSelectField =
 community-changeRoleButton =
   .aria-label = Change role
 
-community-assignMySites = Assign my sites
-community-removeMySites = Remove my sites
+community-assignMySitesToModerator = Assign moderator to my sites
+community-removeMySitesFromModerator = Remove moderator from my sites
+community-assignMySitesToMember = Assign member to my sites
+community-removeMySitesFromMember = Remove member from my sites
 community-stillHaveSiteModeratorPrivileges = They will still have Site Moderator privileges for:
+community-stillHaveMemberPrivileges = They will still have Member privileges for:
 community-userNoLongerPermitted = User will no longer be permitted to make moderation decisions or assign suspensions on:
+community-memberNoLongerPermitted = User will no longer receive Member privileges on:
 community-assignThisUser = Assign this user to
 community-assignYourSitesTo = Assign your sites to <strong>{ $username }</strong>
 community-siteModeratorsArePermitted = Site moderators are permitted to make moderation decisions and issue suspensions on the sites they are assigned.
+community-membersArePermitted = Members are permitted to receive a badge on the sites they are assigned.
 community-removeSiteModeratorPermissions = Remove Site Moderator permissions
+community-removeMemberPermissions = Remove Member permissions
 
 community-filter-optGroupAudience =
   .label = Audience
@@ -1118,16 +1303,13 @@ community-column-status = Status
 community-role-popover =
   .description = A dropdown to change the user role
 
-community-siteModeratorActions-popover =
+community-siteRoleActions-popover =
   .description = A dropdown to promote/demote a user to/from sites
 
 community-userStatus-popover =
   .description = A dropdown to change the user status
 
-community-userStatus-banUser = Ban User
-community-userStatus-ban = Ban
-community-userStatus-removeBan = Remove Ban
-community-userStatus-removeUserBan = Remove ban
+community-userStatus-manageBan = Manage Ban
 community-userStatus-suspendUser = Suspend User
 community-userStatus-suspend = Suspend
 community-userStatus-suspendEverywhere = Suspend everywhere
@@ -1139,14 +1321,24 @@ community-userStatus-changeButton =
 community-userStatus-premodUser = Always pre-moderate
 community-userStatus-removePremod = Remove pre-moderate
 
-community-banModal-areYouSure = Are you sure you want to ban <username></username>?
-community-banModal-consequence =
+community-banModal-allSites-title = Are you sure you want to ban <username></username>?
+community-banModal-specificSites-title = Are you sure you want to manage the ban status of <username></username>?
+community-banModal-noSites-title = Are you sure you want to unban <username></username>?
+community-banModal-allSites-consequence =
   Once banned, this user will no longer be able to comment, use
   reactions, or report comments.
+community-banModal-noSites-consequence =
+  Once unbanned, this user will be able to comment, use reactions, and report comments.
+community-banModal-specificSites-consequence =
+  This action will affect which sites on which the user is able to comment, use reactions, and report comments.
 community-banModal-cancel = Cancel
-community-banModal-banUser = Ban User
+community-banModal-updateBan = Save
+community-banModal-ban = Ban
+community-banModal-unban = Unban
 community-banModal-customize = Customize ban email message
 community-banModal-reject-existing = Reject all comments by this user
+community-banModal-reject-existing-specificSites = Reject all comments on these sites
+community-banModal-reject-existing-singleSite = Reject all comments on this site
 
 community-banModal-noSites = No sites
 community-banModal-banFrom = Ban from
@@ -1183,15 +1375,16 @@ community-premodModal-consequence =
 community-premodModal-cancel = Cancel
 community-premodModal-premodUser = Yes, always pre-moderate
 
-community-siteModeratorModal-assignSites =
+community-siteRoleModal-assignSites =
   Assign sites for <strong>{ $username }</strong>
-community-siteModeratorModal-assignSitesDescription =
+community-siteRoleModal-assignSitesDescription-siteModerator =
   Site moderators are permitted to make moderation decisions and issue suspensions on the sites they are assigned.
-community-siteModeratorModal-cancel = Cancel
-community-siteModeratorModal-assign = Assign
-community-siteModeratorModal-remove = Remove
-community-siteModeratorModal-selectSites = Select sites to moderate
-community-siteModeratorModal-noSites = No sites
+community-siteRoleModal-cancel = Cancel
+community-siteRoleModal-assign = Assign
+community-siteRoleModal-remove = Remove
+community-siteRoleModal-selectSites-siteModerator = Select sites to moderate
+community-siteRoleModal-selectSites-member = Select sites for this user to be a member of
+community-siteRoleModal-noSites = No sites
 
 community-invite-inviteMember = Invite members to your organization
 community-invite-emailAddressLabel = Email address:
@@ -1230,6 +1423,16 @@ community-warnModal-cancel = Cancel
 community-warnModal-warnUser = Warn user
 community-userStatus-warn = Warn
 community-userStatus-warnEverywhere = Warn everywhere
+community-userStatus-message = Message
+
+community-modMessageModal-success = A message has been sent to <strong>{ $username }</strong>.
+community-modMessageModal-success-close = Ok
+community-modMessageModal-areYouSure = Message <strong>{ $username }</strong>?
+community-modMessageModal-consequence = Send a message to a commenter that is visible only to them.
+community-modMessageModal-message-label = Message
+community-modMessageModal-message-required = Required
+community-modMessageModal-cancel = Cancel
+community-modMessageModal-messageUser = Message user
 
 ## Stories
 stories-emptyMessage = There are currently no published stories.
@@ -1264,6 +1467,27 @@ stories-column-publishedCount = Published
 
 stories-status-popover =
   .description = A dropdown to change the story status
+
+storyInfoDrawer-rescrapeTriggered = Triggered
+storyInfoDrawer-triggerRescrape = Rescrape Metadata
+storyInfoDrawer-title = Story Details
+storyInfoDrawer-titleNotAvailable = Story title not available
+storyInfoDrawer-authorNotAvailable = Author not available
+storyInfoDrawer-publishDateNotAvailable = Publish date not available
+storyInfoDrawer-scrapedMetaData = Scraped metadata
+storyInfoDrawer-configure = Configure
+storyInfoDrawer-storyStatus-open = Open
+storyInfoDrawer-storyStatus-closed = Closed
+storyInfoDrawer-moderateStory = Moderate
+storyInfoDrawerSettings-premodLinksEnable = Pre-moderate comments containing links
+storyInfoDrawerSettings-premodCommentsEnable = Pre-moderate all comments
+storyInfoDrawerSettings-moderation = Moderation
+storyInfoDrawerSettings-moderationMode-pre = Pre
+storyInfoDrawerSettings-moderationMode-post = Post
+storyInfoDrawerSettings-update = Update
+storyInfoDrawer-storyStatus-archiving = Archiving
+storyInfoDrawer-storyStatus-archived = Archived
+
 
 ## Invite
 
@@ -1313,23 +1537,24 @@ configure-general-reactions-sort-input =
 configure-general-reactions-preview = Preview
 configure-general-reaction-sortMenu-sortBy = Sort by
 
-configure-general-staff-title = Staff member badge
-configure-general-staff-explanation =
-  Show a custom badge for staff members of your organization. This badge
-  appears on the comment stream and in the admin interface.
-configure-general-staff-label = Badge text
-configure-general-staff-input =
+configure-general-badges-title = Member badges
+configure-general-badges-explanation =
+  Show a custom badge for users with specified roles. This badge appears
+  on the comment stream and in the admin interface.
+configure-general-badges-label = Badge text
+configure-general-badges-staff-member-input =
   .placeholder = E.g. Staff
-configure-general-staff-moderator-input =
+configure-general-badges-moderator-input =
   .placeholder = E.g. Moderator
-configure-general-staff-admin-input =
+configure-general-badges-admin-input =
   .placeholder = E.g. Admin
-configure-general-staff-preview = Preview
-configure-general-staff-moderator-preview = Preview
-configure-general-staff-admin-preview = Preview
-configure-general-staff-member-label = Staff member badge text
-configure-general-staff-admin-label = Admin badge text
-configure-general-staff-moderator-label = Moderator badge text
+configure-general-badges-member-input =
+  .placeholder = E.g. Member
+configure-general-badges-preview = Preview
+configure-general-badges-staff-member-label = Staff member badge text
+configure-general-badges-admin-label = Admin badge text
+configure-general-badges-moderator-label = Moderator badge text
+configure-general-badges-member-label = Member badge text
 
 configure-general-rte-title = Rich-text comments
 configure-general-rte-express = Give your community more ways to express themselves beyond plain text with rich-text formatting.
@@ -1409,10 +1634,103 @@ dashboard-heading-last-updated = Last updated:
 dashboard-today-heading = Today's activity
 dashboard-today-new-comments = New comments
 dashboard-alltime-new-comments = All time total
+dashboard-alltime-new-comments-archiveEnabled = { $value } { $unit ->
+    [second] { $value ->
+      [1] second
+      *[other] seconds
+    }
+    [minute] { $value ->
+      [1] minute
+      *[other] minutes
+    }
+    [hour] { $value ->
+      [1] hour
+      *[other] hours
+    }
+    [day] { $value ->
+      [1] day
+      *[other] days
+    }
+    [week] { $value ->
+      [1] week
+      *[other] weeks
+    }
+    [month] { $value ->
+      [1] month
+      *[other] months
+    }
+    [year] { $value ->
+      [1] year
+      *[other] years
+    }
+    *[other] unknown unit
+  } total
 dashboard-today-rejections = Rejection rate
 dashboard-alltime-rejections = All time average
+dashboard-alltime-rejections-archiveEnabled = { $value } { $unit ->
+    [second] { $value ->
+      [1] second
+      *[other] seconds
+    }
+    [minute] { $value ->
+      [1] minute
+      *[other] minutes
+    }
+    [hour] { $value ->
+      [1] hour
+      *[other] hours
+    }
+    [day] { $value ->
+      [1] day
+      *[other] days
+    }
+    [week] { $value ->
+      [1] week
+      *[other] weeks
+    }
+    [month] { $value ->
+      [1] month
+      *[other] months
+    }
+    [year] { $value ->
+      [1] year
+      *[other] years
+    }
+    *[other] unknown unit
+  } average
 dashboard-today-staff-comments = Staff comments
 dashboard-alltime-staff-comments = All time total
+dashboard-alltime-staff-comments-archiveEnabled = { $value } { $unit ->
+    [second] { $value ->
+      [1] second
+      *[other] seconds
+    }
+    [minute] { $value ->
+      [1] minute
+      *[other] minutes
+    }
+    [hour] { $value ->
+      [1] hour
+      *[other] hours
+    }
+    [day] { $value ->
+      [1] day
+      *[other] days
+    }
+    [week] { $value ->
+      [1] week
+      *[other] weeks
+    }
+    [month] { $value ->
+      [1] month
+      *[other] months
+    }
+    [year] { $value ->
+      [1] year
+      *[other] years
+    }
+    *[other] unknown unit
+  } total
 dashboard-today-signups = New community members
 dashboard-alltime-signups = Total members
 dashboard-today-bans = Banned members
@@ -1435,3 +1753,5 @@ conversation-modal-showMoreParents = Show more of this conversation
 conversation-modal-showReplies = Show replies
 conversation-modal-commentNotFound = Comment not found.
 conversation-modal-showMoreReplies = Show more replies
+conversation-modal-header-title = Conversation on:
+conversation-modal-header-moderate-link = Moderate story

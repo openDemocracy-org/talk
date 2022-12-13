@@ -1,10 +1,5 @@
 import { Localized } from "@fluent/react/compat";
-import React, {
-  FunctionComponent,
-  useCallback,
-  useEffect,
-  useState,
-} from "react";
+import React, { FunctionComponent, useCallback, useState } from "react";
 import { graphql, RelayPaginationProp } from "react-relay";
 
 import {
@@ -14,7 +9,7 @@ import {
   withPaginationContainer,
 } from "coral-framework/lib/relay";
 import { GQLUSER_ROLE_RL, GQLUSER_STATUS_RL } from "coral-framework/schema";
-import { Flex, Icon, TextField } from "coral-ui/components/v2";
+import { ClickOutside, Flex, Icon, TextField } from "coral-ui/components/v2";
 import { Button } from "coral-ui/components/v3";
 
 import { ExpertSelectionContainer_query as QueryData } from "coral-stream/__generated__/ExpertSelectionContainer_query.graphql";
@@ -71,8 +66,6 @@ const ExpertSelectionContainer: FunctionComponent<Props> = ({
     new Array<ExpertListItem>()
   );
 
-  const searchRootRef = React.createRef<HTMLDivElement>();
-
   const [loadMore, isLoadingMore] = useLoadMore(relay, 10);
   const [searchFilter, setSearchFilter] = useState<string>("");
   const [roleFilter] = useState<GQLUSER_ROLE_RL | null>(null);
@@ -94,27 +87,6 @@ const ExpertSelectionContainer: FunctionComponent<Props> = ({
     setSearchFilter("");
   }, [setSearchFilter, setTempSearchFilter]);
 
-  const onClickOutside = useCallback(
-    (e: any) => {
-      if (
-        searchRootRef &&
-        searchRootRef.current &&
-        searchRootRef.current.contains(e.target)
-      ) {
-        return;
-      }
-
-      clearSearchFilter();
-    },
-    [clearSearchFilter, searchRootRef]
-  );
-  useEffect(() => {
-    document.addEventListener("mousedown", onClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", onClickOutside);
-    };
-  }, [onClickOutside]);
-
   const onAddExpert = useCallback(
     (id: string) => {
       void addExpertMutation({
@@ -123,7 +95,7 @@ const ExpertSelectionContainer: FunctionComponent<Props> = ({
       });
       clearSearchFilter();
     },
-    [addExpertMutation, clearSearchFilter]
+    [addExpertMutation, clearSearchFilter, storyID]
   );
   const onRemoveExpert = useCallback(
     (id: string, username: string | null, email: string | null) => {
@@ -141,7 +113,7 @@ const ExpertSelectionContainer: FunctionComponent<Props> = ({
         },
       ]);
     },
-    [removeExpertMutation, removedExperts, setRemovedExperts]
+    [removeExpertMutation, removedExperts, storyID]
   );
 
   const onSubmitSearch = useCallback(() => {
@@ -216,7 +188,7 @@ const ExpertSelectionContainer: FunctionComponent<Props> = ({
           <span>Search for an expert</span>
         </Localized>
       </div>
-      <div className={styles.searchRoot} ref={searchRootRef}>
+      <ClickOutside onClickOutside={clearSearchFilter}>
         <Flex>
           <Localized
             id="configure-experts-filter-searchField"
@@ -260,42 +232,42 @@ const ExpertSelectionContainer: FunctionComponent<Props> = ({
           disableLoadMore={isLoadingMore}
           onLoadMore={loadMore}
         />
-        <div className={styles.expertListTitle}>
-          <Localized id="configure-experts-assigned-title">
-            <span>Experts</span>
-          </Localized>
-        </div>
-        {expertsList.length > 0 ? (
-          <ul className={styles.list}>
-            {expertsList.map((u) => {
-              if (u.removed) {
-                return (
-                  <NoLongerAnExpert
-                    key={`${u.id}-removed`}
-                    username={u.username}
-                  />
-                );
-              } else {
-                return (
-                  <ExpertListItem
-                    key={u.id}
-                    id={u.id}
-                    username={u.username}
-                    email={u.email}
-                    onClickRemove={onRemoveExpert}
-                  />
-                );
-              }
-            })}
-          </ul>
-        ) : (
-          <Localized id="configure-experts-none-yet">
-            <div className={styles.noExperts}>
-              There are currently no experts for this Q&A.
-            </div>
-          </Localized>
-        )}
+      </ClickOutside>
+      <div className={styles.expertListTitle}>
+        <Localized id="configure-experts-assigned-title">
+          <span>Experts</span>
+        </Localized>
       </div>
+      {expertsList.length > 0 ? (
+        <ul className={styles.list}>
+          {expertsList.map((u) => {
+            if (u.removed) {
+              return (
+                <NoLongerAnExpert
+                  key={`${u.id}-removed`}
+                  username={u.username}
+                />
+              );
+            } else {
+              return (
+                <ExpertListItem
+                  key={u.id}
+                  id={u.id}
+                  username={u.username}
+                  email={u.email}
+                  onClickRemove={onRemoveExpert}
+                />
+              );
+            }
+          })}
+        </ul>
+      ) : (
+        <Localized id="configure-experts-none-yet">
+          <div className={styles.noExperts}>
+            There are currently no experts for this Q&A.
+          </div>
+        </Localized>
+      )}
     </>
   );
 };
@@ -310,14 +282,14 @@ const enhanced = withPaginationContainer<
   {
     query: graphql`
       fragment ExpertSelectionContainer_query on Query
-        @argumentDefinitions(
-          storyID: { type: "ID!" }
-          count: { type: "Int", defaultValue: 10 }
-          cursor: { type: "Cursor" }
-          roleFilter: { type: "USER_ROLE" }
-          statusFilter: { type: "USER_STATUS_FILTER" }
-          searchFilter: { type: "String" }
-        ) {
+      @argumentDefinitions(
+        storyID: { type: "ID!" }
+        count: { type: "Int", defaultValue: 10 }
+        cursor: { type: "Cursor" }
+        roleFilter: { type: "USER_ROLE" }
+        statusFilter: { type: "USER_STATUS_FILTER" }
+        searchFilter: { type: "String" }
+      ) {
         viewer {
           id
           username

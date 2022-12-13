@@ -1,39 +1,27 @@
 import { v1 as uuid } from "uuid";
 
 import { pureMerge } from "coral-common/utils";
-import {
-  GQLResolver,
-  GQLUSER_ROLE,
-  GQLUSER_STATUS,
-  QueryToSettingsResolver,
-  QueryToUsersResolver,
-} from "coral-framework/schema";
+import { GQLResolver, GQLUSER_STATUS } from "coral-framework/schema";
 import {
   act,
-  createQueryResolverStub,
   createResolversStub,
   CreateTestRendererParams,
   replaceHistoryLocation,
   wait,
   waitForElement,
-  waitUntilThrow,
   within,
 } from "coral-framework/testHelpers";
 
 import create from "../create";
 import {
   communityUsers,
-  disabledEmail,
-  disabledLocalAuth,
-  disabledLocalAuthAdminTargetFilter,
-  disabledLocalRegistration,
   emptyCommunityUsers,
   settings,
   siteConnection,
   users,
 } from "../fixtures";
 
-const viewer = users.admins[0];
+const adminViewer = users.admins[0];
 
 beforeEach(async () => {
   replaceHistoryLocation("http://localhost/admin/community");
@@ -52,7 +40,7 @@ const createTestRenderer = async (
             expectAndFail(variables.role).toBeFalsy();
             return communityUsers;
           },
-          viewer: () => viewer,
+          viewer: () => adminViewer,
           sites: () => siteConnection,
         },
       }),
@@ -69,253 +57,6 @@ const createTestRenderer = async (
   );
   return { testRenderer, container };
 };
-
-it("renders community", async () => {
-  const { container } = await createTestRenderer();
-  expect(within(container).toJSON()).toMatchSnapshot();
-});
-
-it("renders empty community", async () => {
-  const { container } = await createTestRenderer({
-    resolvers: {
-      Query: {
-        users: createQueryResolverStub<QueryToUsersResolver>(
-          () => emptyCommunityUsers
-        ),
-      },
-    },
-  });
-  expect(within(container).toJSON()).toMatchSnapshot();
-});
-
-it("renders the invite button when clicked", async () => {
-  const { container } = await createTestRenderer();
-
-  await act(async () =>
-    within(container).getByTestID("invite-users-button").props.onClick()
-  );
-
-  expect(within(container).getByTestID("invite-users-modal")).toBeDefined();
-});
-
-it("renders with invite button when viewed with admin user", async () => {
-  const admin = users.admins[0];
-  const { container } = await createTestRenderer({
-    resolvers: createResolversStub<GQLResolver>({
-      Query: {
-        viewer: () => admin,
-      },
-    }),
-  });
-  expect(within(container).queryByTestID("invite-users")).toBeDefined();
-});
-
-it("renders without invite button when viewed with non-admin user", async () => {
-  const moderator = users.moderators[0];
-  const { container } = await createTestRenderer({
-    resolvers: createResolversStub<GQLResolver>({
-      Query: {
-        viewer: () => moderator,
-      },
-    }),
-  });
-  expect(within(container).queryByTestID("invite-users")).toBeNull();
-});
-
-it("renders without invite button when email disabled", async () => {
-  const { container } = await createTestRenderer({
-    resolvers: createResolversStub<GQLResolver>({
-      Query: {
-        settings: createQueryResolverStub<QueryToSettingsResolver>(
-          () => disabledEmail
-        ),
-      },
-    }),
-  });
-  expect(within(container).queryByTestID("invite-users")).toBeNull();
-});
-
-it("renders without invite button when admin target filter disabled", async () => {
-  const { container } = await createTestRenderer({
-    resolvers: createResolversStub<GQLResolver>({
-      Query: {
-        settings: createQueryResolverStub<QueryToSettingsResolver>(
-          () => disabledLocalAuthAdminTargetFilter
-        ),
-      },
-    }),
-  });
-  expect(within(container).queryByTestID("invite-users")).toBeNull();
-});
-
-it("renders without invite button when local auth disabled", async () => {
-  const { container } = await createTestRenderer({
-    resolvers: createResolversStub<GQLResolver>({
-      Query: {
-        settings: createQueryResolverStub<QueryToSettingsResolver>(
-          () => disabledLocalAuth
-        ),
-      },
-    }),
-  });
-  expect(within(container).queryByTestID("invite-users")).toBeNull();
-});
-
-it("renders without invite button when local auth registration disabled", async () => {
-  const { container } = await createTestRenderer({
-    resolvers: createResolversStub<GQLResolver>({
-      Query: {
-        settings: createQueryResolverStub<QueryToSettingsResolver>(
-          () => disabledLocalRegistration
-        ),
-      },
-    }),
-  });
-  expect(within(container).queryByTestID("invite-users")).toBeNull();
-});
-
-it("filter by role", async () => {
-  const { container } = await createTestRenderer({
-    resolvers: createResolversStub<GQLResolver>({
-      Query: {
-        users: ({ variables, callCount }) => {
-          switch (callCount) {
-            case 0:
-              return communityUsers;
-            default:
-              expectAndFail(variables.role).toBe(GQLUSER_ROLE.COMMENTER);
-              return emptyCommunityUsers;
-          }
-        },
-      },
-    }),
-  });
-
-  const selectField = within(container).getByLabelText("Search by role");
-  const commentersOption = within(selectField).getByText("Commenters");
-
-  await act(async () => {
-    selectField.props.onChange({
-      target: { value: commentersOption.props.value.toString() },
-    });
-    await waitForElement(() =>
-      within(container).getByText("We could not find anyone", { exact: false })
-    );
-  });
-});
-
-it("can't change viewer role", async () => {
-  const { container } = await createTestRenderer();
-
-  const viewerRow = within(container).getByText(viewer.username!, {
-    selector: "tr",
-  });
-  expect(() => within(viewerRow).getByLabelText("Change role")).toThrow();
-});
-
-it("change user role", async () => {
-  const user = users.commenters[0];
-  const resolvers = createResolversStub<GQLResolver>({
-    Mutation: {
-      updateUserRole: ({ variables }) => {
-        expectAndFail(variables).toMatchObject({
-          userID: user.id,
-          role: GQLUSER_ROLE.STAFF,
-        });
-        const userRecord = pureMerge<typeof user>(user, {
-          role: variables.role,
-        });
-        return {
-          user: userRecord,
-        };
-      },
-    },
-  });
-  const { container } = await createTestRenderer({
-    resolvers,
-  });
-
-  const userRow = within(container).getByText(user.username!, {
-    selector: "tr",
-  });
-
-  act(() => {
-    within(userRow).getByLabelText("Change role").props.onClick();
-  });
-
-  const popup = within(userRow).getByLabelText(
-    "A dropdown to change the user role"
-  );
-
-  act(() => {
-    within(popup).getByText("Staff", { selector: "button" }).props.onClick();
-  });
-
-  expect(resolvers.Mutation!.updateUserRole!.called).toBe(true);
-});
-
-it("can't change role as a moderator", async () => {
-  const moderator = users.moderators[0];
-  const { container } = await createTestRenderer({
-    resolvers: createResolversStub<GQLResolver>({
-      Query: {
-        viewer: () => moderator,
-      },
-    }),
-  });
-  expect(() => within(container).getByLabelText("Change role")).toThrow();
-});
-
-it("load more", async () => {
-  const { container } = await createTestRenderer({
-    resolvers: createResolversStub<GQLResolver>({
-      Query: {
-        users: ({ callCount }) => {
-          switch (callCount) {
-            case 0:
-              return {
-                edges: [
-                  {
-                    node: viewer,
-                    cursor: viewer.createdAt,
-                  },
-                  {
-                    node: users.commenters[0],
-                    cursor: users.commenters[0].createdAt,
-                  },
-                ],
-                pageInfo: {
-                  endCursor: users.commenters[0].createdAt,
-                  hasNextPage: true,
-                },
-              };
-            default:
-              return {
-                edges: [
-                  {
-                    node: users.commenters[1],
-                    cursor: users.commenters[1].createdAt,
-                  },
-                ],
-                pageInfo: {
-                  endCursor: users.commenters[1].createdAt,
-                  hasNextPage: false,
-                },
-              };
-          }
-        },
-      },
-    }),
-  });
-  const loadMore = within(container).getByText("Load More");
-  await act(async () => {
-    loadMore.props.onClick();
-    // Wait for load more to disappear.
-    await waitUntilThrow(() => within(container).getByText("Load More"));
-  });
-  // Make sure third user was added.
-  within(container).getByText(users.commenters[1].username!);
-});
 
 it("filter by search", async () => {
   const { container } = await createTestRenderer({
@@ -382,18 +123,6 @@ it("filter by status", async () => {
     await waitForElement(() =>
       within(container).getByText("We could not find anyone", { exact: false })
     );
-  });
-});
-
-it("can't change staff, moderator and admin status", async () => {
-  const { container } = await createTestRenderer();
-  ["Admin", "Moderator", "Staff"].forEach((role) => {
-    const viewerRow = within(container).getByText(role, {
-      selector: "tr",
-    });
-    expect(() =>
-      within(viewerRow).getByLabelText("Change user status")
-    ).toThrow();
   });
 });
 
@@ -635,19 +364,20 @@ it("suspend user with custom message", async () => {
   expect(resolvers.Mutation!.suspendUser!.called).toBe(true);
 });
 
-it("ban user", async () => {
+it("send user a moderation message", async () => {
   const user = users.commenters[0];
 
   const resolvers = createResolversStub<GQLResolver>({
     Mutation: {
-      banUser: ({ variables }) => {
+      sendModMessage: ({ variables }) => {
         expectAndFail(variables).toMatchObject({
           userID: user.id,
+          message:
+            "Just wanted to send a friendly reminder about our comment guidelines.",
         });
         const userRecord = pureMerge<typeof user>(user, {
           status: {
-            current: user.status.current.concat(GQLUSER_STATUS.BANNED),
-            ban: { active: true },
+            modMessage: { active: true },
           },
         });
         return {
@@ -674,150 +404,27 @@ it("ban user", async () => {
   );
 
   act(() => {
-    within(popup).getByText("Ban", { selector: "button" }).props.onClick();
+    within(popup).getByText("Message", { selector: "button" }).props.onClick();
   });
 
-  const modal = within(testRenderer.root).getByLabelText(
-    "Are you sure you want to ban",
-    {
-      exact: false,
-    }
-  );
-
-  act(() => {
-    within(modal).getByType("form").props.onSubmit();
-  });
-  within(userRow).getByText("Banned");
-  expect(resolvers.Mutation!.banUser!.called).toBe(true);
-});
-
-it("ban user with custom message", async () => {
-  const user = users.commenters[0];
-
-  const resolvers = createResolversStub<GQLResolver>({
-    Mutation: {
-      banUser: ({ variables }) => {
-        expectAndFail(variables).toMatchObject({
-          userID: user.id,
-          message: "YOU WERE BANNED FOR BREAKING THE RULES",
-        });
-        const userRecord = pureMerge<typeof user>(user, {
-          status: {
-            current: user.status.current.concat(GQLUSER_STATUS.BANNED),
-            ban: { active: true },
-          },
-        });
-        return {
-          user: userRecord,
-        };
-      },
-    },
-  });
-
-  const { container, testRenderer } = await createTestRenderer({
-    resolvers,
-  });
-
-  const userRow = within(container).getByText(user.username!, {
-    selector: "tr",
-  });
-
-  act(() => {
-    within(userRow).getByLabelText("Change user status").props.onClick();
-  });
-
-  const popup = within(userRow).getByLabelText(
-    "A dropdown to change the user status"
-  );
-
-  act(() => {
-    within(popup).getByText("Ban", { selector: "button" }).props.onClick();
-  });
-
-  const modal = within(testRenderer.root).getByLabelText(
-    "Are you sure you want to ban",
-    {
-      exact: false,
-    }
-  );
-
-  const toggleMessage = within(modal).getByID("banModal-showMessage");
-
-  act(() => {
-    toggleMessage.props.onChange(true);
+  const modal = within(testRenderer.root).getByLabelText("Message", {
+    exact: false,
   });
 
   act(() => {
     within(modal)
-      .getByID("banModal-message")
-      .props.onChange("YOU WERE BANNED FOR BREAKING THE RULES");
+      .getByTestID("modMessageModal-message")
+      .props.onChange(
+        "Just wanted to send a friendly reminder about our comment guidelines."
+      );
   });
 
   act(() => {
     within(modal).getByType("form").props.onSubmit();
   });
-  within(userRow).getByText("Banned");
-  expect(resolvers.Mutation!.banUser!.called).toBe(true);
-});
-
-it("remove user ban", async () => {
-  const user = users.bannedCommenter;
-  const resolvers = createResolversStub<GQLResolver>({
-    Mutation: {
-      removeUserBan: ({ variables }) => {
-        expectAndFail(variables).toMatchObject({
-          userID: user.id,
-        });
-        const userRecord = pureMerge<typeof user>(user, {
-          status: {
-            current: user.status.current.filter(
-              (s) => s !== GQLUSER_STATUS.BANNED
-            ),
-            ban: { active: false },
-          },
-        });
-        return {
-          user: userRecord,
-        };
-      },
-    },
-    Query: {
-      users: () => ({
-        edges: [
-          {
-            node: user,
-            cursor: user.createdAt,
-          },
-        ],
-        pageInfo: { endCursor: null, hasNextPage: false },
-      }),
-    },
-  });
-
-  const { container } = await createTestRenderer({
-    resolvers,
-  });
-
-  const userRow = within(container).getByText(user.username!, {
-    selector: "tr",
-  });
-
-  act(() => {
-    within(userRow).getByLabelText("Change user status").props.onClick();
-  });
-
-  const popup = within(userRow).getByLabelText(
-    "A dropdown to change the user status"
-  );
-
-  act(() => {
-    within(popup)
-      .getByText("Remove ban", { selector: "button" })
-      .props.onClick();
-  });
-
+  // Sending the user a moderation message should not change their status
   within(userRow).getByText("Active");
-  expect(resolvers.Mutation!.removeUserBan!.called).toBe(true);
+  expect(resolvers.Mutation!.sendModMessage!.called).toBe(true);
 });
 
 it("invites user", async () => {

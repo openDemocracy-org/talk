@@ -30,17 +30,21 @@ const MyOngoingDiscussionsContainer: FunctionComponent<Props> = ({
     <HorizontalGutter
       className={cn(styles.root, CLASSES.discussions.myOngoingDiscussions)}
       spacing={4}
+      container="section"
+      aria-labelledby="discussions-myOngoingDiscussions-title"
     >
       <DiscussionsHeader
         header={
           <Localized id="discussions-myOngoingDiscussions">
-            My ongoing discussions
+            <span id="discussions-myOngoingDiscussions-title">
+              My ongoing discussions
+            </span>
           </Localized>
         }
         subHeader={
           <Localized
             id="discussions-myOngoingDiscussions-subhead"
-            $orgName={settings.organization.name}
+            vars={{ orgName: settings.organization.name }}
           >
             <>Where you’ve commented across {settings.organization.name}</>
           </Localized>

@@ -1,5 +1,5 @@
 import { Localized } from "@fluent/react/compat";
-import { Match, Router, withRouter } from "found";
+import { Router, useRouter } from "found";
 import React, {
   KeyboardEvent,
   MouseEvent,
@@ -9,8 +9,9 @@ import React, {
 } from "react";
 import { graphql } from "react-relay";
 
-import { getModerationLink } from "coral-framework/helpers";
+import { getModerationLink, QUEUE_NAME } from "coral-framework/helpers";
 import { useEffectWhenChanged } from "coral-framework/hooks";
+import { useCoralContext } from "coral-framework/lib/bootstrap/CoralContext";
 import { useFetch, withFragmentContainer } from "coral-framework/lib/relay";
 import { GQLFEATURE_FLAG } from "coral-framework/schema";
 import { PropTypesOf } from "coral-framework/types";
@@ -34,14 +35,13 @@ import SearchStoryFetch from "./SearchStoryFetch";
 import SeeAllOption from "./SeeAllOption";
 
 interface Props {
-  router: Router;
-  match: Match;
   story: ModerationQueuesData | null;
   settings: SettingsData | null;
   allStories: boolean;
   siteSelector: React.ReactNode;
   sectionSelector?: React.ReactNode;
   siteID: string | null;
+  queueName: QUEUE_NAME | undefined;
 }
 
 type SearchBarOptions = PropTypesOf<typeof Bar>["options"];
@@ -54,6 +54,7 @@ type SearchBarOptions = PropTypesOf<typeof Bar>["options"];
  * @returns A handler for ListBoxOption
  */
 function useLinkNavHandler(router: Router): ListBoxOptionClickOrEnterHandler {
+  const { window } = useCoralContext();
   return useCallback(
     (evt: MouseEvent | KeyboardEvent, element: ListBoxOptionElement) => {
       if (element.props.href) {
@@ -64,10 +65,10 @@ function useLinkNavHandler(router: Router): ListBoxOptionClickOrEnterHandler {
           evt.preventDefault();
         }
         // Blur will inactivate the textfield and close the popover/listbox.
-        blur();
+        blur(window);
       }
     },
-    [router]
+    [router, window]
   );
 }
 
@@ -105,12 +106,13 @@ function getStoryDetails(
 
 function getContextOptionsWhenModeratingAll(
   onClickOrEnter: ListBoxOptionClickOrEnterHandler,
-  siteID: string | null
+  siteID: string | null,
+  queue: QUEUE_NAME | undefined
 ): SearchBarOptions {
   return [
     {
       element: (
-        <Option href={getModerationLink({ siteID })}>
+        <Option href={getModerationLink({ queue, siteID })}>
           <GoToAriaInfo />
           <Localized id="moderate-searchBar-allStories">
             <span>All stories</span>
@@ -127,7 +129,8 @@ function getContextOptionsWhenModeratingStory(
   onClickOrEnter: ListBoxOptionClickOrEnterHandler,
   settings: SettingsData | null,
   story: ModerationQueuesData | null,
-  siteID: string | null
+  siteID: string | null,
+  queue: QUEUE_NAME | undefined
 ): SearchBarOptions {
   if (story === null || settings === null) {
     return [];
@@ -136,7 +139,7 @@ function getContextOptionsWhenModeratingStory(
     {
       element: (
         <Option
-          href={getModerationLink({ storyID: story.id })}
+          href={getModerationLink({ queue, storyID: story.id })}
           details={getStoryDetails(settings, story)}
         >
           <GoToAriaInfo /> {story.metadata && story.metadata.title}
@@ -149,6 +152,7 @@ function getContextOptionsWhenModeratingStory(
       element: (
         <ModerateAllOption
           href={getModerationLink({
+            queue,
             siteID: siteID || (story && story.site.id),
           })}
         />
@@ -164,7 +168,7 @@ type OnSearchCallback = (search: string) => void;
 interface SearchParams {
   query: string;
   limit: number;
-  siteID?: string;
+  siteIDs?: string[];
 }
 /**
  * useSearchOptions
@@ -175,7 +179,8 @@ interface SearchParams {
 function useSearchOptions(
   onClickOrEnter: ListBoxOptionClickOrEnterHandler,
   story: ModerationQueuesData | null,
-  siteID: string | null
+  siteID: string | null,
+  queue: QUEUE_NAME | undefined
 ): [SearchBarOptions, OnSearchCallback] {
   const searchStory = useFetch(SearchStoryFetch);
 
@@ -209,7 +214,7 @@ function useSearchOptions(
         limit: 5,
       };
       if (siteID) {
-        searchParams.siteID = siteID;
+        searchParams.siteIDs = [siteID];
       }
       const { settings, stories } = await searchStory(searchParams);
       if (searchCount !== searchCountRef.current) {
@@ -227,6 +232,7 @@ function useSearchOptions(
             element: (
               <Option
                 href={getModerationLink({
+                  queue,
                   storyID: e.node.id,
                   siteID: e.node.site.id,
                 })}
@@ -268,27 +274,34 @@ function useSearchOptions(
       }
       setSearchOptions(nextSearchOptions);
     },
-    [story, searchStory, setSearchOptions, siteID]
+    [siteID, searchStory, story, queue, onClickOrEnter]
   );
 
   return [searchOptions, onSearch];
 }
 
 const ModerateSearchBarContainer: React.FunctionComponent<Props> = (props) => {
-  const linkNavHandler = useLinkNavHandler(props.router);
+  const { router } = useRouter();
+  const linkNavHandler = useLinkNavHandler(router);
   const contextOptions: PropTypesOf<typeof Bar>["options"] = props.allStories
-    ? getContextOptionsWhenModeratingAll(linkNavHandler, props.siteID)
+    ? getContextOptionsWhenModeratingAll(
+        linkNavHandler,
+        props.siteID,
+        props.queueName
+      )
     : getContextOptionsWhenModeratingStory(
         linkNavHandler,
         props.settings,
         props.story,
-        props.siteID
+        props.siteID,
+        props.queueName
       );
 
   const [searchOptions, onSearch] = useSearchOptions(
     linkNavHandler,
     props.story,
-    props.siteID
+    props.siteID,
+    props.queueName
   );
 
   const options = [...contextOptions, ...searchOptions];
@@ -354,29 +367,27 @@ const ModerateSearchBarContainer: React.FunctionComponent<Props> = (props) => {
   );
 };
 
-const enhanced = withRouter(
-  withFragmentContainer<Props>({
-    settings: graphql`
-      fragment ModerateSearchBarContainer_settings on Settings {
-        multisite
-        featureFlags
-      }
-    `,
-    story: graphql`
-      fragment ModerateSearchBarContainer_story on Story {
+const enhanced = withFragmentContainer<Props>({
+  settings: graphql`
+    fragment ModerateSearchBarContainer_settings on Settings {
+      multisite
+      featureFlags
+    }
+  `,
+  story: graphql`
+    fragment ModerateSearchBarContainer_story on Story {
+      id
+      site {
+        name
         id
-        site {
-          name
-          id
-        }
-        metadata {
-          title
-          author
-          section
-        }
       }
-    `,
-  })(ModerateSearchBarContainer)
-);
+      metadata {
+        title
+        author
+        section
+      }
+    }
+  `,
+})(ModerateSearchBarContainer);
 
 export default enhanced;

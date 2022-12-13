@@ -4,6 +4,7 @@ import React, { FunctionComponent, useCallback } from "react";
 import { Field, Form } from "react-final-form";
 
 import { useNotification } from "coral-admin/App/GlobalNotification";
+import { useCoralContext } from "coral-framework/lib/bootstrap";
 import { InvalidRequestError } from "coral-framework/lib/errors";
 import { useMutation } from "coral-framework/lib/relay";
 import {
@@ -37,17 +38,21 @@ const RotateWebhookEndpointSigningSecretModal: FunctionComponent<Props> = ({
   open,
   phaseID,
 }) => {
+  const { window } = useCoralContext();
   const rotateExternalModerationPhaseSigningSecret = useMutation(
     RotateExternalModerationPhaseSigningSecretMutation
   );
   const { setMessage, clearMessage } = useNotification();
   const onRotateSecret = useCallback(
-    async ({ inactiveIn: inactiveInString }) => {
+    async ({ inactiveIn }: { inactiveIn: number | string }) => {
       try {
-        const inactiveIn = parseInt(inactiveInString, 10);
+        const inactiveInNum =
+          typeof inactiveIn === "number"
+            ? inactiveIn
+            : parseInt(inactiveIn, 10);
         await rotateExternalModerationPhaseSigningSecret({
           id: phaseID,
-          inactiveIn,
+          inactiveIn: inactiveInNum,
         });
 
         // Post a notification about the successful change.
@@ -74,7 +79,14 @@ const RotateWebhookEndpointSigningSecretModal: FunctionComponent<Props> = ({
 
       return;
     },
-    [phaseID, rotateExternalModerationPhaseSigningSecret]
+    [
+      clearMessage,
+      onHide,
+      phaseID,
+      rotateExternalModerationPhaseSigningSecret,
+      setMessage,
+      window,
+    ]
   );
 
   return (

@@ -1,6 +1,6 @@
 import { Localized } from "@fluent/react/compat";
 import { FORM_ERROR } from "final-form";
-import { Match, Router, withRouter } from "found";
+import { useRouter } from "found";
 import React, { FunctionComponent, useCallback } from "react";
 import { Field, Form } from "react-final-form";
 import { graphql } from "react-relay";
@@ -33,15 +33,16 @@ import {
   TextField,
 } from "coral-ui/components/v2";
 
-import { ConfigureExternalModerationPhaseForm_phase } from "coral-admin/__generated__/ConfigureExternalModerationPhaseForm_phase.graphql";
+import {
+  COMMENT_BODY_FORMAT,
+  ConfigureExternalModerationPhaseForm_phase,
+} from "coral-admin/__generated__/ConfigureExternalModerationPhaseForm_phase.graphql";
 
 import CreateExternalModerationPhaseMutation from "./CreateExternalModerationPhaseMutation";
 import UpdateExternalModerationPhaseMutation from "./UpdateExternalModerationPhaseMutation";
 
 interface Props {
   onCancel?: () => void;
-  router: Router;
-  match: Match;
   phase: ConfigureExternalModerationPhaseForm_phase | null;
 }
 
@@ -58,12 +59,18 @@ const initialValues = (phase?: any) =>
 const ConfigureExternalModerationPhaseForm: FunctionComponent<Props> = ({
   onCancel,
   phase,
-  router,
 }) => {
   const create = useMutation(CreateExternalModerationPhaseMutation);
   const update = useMutation(UpdateExternalModerationPhaseMutation);
+  const { router } = useRouter();
   const onSubmit = useCallback(
-    async (values) => {
+    async (values: {
+      name: string;
+      url: string;
+      format: COMMENT_BODY_FORMAT;
+      timeout: number;
+      id: string;
+    }) => {
       try {
         if (phase) {
           // The external moderation phase was defined, update it.
@@ -223,18 +230,16 @@ const ConfigureExternalModerationPhaseForm: FunctionComponent<Props> = ({
   );
 };
 
-const enhanced = withRouter(
-  withFragmentContainer<Props>({
-    phase: graphql`
-      fragment ConfigureExternalModerationPhaseForm_phase on ExternalModerationPhase {
-        id
-        name
-        url
-        timeout
-        format
-      }
-    `,
-  })(ConfigureExternalModerationPhaseForm)
-);
+const enhanced = withFragmentContainer<Props>({
+  phase: graphql`
+    fragment ConfigureExternalModerationPhaseForm_phase on ExternalModerationPhase {
+      id
+      name
+      url
+      timeout
+      format
+    }
+  `,
+})(ConfigureExternalModerationPhaseForm);
 
 export default enhanced;

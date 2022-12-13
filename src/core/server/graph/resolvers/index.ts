@@ -6,6 +6,7 @@ import { GQLResolver } from "coral-server/graph/schema/__generated__/types";
 
 import { AkismetExternalIntegration } from "./AkismetExternalIntegration";
 import { ApproveCommentPayload } from "./ApproveCommentPayload";
+import { AuthenticationTargetFilter } from "./AuthenticationTargetFilter";
 import { AuthIntegrations } from "./AuthIntegrations";
 import { BanStatus } from "./BanStatus";
 import { BanStatusHistory } from "./BanStatusHistory";
@@ -13,6 +14,7 @@ import { CloseCommenting } from "./CloseCommenting";
 import { Comment } from "./Comment";
 import { CommentCounts } from "./CommentCounts";
 import { CommentCreatedPayload } from "./CommentCreatedPayload";
+import { CommentEditedPayload } from "./CommentEditedPayload";
 import { CommentEnteredModerationQueuePayload } from "./CommentEnteredModerationQueuePayload";
 import { CommentEnteredPayload } from "./CommentEnteredPayload";
 import { CommentLeftModerationQueuePayload } from "./CommentLeftModerationQueuePayload";
@@ -24,6 +26,7 @@ import { CommentRevision } from "./CommentRevision";
 import { CommentStatusUpdatedPayload } from "./CommentStatusUpdatedPayload";
 import { DisableCommenting } from "./DisableCommenting";
 import { EditInfo } from "./EditInfo";
+import { EmailDomain } from "./EmailDomain";
 import { ExternalMediaConfiguration } from "./ExternalMediaConfiguration";
 import { ExternalModerationPhase } from "./ExternalModerationPhase";
 import { FacebookAuthIntegration } from "./FacebookAuthIntegration";
@@ -33,11 +36,15 @@ import { GiphyMediaConfiguration } from "./GiphyMediaConfiguration";
 import { GoogleAuthIntegration } from "./GoogleAuthIntegration";
 import { Invite } from "./Invite";
 import { LiveConfiguration } from "./LiveConfiguration";
+import { LocalAuthIntegration } from "./LocalAuthIntegration";
 import { MediaConfiguration } from "./MediaConfiguration";
 import { ModerationQueue } from "./ModerationQueue";
 import { ModerationQueues } from "./ModerationQueues";
 import { ModeratorNote } from "./ModeratorNote";
+import { ModMessageStatus } from "./ModMessageStatus";
+import { ModMessageStatusHistory } from "./ModMessageStatusHistory";
 import { Mutation } from "./Mutation";
+import { NewCommentersConfiguration } from "./NewCommentersConfiguration";
 import { OIDCAuthIntegration } from "./OIDCAuthIntegration";
 import { PremodStatus } from "./PremodStatus";
 import { PremodStatusHistory } from "./PremodStatusHistory";
@@ -54,7 +61,7 @@ import { SigningSecret } from "./SigningSecret";
 import { Site } from "./Site";
 import { SlackConfiguration } from "./SlackConfiguration";
 import { SSOAuthIntegration } from "./SSOAuthIntegration";
-import { StaffConfiguration } from "./StaffConfig";
+import { BadgeConfiguration } from "./StaffConfig";
 import { Story } from "./Story";
 import { StoryRatings } from "./StoryRatings";
 import { StoryScrapingConfiguration } from "./StoryScrapingConfiguration";
@@ -66,6 +73,7 @@ import { Tag } from "./Tag";
 import { TwitterMediaConfiguration } from "./TwitterMediaConfiguration";
 import { User } from "./User";
 import { UserMediaSettings } from "./UserMediaSettings";
+import { UserMembershipScopes } from "./UserMembershipScopes";
 import { UserModerationScopes } from "./UserModerationScopes";
 import { UsernameHistory } from "./UsernameHistory";
 import { UsernameStatus } from "./UsernameStatus";
@@ -85,6 +93,7 @@ const Resolvers: GQLResolver = {
   Comment,
   CommentCounts,
   CommentCreatedPayload,
+  CommentEditedPayload,
   CommentEnteredModerationQueuePayload,
   CommentEnteredPayload,
   CommentLeftModerationQueuePayload,
@@ -97,6 +106,7 @@ const Resolvers: GQLResolver = {
   Cursor,
   DisableCommenting,
   EditInfo,
+  EmailDomain,
   ExternalMediaConfiguration,
   ExternalModerationPhase,
   FacebookAuthIntegration,
@@ -111,7 +121,10 @@ const Resolvers: GQLResolver = {
   ModerationQueue,
   ModerationQueues,
   ModeratorNote,
+  ModMessageStatus,
+  ModMessageStatusHistory,
   Mutation,
+  NewCommentersConfiguration,
   OIDCAuthIntegration,
   PremodStatus,
   PremodStatusHistory,
@@ -128,7 +141,7 @@ const Resolvers: GQLResolver = {
   Site,
   SlackConfiguration,
   SSOAuthIntegration,
-  StaffConfiguration,
+  BadgeConfiguration,
   Story,
   StoryRatings,
   StoryScrapingConfiguration,
@@ -141,6 +154,7 @@ const Resolvers: GQLResolver = {
   TwitterMediaConfiguration,
   User,
   UserMediaSettings,
+  UserMembershipScopes,
   UserModerationScopes,
   UsernameHistory,
   UsernameStatus,
@@ -149,6 +163,8 @@ const Resolvers: GQLResolver = {
   WarningStatusHistory,
   WebhookEndpoint,
   YouTubeMediaConfiguration,
+  LocalAuthIntegration,
+  AuthenticationTargetFilter,
 };
 
 export default Resolvers;

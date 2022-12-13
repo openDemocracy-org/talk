@@ -33,4 +33,8 @@ extend type Local {
   authDuplicateEmail: String
   siteID: String
   moderationQueueSort: COMMENT_SORT
+  forceAdminLocalAuth: Boolean!
+
+  archivingEnabled: Boolean!
+  autoArchiveOlderThanMs: Int!
 }

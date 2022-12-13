@@ -1,12 +1,13 @@
 import { FluentBundle } from "@fluent/bundle/compat";
 
+import { Config } from "coral-server/config";
 import { InternalError } from "coral-server/errors";
 import { translate } from "coral-server/services/i18n";
 
 import { GQLFEATURE_FLAG } from "coral-server/graph/schema/__generated__/types";
 
 import { AuthIntegrations } from "../settings";
-import { Tenant } from "./tenant";
+import { LEGACY_FEATURE_FLAGS, Tenant } from "./tenant";
 
 export const getDefaultReactionConfiguration = (
   bundle: FluentBundle
@@ -23,13 +24,14 @@ export const getDefaultReactionConfiguration = (
   icon: "thumb_up",
 });
 
-export const getDefaultStaffConfiguration = (
+export const getDefaultBadgeConfiguration = (
   bundle: FluentBundle
-): Tenant["staff"] => ({
+): Tenant["badges"] => ({
   label: translate(bundle, "Staff", "staff-label"),
   adminLabel: translate(bundle, "Staff", "staff-label"),
   staffLabel: translate(bundle, "Staff", "staff-label"),
   moderatorLabel: translate(bundle, "Staff", "staff-label"),
+  memberLabel: translate(bundle, "Member", "member-label"),
 });
 
 /**
@@ -41,7 +43,7 @@ export const getDefaultStaffConfiguration = (
  */
 export function hasFeatureFlag(
   tenant: Pick<Tenant, "featureFlags">,
-  flag: GQLFEATURE_FLAG
+  flag: GQLFEATURE_FLAG | LEGACY_FEATURE_FLAGS
 ) {
   if (tenant.featureFlags?.includes(flag)) {
     return true;
@@ -52,7 +54,7 @@ export function hasFeatureFlag(
 
 export function ensureFeatureFlag(
   tenant: Pick<Tenant, "featureFlags">,
-  flag: GQLFEATURE_FLAG
+  flag: GQLFEATURE_FLAG | LEGACY_FEATURE_FLAGS
 ) {
   if (!hasFeatureFlag(tenant, flag)) {
     throw new InternalError("tenant does not have feature flag enabled", {
@@ -62,17 +64,26 @@ export function ensureFeatureFlag(
 }
 
 export function hasEnabledAuthIntegration(
-  tenant: Pick<Tenant, "auth">,
+  config: Config,
+  tenant: Pick<Tenant, "auth" | "featureFlags">,
   integration: keyof AuthIntegrations
 ) {
+  const forceAdminLocalAuth = config.get("force_admin_local_auth");
+  if (integration === "local" && forceAdminLocalAuth) {
+    return true;
+  }
+
   return tenant.auth.integrations[integration].enabled;
 }
 
-export function linkUsersAvailable(tenant: Pick<Tenant, "auth">) {
+export function linkUsersAvailable(
+  config: Config,
+  tenant: Pick<Tenant, "auth">
+) {
   return (
-    hasEnabledAuthIntegration(tenant, "local") &&
-    (hasEnabledAuthIntegration(tenant, "facebook") ||
-      hasEnabledAuthIntegration(tenant, "google"))
+    hasEnabledAuthIntegration(config, tenant, "local") &&
+    (hasEnabledAuthIntegration(config, tenant, "facebook") ||
+      hasEnabledAuthIntegration(config, tenant, "google"))
   );
 }
 
@@ -97,4 +108,30 @@ export function supportsMediaType(
     case "giphy":
       return !!tenant.media?.giphy.enabled && !!tenant.media.giphy.key;
   }
+}
+
+export function isAMPEnabled(tenant: Pick<Tenant, "featureFlags" | "amp">) {
+  if (typeof tenant.amp === "boolean") {
+    return tenant.amp;
+  }
+  return hasFeatureFlag(tenant, LEGACY_FEATURE_FLAGS.ENABLE_AMP);
+}
+
+export function areRepliesFlattened(
+  tenant: Pick<Tenant, "featureFlags" | "flattenReplies">
+) {
+  if (typeof tenant.flattenReplies === "boolean") {
+    return tenant.flattenReplies;
+  }
+
+  return hasFeatureFlag(tenant, LEGACY_FEATURE_FLAGS.FLATTEN_REPLIES);
+}
+
+export function isForReviewQueueEnabled(
+  tenant: Pick<Tenant, "featureFlags" | "forReviewQueue">
+) {
+  if (typeof tenant.forReviewQueue === "boolean") {
+    return tenant.forReviewQueue;
+  }
+  return hasFeatureFlag(tenant, LEGACY_FEATURE_FLAGS.FOR_REVIEW);
 }

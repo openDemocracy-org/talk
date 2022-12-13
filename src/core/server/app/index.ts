@@ -13,13 +13,12 @@ import {
   xssFilter,
 } from "helmet";
 import http from "http";
-import { Db } from "mongodb";
 import nunjucks from "nunjucks";
 import path from "path";
 import { register } from "prom-client";
 
 import {
-  cacheHeadersMiddleware,
+  buildCacheControlHeader,
   noCacheMiddleware,
 } from "coral-server/app/middleware/cacheHeaders";
 import {
@@ -29,12 +28,14 @@ import {
 import { notFoundMiddleware } from "coral-server/app/middleware/notFound";
 import { createPassport } from "coral-server/app/middleware/passport";
 import { Config } from "coral-server/config";
+import { MongoContext } from "coral-server/data/context";
 import CoralEventListenerBroker from "coral-server/events/publisher";
 import logger from "coral-server/logger";
 import { MailerQueue } from "coral-server/queue/tasks/mailer";
 import { NotifierQueue } from "coral-server/queue/tasks/notifier";
 import { RejectorQueue } from "coral-server/queue/tasks/rejector";
 import { ScraperQueue } from "coral-server/queue/tasks/scraper";
+import { UnarchiverQueue } from "coral-server/queue/tasks/unarchiver";
 import { WebhookQueue } from "coral-server/queue/tasks/webhook";
 import { ErrorReporter } from "coral-server/services/errors";
 import { I18n } from "coral-server/services/i18n";
@@ -55,12 +56,11 @@ import { createRouter } from "./router";
 export interface AppOptions {
   broker: CoralEventListenerBroker;
   config: Config;
-  disableClientRoutes: boolean;
   i18n: I18n;
   mailerQueue: MailerQueue;
   metrics: Metrics;
   migrationManager: MigrationManager;
-  mongo: Db;
+  mongo: MongoContext;
   notifierQueue: NotifierQueue;
   parent: Express;
   persistedQueriesRequired: boolean;
@@ -74,6 +74,26 @@ export interface AppOptions {
   signingConfig: JWTSigningConfig;
   tenantCache: TenantCache;
   webhookQueue: WebhookQueue;
+  unarchiverQueue: UnarchiverQueue;
+}
+
+/**
+ * NON_FINGERPRINTED_FILES are the files that are not fingerprinted (because
+ * they are integrated into the CMS directly). These should be updated when
+ * other files are added.
+ */
+const NON_FINGERPRINTED_FILES = ["count.js", "embed.js"];
+
+/**
+ * isFingerprintedPath will return true if the path provided is a fingerprinted
+ * one.
+ *
+ * @param requestPath the path to test if it's a fingerprinted path
+ * @returns true if the path is a fingerprinted one, false if not.
+ */
+function isFingerprintedPath(requestPath: string) {
+  const basename = path.basename(requestPath);
+  return !NON_FINGERPRINTED_FILES.some((file) => basename.startsWith(file));
 }
 
 /**
@@ -105,13 +125,7 @@ export async function createApp(options: AppOptions): Promise<Express> {
   const passport = createPassport(options);
 
   // Mount the router.
-  parent.use(
-    "/",
-    createRouter(options, {
-      passport,
-      disableClientRoutes: options.disableClientRoutes,
-    })
-  );
+  parent.use("/", await createRouter(options, { passport }));
 
   // Enable CORS headers for media assets, font's require them.
   parent.use("/assets/media", cors());
@@ -119,7 +133,6 @@ export async function createApp(options: AppOptions): Promise<Express> {
   // Static Files
   parent.use(
     "/assets",
-    cacheHeadersMiddleware({ cacheDuration: "1w" }),
     serveStatic(
       path.resolve(
         __dirname,
@@ -131,16 +144,34 @@ export async function createApp(options: AppOptions): Promise<Express> {
         "static",
         "assets"
       ),
-      { index: false }
+      {
+        index: false,
+        serveStatic: {
+          setHeaders: (res, requestPath) => {
+            let header: string | null;
+            if (isFingerprintedPath(requestPath)) {
+              // If this is a fingerprinted path, then we can cache it safely
+              // for a week.
+              header = buildCacheControlHeader({ cacheDuration: "1w" });
+            } else {
+              // If this is not a fingerprinted path, then we can only cache it
+              // for an hour, but for a week in the shared cache.
+              header = buildCacheControlHeader({
+                cacheDuration: config.get("non_fingerprinted_cache_max_age"),
+                sharedCacheDuration: "1w",
+              });
+            }
+
+            if (!header) {
+              return;
+            }
+
+            res.setHeader("Cache-Control", header);
+          },
+        },
+      }
     )
   );
-
-  if (config.get("mount_documentation")) {
-    logger.debug("mounting documentation routes");
-    await configureDocumentation(options);
-  } else {
-    logger.debug("not mounting documentation routes");
-  }
 
   // Error Handling
   parent.use(notFoundMiddleware);
@@ -236,34 +267,6 @@ function configureApplicationViews(options: AppOptions) {
 
   // set .html as the default extension.
   parent.set("view engine", "html");
-}
-
-async function configureDocumentation({ parent, config }: AppOptions) {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const next = await import("next");
-
-  const app = next.default({
-    dir: path.join(__dirname, "..", "..", "..", "..", "docs"),
-    dev: config.get("env") !== "production",
-  });
-
-  // Prepare the documentation without await to start the server faster. This
-  // means that when the server is started, documentation may not be immediately
-  // available while it is preparing.
-  logger.info("preparing documentation");
-  app
-    .prepare()
-    .then(() => {
-      logger.info("documentation has been prepared");
-    })
-    .catch((err: Error) => {
-      logger.fatal({ err }, "could not prepare documentation");
-    });
-
-  const handler = app.getRequestHandler();
-
-  parent.all("/docs", (req, res) => handler(req, res));
-  parent.all("/docs/*", (req, res) => handler(req, res));
 }
 
 export default function createMetricsServer(config: Config) {

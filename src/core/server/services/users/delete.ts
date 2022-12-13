@@ -1,8 +1,15 @@
-import { Collection, Db } from "mongodb";
+import { Collection, FilterQuery } from "mongodb";
 
+import { MongoContext } from "coral-server/data/context";
 import { ACTION_TYPE } from "coral-server/models/action/comment";
+import { Comment, getLatestRevision } from "coral-server/models/comment";
 import { Story } from "coral-server/models/story";
-import collections from "coral-server/services/mongodb/collections";
+import { retrieveTenant } from "coral-server/models/tenant";
+
+import { GQLCOMMENT_STATUS } from "coral-server/graph/schema/__generated__/types";
+
+import { moderate } from "../comments/moderation";
+import { AugmentedRedis } from "../redis";
 
 const BATCH_SIZE = 500;
 
@@ -26,9 +33,10 @@ interface Batch {
 }
 
 async function deleteUserActionCounts(
-  mongo: Db,
+  mongo: MongoContext,
   userID: string,
-  tenantID: string
+  tenantID: string,
+  isArchived: boolean
 ) {
   const batch: Batch = {
     comments: [],
@@ -36,22 +44,25 @@ async function deleteUserActionCounts(
   };
 
   async function processBatch() {
-    await executeBulkOperations<Comment>(
-      collections.comments(mongo),
-      batch.comments
-    );
+    const comments = isArchived ? mongo.archivedComments() : mongo.comments();
+
+    await executeBulkOperations<Comment>(comments, batch.comments);
     batch.comments = [];
 
-    await executeBulkOperations<Story>(
-      collections.stories(mongo),
-      batch.stories
-    );
-    batch.stories = [];
+    if (!isArchived) {
+      await executeBulkOperations<Story>(mongo.stories(), batch.stories);
+      batch.stories = [];
+    }
   }
 
-  const cursor = collections
-    .commentActions(mongo)
-    .find({ tenantID, userID, actionType: ACTION_TYPE.REACTION });
+  const commentActions = isArchived
+    ? mongo.archivedCommentActions()
+    : mongo.commentActions();
+  const cursor = commentActions.find({
+    tenantID,
+    userID,
+    actionType: ACTION_TYPE.REACTION,
+  });
   while (await cursor.hasNext()) {
     const action = await cursor.next();
     if (!action) {
@@ -94,20 +105,122 @@ async function deleteUserActionCounts(
     await processBatch();
   }
 
-  await collections.commentActions(mongo).deleteMany({
+  await commentActions.deleteMany({
     tenantID,
     userID,
     actionType: ACTION_TYPE.REACTION,
   });
 }
 
+async function moderateComments(
+  mongo: MongoContext,
+  redis: AugmentedRedis,
+  tenantID: string,
+  filter: FilterQuery<Comment>,
+  targetStatus: GQLCOMMENT_STATUS,
+  now: Date,
+  isArchived = false
+) {
+  const tenant = await retrieveTenant(mongo, tenantID);
+  if (!tenant) {
+    throw new Error("unable to retrieve tenant");
+  }
+
+  const coll =
+    isArchived && mongo.archive ? mongo.archivedComments() : mongo.comments();
+  const comments = coll.find(filter);
+
+  while (await comments.hasNext()) {
+    const comment = await comments.next();
+    if (!comment) {
+      continue;
+    }
+
+    const updateAllCommentCountsArgs = {
+      actionCounts: {},
+      options: {
+        updateShared: !isArchived,
+        updateSite: !isArchived,
+        updateStory: true,
+        updateUser: true,
+      },
+    };
+
+    const { result } = await moderate(
+      mongo,
+      redis,
+      tenant,
+      {
+        commentID: comment.id,
+        commentRevisionID: getLatestRevision(comment).id,
+        moderatorID: null,
+        status: targetStatus,
+      },
+      now,
+      isArchived,
+      updateAllCommentCountsArgs
+    );
+
+    if (!result.after) {
+      continue;
+    }
+  }
+}
+
 async function deleteUserComments(
-  mongo: Db,
+  mongo: MongoContext,
+  redis: AugmentedRedis,
   authorID: string,
   tenantID: string,
-  now: Date
+  now: Date,
+  isArchived?: boolean
 ) {
-  await collections.comments(mongo).updateMany(
+  // Approve any comments that have children.
+  // This allows the children to be visible after
+  // the comment is deleted.
+  await moderateComments(
+    mongo,
+    redis,
+    tenantID,
+    {
+      tenantID,
+      authorID,
+      status: GQLCOMMENT_STATUS.NONE,
+      childCount: { $gt: 0 },
+    },
+    GQLCOMMENT_STATUS.APPROVED,
+    now,
+    isArchived
+  );
+
+  // reject any comments that don't have children
+  // This gets rid of any empty/childless deleted comments.
+  await moderateComments(
+    mongo,
+    redis,
+    tenantID,
+    {
+      tenantID,
+      authorID,
+      status: {
+        $in: [
+          GQLCOMMENT_STATUS.PREMOD,
+          GQLCOMMENT_STATUS.SYSTEM_WITHHELD,
+          GQLCOMMENT_STATUS.NONE,
+          GQLCOMMENT_STATUS.APPROVED,
+        ],
+      },
+      childCount: 0,
+    },
+    GQLCOMMENT_STATUS.REJECTED,
+    now,
+    isArchived
+  );
+
+  const collection =
+    isArchived && mongo.archive ? mongo.archivedComments() : mongo.comments();
+
+  await collection.updateMany(
     { tenantID, authorID },
     {
       $set: {
@@ -121,12 +234,13 @@ async function deleteUserComments(
 }
 
 export async function deleteUser(
-  mongo: Db,
+  mongo: MongoContext,
+  redis: AugmentedRedis,
   userID: string,
   tenantID: string,
   now: Date
 ) {
-  const user = await collections.users(mongo).findOne({ id: userID, tenantID });
+  const user = await mongo.users().findOne({ id: userID, tenantID });
   if (!user) {
     throw new Error("could not find user by ID");
   }
@@ -136,19 +250,25 @@ export async function deleteUser(
     throw new Error("user was already deleted");
   }
 
-  const tenant = await collections.tenants(mongo).findOne({ id: tenantID });
+  const tenant = await mongo.tenants().findOne({ id: tenantID });
   if (!tenant) {
     throw new Error("could not find tenant by ID");
   }
 
   // Delete the user's action counts.
-  await deleteUserActionCounts(mongo, userID, tenantID);
+  await deleteUserActionCounts(mongo, userID, tenantID, false);
+  if (mongo.archive) {
+    await deleteUserActionCounts(mongo, userID, tenantID, true);
+  }
 
   // Delete the user's comments.
-  await deleteUserComments(mongo, userID, tenantID, now);
+  await deleteUserComments(mongo, redis, userID, tenantID, now);
+  if (mongo.archive) {
+    await deleteUserComments(mongo, redis, userID, tenantID, now, true);
+  }
 
   // Mark the user as deleted.
-  const result = await collections.users(mongo).findOneAndUpdate(
+  const result = await mongo.users().findOneAndUpdate(
     { tenantID, id: userID },
     {
       $set: {

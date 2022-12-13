@@ -1,26 +1,19 @@
-import { Match, Router, withRouter } from "found";
+import { useRouter } from "found";
 import React, { FunctionComponent, useEffect, useMemo } from "react";
 import { graphql } from "react-relay";
 
 import { getModerationLink, QUEUE_NAME } from "coral-framework/helpers";
 import parseModerationOptions from "coral-framework/helpers/parseModerationOptions";
 import { withRouteConfig } from "coral-framework/lib/router";
-import { GQLFEATURE_FLAG } from "coral-framework/schema";
 import { Spinner } from "coral-ui/components/v2";
 
 import { ModerateContainerQueryResponse } from "coral-admin/__generated__/ModerateContainerQuery.graphql";
 
 import Moderate from "./Moderate";
 
-interface RouteParams {
-  storyID?: string;
-  siteID?: string;
-}
-
 interface Props {
   data: ModerateContainerQueryResponse | null;
-  router: Router;
-  match: Match & { params: RouteParams };
+  children?: React.ReactNode;
 }
 
 const queueNames: QUEUE_NAME[] = [
@@ -29,20 +22,16 @@ const queueNames: QUEUE_NAME[] = [
   "unmoderated",
   "approved",
   "rejected",
+  "review",
 ];
 
-const ModerateContainer: FunctionComponent<Props> = ({
-  data,
-  match,
-  router,
-  children,
-}) => {
+const ModerateContainer: FunctionComponent<Props> = ({ data, children }) => {
+  const { match, router } = useRouter();
   const allStories = !match.params.storyID;
   const queueName = useMemo(
     () =>
       // TODO: (tessalt) get active route in a better way
-      queueNames.find((name) => match.location.pathname.includes(name)) ||
-      "default",
+      queueNames.find((name) => match.location.pathname.includes(name)),
     [match.location.pathname]
   );
 
@@ -53,11 +42,6 @@ const ModerateContainer: FunctionComponent<Props> = ({
   useEffect(() => {
     // Wait for the data and viewer to become available.
     if (!data || !data.viewer) {
-      return;
-    }
-
-    // If the feature flag isn't enabled, we don't need to do anything!
-    if (!data.settings.featureFlags.includes(GQLFEATURE_FLAG.SITE_MODERATOR)) {
       return;
     }
 
@@ -75,7 +59,7 @@ const ModerateContainer: FunctionComponent<Props> = ({
     const redirect = () =>
       router.push(
         getModerationLink({
-          queue: queueName === "default" ? undefined : queueName,
+          queue: queueName,
           // We'll grab the first site in the moderation scopes (a user can only
           // be scoped if there is at least one site).
           siteID: sites[0].id,
@@ -110,7 +94,7 @@ const ModerateContainer: FunctionComponent<Props> = ({
       redirect();
       return;
     }
-  }, [router, match, data]);
+  }, [router, match, data, queueName]);
 
   // Get some options for the moderate cards.
   const { section } = parseModerationOptions(match);
@@ -146,6 +130,7 @@ const ModerateContainer: FunctionComponent<Props> = ({
       allStories={allStories}
       settings={data.settings}
       queueName={queueName}
+      isArchived={data.story?.isArchived || data.story?.isArchiving}
     >
       {children}
     </Moderate>
@@ -165,10 +150,7 @@ const enhanced = withRouteConfig<Props>({
 
       settings {
         ...ModerateSearchBarContainer_settings
-        ...SiteSelectorContainer_settings
         ...ModerateNavigationContainer_settings
-
-        featureFlags
       }
 
       story(id: $storyID) @include(if: $includeStory) {
@@ -179,6 +161,8 @@ const enhanced = withRouteConfig<Props>({
           id
           canModerate
         }
+        isArchived
+        isArchiving
       }
 
       moderationQueues(storyID: $storyID, siteID: $siteID, section: $section) {
@@ -210,6 +194,6 @@ const enhanced = withRouteConfig<Props>({
       includeStory: !!storyID,
     };
   },
-})(withRouter(ModerateContainer));
+})(ModerateContainer);
 
 export default enhanced;

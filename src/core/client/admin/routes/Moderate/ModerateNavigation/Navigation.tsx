@@ -1,5 +1,5 @@
 import { Localized } from "@fluent/react/compat";
-import { Match, Router, withRouter } from "found";
+import { useRouter } from "found";
 import key from "keymaster";
 import { isNumber } from "lodash";
 import React, { FunctionComponent, useEffect, useMemo } from "react";
@@ -18,9 +18,8 @@ interface Props {
   storyID?: string | null;
   siteID?: string | null;
   section?: SectionFilter | null;
-  router: Router;
-  match: Match;
-  mode?: "PRE" | "POST" | "%future added value" | null;
+  mode?: "PRE" | "POST" | "SPECIFIC_SITES_PRE" | "%future added value" | null;
+  enableForReview?: boolean;
 }
 
 const Navigation: FunctionComponent<Props> = ({
@@ -30,10 +29,10 @@ const Navigation: FunctionComponent<Props> = ({
   storyID,
   siteID,
   section,
-  router,
-  match,
   mode,
+  enableForReview,
 }) => {
+  const { match, router } = useRouter();
   const moderationLinks = useMemo(() => {
     return [
       getModerationLink({ queue: "reported", storyID, siteID, section }),
@@ -41,8 +40,9 @@ const Navigation: FunctionComponent<Props> = ({
       getModerationLink({ queue: "unmoderated", storyID, siteID, section }),
       getModerationLink({ queue: "approved", storyID, siteID, section }),
       getModerationLink({ queue: "rejected", storyID, siteID, section }),
+      getModerationLink({ queue: "review", storyID, siteID, section }),
     ];
-  }, [storyID, siteID]);
+  }, [storyID, siteID, section]);
 
   useEffect(() => {
     key(HOTKEYS.SWITCH_QUEUE, () => {
@@ -67,7 +67,7 @@ const Navigation: FunctionComponent<Props> = ({
         key.unbind(`${i + 1}`);
       }
     };
-  }, [match, moderationLinks]);
+  }, [match, moderationLinks, router]);
 
   return (
     <SubBarNavigation>
@@ -81,7 +81,7 @@ const Navigation: FunctionComponent<Props> = ({
             <Counter data-testid="moderate-navigation-reported-count">
               <Localized
                 id="moderate-navigation-comment-count"
-                $count={reportedCount}
+                vars={{ count: reportedCount }}
               >
                 {reportedCount}
               </Localized>
@@ -98,7 +98,7 @@ const Navigation: FunctionComponent<Props> = ({
           <Counter data-testid="moderate-navigation-pending-count">
             <Localized
               id="moderate-navigation-comment-count"
-              $count={pendingCount}
+              vars={{ count: pendingCount }}
             >
               {pendingCount}
             </Localized>
@@ -114,7 +114,7 @@ const Navigation: FunctionComponent<Props> = ({
           <Counter data-testid="moderate-navigation-unmoderated-count">
             <Localized
               id="moderate-navigation-comment-count"
-              $count={unmoderatedCount}
+              vars={{ count: unmoderatedCount }}
             >
               {unmoderatedCount}
             </Localized>
@@ -133,8 +133,16 @@ const Navigation: FunctionComponent<Props> = ({
           <span>Rejected</span>
         </Localized>
       </NavigationLink>
+      {enableForReview && (
+        <NavigationLink to={moderationLinks[5]}>
+          <Icon>done_all</Icon>
+          <Localized id="moderate-navigation-forReview">
+            <span>For Review</span>
+          </Localized>
+        </NavigationLink>
+      )}
     </SubBarNavigation>
   );
 };
 
-export default withRouter(Navigation);
+export default Navigation;

@@ -1,4 +1,5 @@
 import { CoralError } from "coral-server/errors";
+
 import { GQLUSER_ROLE } from "coral-server/graph/schema/__generated__/types";
 
 export interface ErrorReporterScope {
@@ -32,5 +33,5 @@ export abstract class ErrorReporter {
     return err.reportable;
   }
 
-  public abstract report(err: any, scope: ErrorReporterScope): ErrorReport;
+  public abstract report(err: any, scope?: ErrorReporterScope): ErrorReport;
 }

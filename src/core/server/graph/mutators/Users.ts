@@ -3,17 +3,20 @@ import GraphContext from "coral-server/graph/context";
 import { mapFieldsetToErrorCodes } from "coral-server/graph/errors";
 import { User } from "coral-server/models/user";
 import {
+  acknowledgeModMessage,
   acknowledgeWarning,
   addModeratorNote,
   ban,
   cancelAccountDeletion,
   createToken,
   deactivateToken,
-  demoteUser,
+  demoteMember,
+  demoteModerator,
   destroyModeratorNote,
   ignore,
   premod,
-  promoteUser,
+  promoteMember,
+  promoteModerator,
   removeBan,
   removeIgnore,
   removePremod,
@@ -22,6 +25,7 @@ import {
   requestAccountDeletion,
   requestCommentsDownload,
   requestUserCommentsDownload,
+  sendModMessage,
   setEmail,
   setPassword,
   setUsername,
@@ -31,10 +35,13 @@ import {
   updateEmail,
   updateEmailByID,
   updateMediaSettings,
+  updateMembershipScopes,
   updateModerationScopes,
   updateNotificationSettings,
   updatePassword,
   updateRole,
+  updateSSOProfileID,
+  updateUserBan,
   updateUsername,
   updateUsernameByID,
   warn,
@@ -50,11 +57,13 @@ import {
   GQLDeactivateTokenInput,
   GQLDeleteModeratorNoteInput,
   GQLDeleteUserAccountInput,
-  GQLDemoteUserInput,
+  GQLDemoteMemberInput,
+  GQLDemoteModeratorInput,
   GQLIgnoreUserInput,
   GQLInviteUsersInput,
   GQLPremodUserInput,
-  GQLPromoteUserInput,
+  GQLPromoteMemberInput,
+  GQLPromoteModeratorInput,
   GQLRemovePremodUserInput,
   GQLRemoveUserBanInput,
   GQLRemoveUserIgnoreInput,
@@ -63,6 +72,7 @@ import {
   GQLRequestAccountDeletionInput,
   GQLRequestCommentsDownloadInput,
   GQLRequestUserCommentsDownloadInput,
+  GQLSendModMessageInput,
   GQLSetEmailInput,
   GQLSetPasswordInput,
   GQLSetUsernameInput,
@@ -71,9 +81,12 @@ import {
   GQLUpdateEmailInput,
   GQLUpdateNotificationSettingsInput,
   GQLUpdatePasswordInput,
+  GQLUpdateSSOProfileIDInput,
   GQLUpdateUserAvatarInput,
+  GQLUpdateUserBanInput,
   GQLUpdateUserEmailInput,
   GQLUpdateUserMediaSettingsInput,
+  GQLUpdateUserMembershipScopesInput,
   GQLUpdateUserModerationScopesInput,
   GQLUpdateUsernameInput,
   GQLUpdateUserRoleInput,
@@ -168,7 +181,13 @@ export const Users = (ctx: GraphContext) => ({
       throw new Error("cannot delete self immediately");
     }
 
-    return deleteUser(ctx.mongo, input.userID, ctx.tenant.id, ctx.now);
+    return deleteUser(
+      ctx.mongo,
+      ctx.redis,
+      input.userID,
+      ctx.tenant.id,
+      ctx.now
+    );
   },
   cancelAccountDeletion: async (
     input: GQLCancelAccountDeletionInput
@@ -186,6 +205,8 @@ export const Users = (ctx: GraphContext) => ({
     ),
   deactivateToken: async (input: GQLDeactivateTokenInput) =>
     deactivateToken(ctx.mongo, ctx.tenant, ctx.user!, input.id),
+  updateSSOProfileID: async (input: GQLUpdateSSOProfileIDInput) =>
+    updateSSOProfileID(ctx.mongo, ctx.tenant, input.userID, input.ssoProfileID),
   updateUsername: async (input: GQLUpdateUsernameInput) =>
     updateUsername(
       ctx.mongo,
@@ -228,10 +249,32 @@ export const Users = (ctx: GraphContext) => ({
     updateAvatar(ctx.mongo, ctx.tenant, input.userID, input.avatar),
   updateUserRole: async (input: GQLUpdateUserRoleInput) =>
     updateRole(ctx.mongo, ctx.tenant, ctx.user!, input.userID, input.role),
-  promote: async (input: GQLPromoteUserInput) =>
-    promoteUser(ctx.mongo, ctx.tenant, ctx.user!, input.userID),
-  demote: async (input: GQLDemoteUserInput) =>
-    demoteUser(ctx.mongo, ctx.tenant, ctx.user!, input.userID),
+  promoteModerator: async (input: GQLPromoteModeratorInput) =>
+    promoteModerator(
+      ctx.mongo,
+      ctx.tenant,
+      ctx.user!,
+      input.userID,
+      input.siteIDs
+    ),
+  demoteModerator: async (input: GQLDemoteModeratorInput) =>
+    demoteModerator(
+      ctx.mongo,
+      ctx.tenant,
+      ctx.user!,
+      input.userID,
+      input.siteIDs
+    ),
+  promoteMember: async (input: GQLPromoteMemberInput) =>
+    promoteMember(
+      ctx.mongo,
+      ctx.tenant,
+      ctx.user!,
+      input.userID,
+      input.siteIDs
+    ),
+  demoteMember: async (input: GQLDemoteMemberInput) =>
+    demoteMember(ctx.mongo, ctx.tenant, ctx.user!, input.userID, input.siteIDs),
   updateUserModerationScopes: async (
     input: GQLUpdateUserModerationScopesInput
   ) =>
@@ -241,6 +284,16 @@ export const Users = (ctx: GraphContext) => ({
       ctx.user!,
       input.userID,
       input.moderationScopes
+    ),
+  updateUserMembershipScopes: async (
+    input: GQLUpdateUserMembershipScopesInput
+  ) =>
+    updateMembershipScopes(
+      ctx.mongo,
+      ctx.tenant,
+      ctx.user!,
+      input.userID,
+      input.membershipScopes.siteIDs
     ),
   createModeratorNote: async (input: GQLCreateModeratorNoteInput) =>
     addModeratorNote(
@@ -277,6 +330,28 @@ export const Users = (ctx: GraphContext) => ({
       siteIDs,
       ctx.now
     ),
+  updateUserBan:
+    async ({
+      userID,
+      message,
+      rejectExistingComments = false,
+      banSiteIDs,
+      unbanSiteIDs,
+    }: GQLUpdateUserBanInput) =>
+    async () =>
+      updateUserBan(
+        ctx.mongo,
+        ctx.mailerQueue,
+        ctx.rejectorQueue,
+        ctx.tenant,
+        ctx.user!,
+        userID,
+        message,
+        rejectExistingComments,
+        banSiteIDs,
+        unbanSiteIDs,
+        ctx.now
+      ),
   warn: async (input: GQLWarnUserInput) =>
     warn(
       ctx.mongo,
@@ -290,6 +365,17 @@ export const Users = (ctx: GraphContext) => ({
     removeWarning(ctx.mongo, ctx.tenant, ctx.user!, input.userID, ctx.now),
   acknowledgeWarning: async () =>
     acknowledgeWarning(ctx.mongo, ctx.tenant, ctx.user!.id, ctx.now),
+  sendModMessage: async (input: GQLSendModMessageInput) =>
+    sendModMessage(
+      ctx.mongo,
+      ctx.tenant,
+      ctx.user!,
+      input.userID,
+      input.message,
+      ctx.now
+    ),
+  acknowledgeModMessage: async () =>
+    acknowledgeModMessage(ctx.mongo, ctx.tenant, ctx.user!.id, ctx.now),
   premodUser: async (input: GQLPremodUserInput) =>
     premod(ctx.mongo, ctx.tenant, ctx.user!, input.userID, ctx.now),
   suspend: async (input: GQLSuspendUserInput) =>

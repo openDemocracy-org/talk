@@ -12,7 +12,7 @@ import React, {
 
 import { MediaContainer } from "coral-admin/components/MediaContainer";
 import { HOTKEYS } from "coral-admin/constants";
-import { GetPhrasesRegExpOptions } from "coral-admin/helpers";
+import { GQLWordlistMatch } from "coral-framework/schema";
 import { PropTypesOf } from "coral-framework/types";
 import {
   Button,
@@ -53,7 +53,6 @@ interface Props {
   featured: boolean;
   moderatedBy: React.ReactNode | null;
   viewContextHref: string;
-  phrases: GetPhrasesRegExpOptions;
   showStory: boolean;
   storyTitle?: React.ReactNode;
   storyHref?: string;
@@ -87,6 +86,11 @@ interface Props {
   onBan: () => void;
   isQA?: boolean;
   rating?: number | null;
+
+  bannedWords?: Readonly<Readonly<GQLWordlistMatch>[]>;
+  suspectWords?: Readonly<Readonly<GQLWordlistMatch>[]>;
+  isArchived?: boolean;
+  isArchiving?: boolean;
 }
 
 const ModerateCard: FunctionComponent<Props> = ({
@@ -102,7 +106,6 @@ const ModerateCard: FunctionComponent<Props> = ({
   viewContextHref,
   status,
   featured,
-  phrases,
   onApprove,
   onReject,
   onFeature,
@@ -126,6 +129,10 @@ const ModerateCard: FunctionComponent<Props> = ({
   selectPrev,
   onBan,
   isQA,
+  bannedWords,
+  suspectWords,
+  isArchived,
+  isArchiving,
 }) => {
   const div = useRef<HTMLDivElement>(null);
 
@@ -201,7 +208,7 @@ const ModerateCard: FunctionComponent<Props> = ({
       )}
       ref={div}
       tabIndex={0}
-      data-testid={`moderate-comment-${id}`}
+      data-testid={`moderate-comment-card-${id}`}
       id={`moderate-comment-${id}`}
       onClick={onFocusOrClick}
     >
@@ -222,7 +229,7 @@ const ModerateCard: FunctionComponent<Props> = ({
                   <CommentAuthorContainer comment={comment} />
                 </>
               )}
-              <Timestamp>{createdAt}</Timestamp>
+              <Timestamp className={styles.timestamp}>{createdAt}</Timestamp>
               {edited && (
                 <Localized id="moderate-comment-edited">
                   <span className={styles.edited}>(edited)</span>
@@ -235,11 +242,9 @@ const ModerateCard: FunctionComponent<Props> = ({
               />
             </Flex>
             {inReplyTo && inReplyTo.username && (
-              <div className={styles.inReplyTo}>
-                <InReplyTo onUsernameClick={commentParentAuthorClick}>
-                  {inReplyTo.username}
-                </InReplyTo>
-              </div>
+              <InReplyTo onUsernameClick={commentParentAuthorClick}>
+                {inReplyTo.username}
+              </InReplyTo>
             )}
           </div>
           {rating && (
@@ -249,7 +254,11 @@ const ModerateCard: FunctionComponent<Props> = ({
           )}
           <div className={styles.contentArea}>
             <div className={styles.content}>
-              <CommentContent highlight={highlight} phrases={phrases}>
+              <CommentContent
+                highlight={highlight}
+                bannedWords={bannedWords}
+                suspectWords={suspectWords}
+              >
                 {commentBody}
               </CommentContent>
               <MediaContainer comment={comment} />
@@ -273,7 +282,7 @@ const ModerateCard: FunctionComponent<Props> = ({
           <div className={styles.footer}>
             <HorizontalGutter spacing={3}>
               {showStory && (
-                <div>
+                <div data-testid="moderate-comment-storyInfo">
                   <div className={styles.storyLabel}>
                     <Localized id="moderate-comment-storyLabel">
                       <span>Comment on</span>
@@ -331,7 +340,12 @@ const ModerateCard: FunctionComponent<Props> = ({
               onClick={onReject}
               invert={status === "rejected"}
               disabled={
-                status === "rejected" || dangling || deleted || readOnly
+                status === "rejected" ||
+                dangling ||
+                deleted ||
+                readOnly ||
+                isArchived ||
+                isArchiving
               }
               readOnly={readOnly}
               className={cn({
@@ -342,7 +356,12 @@ const ModerateCard: FunctionComponent<Props> = ({
               onClick={onApprove}
               invert={status === "approved"}
               disabled={
-                status === "approved" || dangling || deleted || readOnly
+                status === "approved" ||
+                dangling ||
+                deleted ||
+                readOnly ||
+                isArchived ||
+                isArchiving
               }
               readOnly={readOnly}
               className={cn({

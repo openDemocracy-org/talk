@@ -2,25 +2,44 @@
 
 exports[`cancel edit 1`] = `
 <div
-  className="coral coral-comment coral coral-reacted-0"
+  aria-labelledby="comment-comment-with-replies-label"
+  className="CommentContainer-root coral coral-comment coral coral-reacted-0"
   data-key-stop={true}
   data-testid="comment-comment-with-replies"
   id="comment-comment-with-replies"
+  onFocus={[Function]}
+  role="article"
+  tabIndex={-1}
 >
+  <div
+    className="Hidden-root"
+    id="comment-comment-with-replies-label"
+  >
+    <span>
+      Comment from Markus 
+      <time
+        className="RelativeTime-root"
+        dateTime="2018-07-06T18:24:00.000Z"
+        title="2018-07-06T18:24:00.000Z"
+      >
+        2018-07-06T18:24:00.000Z
+      </time>
+    </span>
+  </div>
   <div
     className="Box-root HorizontalGutter-root HorizontalGutter-full"
   >
     <div
-      className="IndentedComment-open coral coral-comment-collapse-toggle-indent Indent-root"
+      className="coral coral-comment-collapse-toggle-indent Indent-root"
     >
       <div
-        className="coral coral-indent coral-indent-0 Indent-open"
+        className="CommentContainer-indentedCommentRoot coral coral-indent coral-indent-0 Indent-open"
       >
         <div
-          className="Box-root Flex-root Flex-flex Flex-alignBaseline gutter Flex-spacing-1"
+          className="Box-root Flex-root Flex-flex Flex-alignFlexStart gutter Flex-spacing-1"
         >
           <button
-            aria-label="Collapse comment thread"
+            aria-label="Hide comment by Markus and its replies"
             className="BaseButton-root IndentedComment-toggleButton coral coral-comment-collapse-toggle"
             onBlur={[Function]}
             onClick={[Function]}
@@ -39,7 +58,6 @@ exports[`cancel edit 1`] = `
           </button>
           <div
             className="Box-root HorizontalGutter-root Comment-root HorizontalGutter-half"
-            role="article"
           >
             <div
               className="Box-root Flex-root coral coral-comment-topBar Flex-flex Flex-justifySpaceBetween Flex-alignFlexStart Flex-directionRow"
@@ -55,6 +73,7 @@ exports[`cancel edit 1`] = `
                   >
                     <button
                       aria-controls="username-popover-comment-with-replies"
+                      aria-label="User Markus"
                       className="BaseButton-root CommentContainer-usernameButton coral coral-username coral-comment-username"
                       onBlur={[Function]}
                       onClick={[Function]}
@@ -72,17 +91,10 @@ exports[`cancel edit 1`] = `
                     </button>
                     <div
                       aria-hidden={true}
-                      aria-labelledby="username-popover-comment-with-replies-ariainfo"
+                      aria-label="A popover with more user information"
                       id="username-popover-comment-with-replies"
                       role="dialog"
-                    >
-                      <div
-                        className="AriaInfo-root"
-                        id="username-popover-comment-with-replies-ariainfo"
-                      >
-                        A popover with more user information
-                      </div>
-                    </div>
+                    />
                   </div>
                 </div>
                 <div
@@ -242,17 +254,10 @@ exports[`cancel edit 1`] = `
                     </button>
                     <div
                       aria-hidden={true}
-                      aria-labelledby="permalink-popover-comment-with-replies-ariainfo"
+                      aria-label="A dialog showing a permalink to the comment"
                       id="permalink-popover-comment-with-replies"
                       role="dialog"
-                    >
-                      <div
-                        className="AriaInfo-root"
-                        id="permalink-popover-comment-with-replies-ariainfo"
-                      >
-                        A dialog showing a permalink to the comment
-                      </div>
-                    </div>
+                    />
                   </div>
                 </div>
                 <div
@@ -960,25 +965,44 @@ exports[`edit a comment: optimistic response 1`] = `
 
 exports[`edit a comment: render comment with edit button 1`] = `
 <div
-  className="coral coral-comment coral coral-reacted-0"
+  aria-labelledby="comment-comment-with-replies-label"
+  className="CommentContainer-root coral coral-comment coral coral-reacted-0"
   data-key-stop={true}
   data-testid="comment-comment-with-replies"
   id="comment-comment-with-replies"
+  onFocus={[Function]}
+  role="article"
+  tabIndex={-1}
 >
+  <div
+    className="Hidden-root"
+    id="comment-comment-with-replies-label"
+  >
+    <span>
+      Comment from Markus 
+      <time
+        className="RelativeTime-root"
+        dateTime="2018-07-06T18:24:00.000Z"
+        title="2018-07-06T18:24:00.000Z"
+      >
+        2018-07-06T18:24:00.000Z
+      </time>
+    </span>
+  </div>
   <div
     className="Box-root HorizontalGutter-root HorizontalGutter-full"
   >
     <div
-      className="IndentedComment-open coral coral-comment-collapse-toggle-indent Indent-root"
+      className="coral coral-comment-collapse-toggle-indent Indent-root"
     >
       <div
-        className="coral coral-indent coral-indent-0 Indent-open"
+        className="CommentContainer-indentedCommentRoot coral coral-indent coral-indent-0 Indent-open"
       >
         <div
-          className="Box-root Flex-root Flex-flex Flex-alignBaseline gutter Flex-spacing-1"
+          className="Box-root Flex-root Flex-flex Flex-alignFlexStart gutter Flex-spacing-1"
         >
           <button
-            aria-label="Collapse comment thread"
+            aria-label="Hide comment by Markus and its replies"
             className="BaseButton-root IndentedComment-toggleButton coral coral-comment-collapse-toggle"
             onBlur={[Function]}
             onClick={[Function]}
@@ -997,7 +1021,6 @@ exports[`edit a comment: render comment with edit button 1`] = `
           </button>
           <div
             className="Box-root HorizontalGutter-root Comment-root HorizontalGutter-half"
-            role="article"
           >
             <div
               className="Box-root Flex-root coral coral-comment-topBar Flex-flex Flex-justifySpaceBetween Flex-alignFlexStart Flex-directionRow"
@@ -1013,6 +1036,7 @@ exports[`edit a comment: render comment with edit button 1`] = `
                   >
                     <button
                       aria-controls="username-popover-comment-with-replies"
+                      aria-label="User Markus"
                       className="BaseButton-root CommentContainer-usernameButton coral coral-username coral-comment-username"
                       onBlur={[Function]}
                       onClick={[Function]}
@@ -1030,17 +1054,10 @@ exports[`edit a comment: render comment with edit button 1`] = `
                     </button>
                     <div
                       aria-hidden={true}
-                      aria-labelledby="username-popover-comment-with-replies-ariainfo"
+                      aria-label="A popover with more user information"
                       id="username-popover-comment-with-replies"
                       role="dialog"
-                    >
-                      <div
-                        className="AriaInfo-root"
-                        id="username-popover-comment-with-replies-ariainfo"
-                      >
-                        A popover with more user information
-                      </div>
-                    </div>
+                    />
                   </div>
                 </div>
                 <div
@@ -1200,17 +1217,10 @@ exports[`edit a comment: render comment with edit button 1`] = `
                     </button>
                     <div
                       aria-hidden={true}
-                      aria-labelledby="permalink-popover-comment-with-replies-ariainfo"
+                      aria-label="A dialog showing a permalink to the comment"
                       id="permalink-popover-comment-with-replies"
                       role="dialog"
-                    >
-                      <div
-                        className="AriaInfo-root"
-                        id="permalink-popover-comment-with-replies-ariainfo"
-                      >
-                        A dialog showing a permalink to the comment
-                      </div>
-                    </div>
+                    />
                   </div>
                 </div>
                 <div
@@ -1255,25 +1265,44 @@ exports[`edit a comment: render comment with edit button 1`] = `
 
 exports[`edit a comment: server response 1`] = `
 <div
-  className="coral coral-comment coral coral-reacted-0"
+  aria-labelledby="comment-comment-with-replies-label"
+  className="CommentContainer-root coral coral-comment coral coral-reacted-0"
   data-key-stop={true}
   data-testid="comment-comment-with-replies"
   id="comment-comment-with-replies"
+  onFocus={[Function]}
+  role="article"
+  tabIndex={-1}
 >
+  <div
+    className="Hidden-root"
+    id="comment-comment-with-replies-label"
+  >
+    <span>
+      Comment from Markus 
+      <time
+        className="RelativeTime-root"
+        dateTime="2018-07-06T18:24:00.000Z"
+        title="2018-07-06T18:24:00.000Z"
+      >
+        2018-07-06T18:24:00.000Z
+      </time>
+    </span>
+  </div>
   <div
     className="Box-root HorizontalGutter-root HorizontalGutter-full"
   >
     <div
-      className="IndentedComment-open coral coral-comment-collapse-toggle-indent Indent-root"
+      className="coral coral-comment-collapse-toggle-indent Indent-root"
     >
       <div
-        className="coral coral-indent coral-indent-0 Indent-open"
+        className="CommentContainer-indentedCommentRoot coral coral-indent coral-indent-0 Indent-open"
       >
         <div
-          className="Box-root Flex-root Flex-flex Flex-alignBaseline gutter Flex-spacing-1"
+          className="Box-root Flex-root Flex-flex Flex-alignFlexStart gutter Flex-spacing-1"
         >
           <button
-            aria-label="Collapse comment thread"
+            aria-label="Hide comment by Markus and its replies"
             className="BaseButton-root IndentedComment-toggleButton coral coral-comment-collapse-toggle"
             onBlur={[Function]}
             onClick={[Function]}
@@ -1292,7 +1321,6 @@ exports[`edit a comment: server response 1`] = `
           </button>
           <div
             className="Box-root HorizontalGutter-root Comment-root HorizontalGutter-half"
-            role="article"
           >
             <div
               className="Box-root Flex-root coral coral-comment-topBar Flex-flex Flex-justifySpaceBetween Flex-alignFlexStart Flex-directionRow"
@@ -1308,6 +1336,7 @@ exports[`edit a comment: server response 1`] = `
                   >
                     <button
                       aria-controls="username-popover-comment-with-replies"
+                      aria-label="User Markus"
                       className="BaseButton-root CommentContainer-usernameButton coral coral-username coral-comment-username"
                       onBlur={[Function]}
                       onClick={[Function]}
@@ -1325,17 +1354,10 @@ exports[`edit a comment: server response 1`] = `
                     </button>
                     <div
                       aria-hidden={true}
-                      aria-labelledby="username-popover-comment-with-replies-ariainfo"
+                      aria-label="A popover with more user information"
                       id="username-popover-comment-with-replies"
                       role="dialog"
-                    >
-                      <div
-                        className="AriaInfo-root"
-                        id="username-popover-comment-with-replies-ariainfo"
-                      >
-                        A popover with more user information
-                      </div>
-                    </div>
+                    />
                   </div>
                 </div>
                 <div
@@ -1504,17 +1526,10 @@ exports[`edit a comment: server response 1`] = `
                     </button>
                     <div
                       aria-hidden={true}
-                      aria-labelledby="permalink-popover-comment-with-replies-ariainfo"
+                      aria-label="A dialog showing a permalink to the comment"
                       id="permalink-popover-comment-with-replies"
                       role="dialog"
-                    >
-                      <div
-                        className="AriaInfo-root"
-                        id="permalink-popover-comment-with-replies-ariainfo"
-                      >
-                        A dialog showing a permalink to the comment
-                      </div>
-                    </div>
+                    />
                   </div>
                 </div>
                 <div
@@ -1559,25 +1574,44 @@ exports[`edit a comment: server response 1`] = `
 
 exports[`shows expiry message: edit form closed 1`] = `
 <div
-  className="coral coral-comment coral coral-reacted-0"
+  aria-labelledby="comment-comment-with-replies-label"
+  className="CommentContainer-root coral coral-comment coral coral-reacted-0"
   data-key-stop={true}
   data-testid="comment-comment-with-replies"
   id="comment-comment-with-replies"
+  onFocus={[Function]}
+  role="article"
+  tabIndex={-1}
 >
+  <div
+    className="Hidden-root"
+    id="comment-comment-with-replies-label"
+  >
+    <span>
+      Comment from Markus 
+      <time
+        className="RelativeTime-root"
+        dateTime="2018-07-06T18:24:00.000Z"
+        title="2018-07-06T18:24:00.000Z"
+      >
+        2018-07-06T18:24:00.000Z
+      </time>
+    </span>
+  </div>
   <div
     className="Box-root HorizontalGutter-root HorizontalGutter-full"
   >
     <div
-      className="IndentedComment-open coral coral-comment-collapse-toggle-indent Indent-root"
+      className="coral coral-comment-collapse-toggle-indent Indent-root"
     >
       <div
-        className="coral coral-indent coral-indent-0 Indent-open"
+        className="CommentContainer-indentedCommentRoot coral coral-indent coral-indent-0 Indent-open"
       >
         <div
-          className="Box-root Flex-root Flex-flex Flex-alignBaseline gutter Flex-spacing-1"
+          className="Box-root Flex-root Flex-flex Flex-alignFlexStart gutter Flex-spacing-1"
         >
           <button
-            aria-label="Collapse comment thread"
+            aria-label="Hide comment by Markus and its replies"
             className="BaseButton-root IndentedComment-toggleButton coral coral-comment-collapse-toggle"
             onBlur={[Function]}
             onClick={[Function]}
@@ -1596,7 +1630,6 @@ exports[`shows expiry message: edit form closed 1`] = `
           </button>
           <div
             className="Box-root HorizontalGutter-root Comment-root HorizontalGutter-half"
-            role="article"
           >
             <div
               className="Box-root Flex-root coral coral-comment-topBar Flex-flex Flex-justifySpaceBetween Flex-alignFlexStart Flex-directionRow"
@@ -1612,6 +1645,7 @@ exports[`shows expiry message: edit form closed 1`] = `
                   >
                     <button
                       aria-controls="username-popover-comment-with-replies"
+                      aria-label="User Markus"
                       className="BaseButton-root CommentContainer-usernameButton coral coral-username coral-comment-username"
                       onBlur={[Function]}
                       onClick={[Function]}
@@ -1629,17 +1663,10 @@ exports[`shows expiry message: edit form closed 1`] = `
                     </button>
                     <div
                       aria-hidden={true}
-                      aria-labelledby="username-popover-comment-with-replies-ariainfo"
+                      aria-label="A popover with more user information"
                       id="username-popover-comment-with-replies"
                       role="dialog"
-                    >
-                      <div
-                        className="AriaInfo-root"
-                        id="username-popover-comment-with-replies-ariainfo"
-                      >
-                        A popover with more user information
-                      </div>
-                    </div>
+                    />
                   </div>
                 </div>
                 <div
@@ -1799,17 +1826,10 @@ exports[`shows expiry message: edit form closed 1`] = `
                     </button>
                     <div
                       aria-hidden={true}
-                      aria-labelledby="permalink-popover-comment-with-replies-ariainfo"
+                      aria-label="A dialog showing a permalink to the comment"
                       id="permalink-popover-comment-with-replies"
                       role="dialog"
-                    >
-                      <div
-                        className="AriaInfo-root"
-                        id="permalink-popover-comment-with-replies-ariainfo"
-                      >
-                        A dialog showing a permalink to the comment
-                      </div>
-                    </div>
+                    />
                   </div>
                 </div>
                 <div
@@ -2032,6 +2052,7 @@ exports[`shows expiry message: edit time expired 1`] = `
               </div>
               <div
                 className="CallOut-content"
+                role="alert"
               >
                 <div
                   className="CallOut-title CallOut-titleSemiBold"

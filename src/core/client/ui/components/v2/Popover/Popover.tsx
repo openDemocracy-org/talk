@@ -1,17 +1,17 @@
 import cn from "classnames";
-import React from "react";
+import React, { FunctionComponent, useEffect, useState } from "react";
 import { Manager, Popper, Reference } from "react-popper";
 
 import { oncePerFrame } from "coral-common/utils";
-import { AriaInfo } from "coral-ui/components/v2";
 import { withStyles } from "coral-ui/hocs";
 import { PropTypesOf } from "coral-ui/types";
 
+import withUIContext from "../UIContext/withUIContext";
 import Arrow from "./Arrow";
 
 import styles from "./Popover.css";
 
-type Placement =
+export type Placement =
   | "top-start"
   | "top"
   | "top-end"
@@ -58,25 +58,41 @@ interface PopoverProps {
   eventsEnabled?: PropTypesOf<typeof Popper>["eventsEnabled"];
   positionFixed?: PropTypesOf<typeof Popper>["positionFixed"];
   dark?: boolean;
+  window: Window;
 }
 
-interface State {
-  visible: boolean;
-}
+const Popover: FunctionComponent<PopoverProps> = ({
+  body,
+  children,
+  description,
+  id,
+  className,
+  placement = "top",
+  visible: controlledVisible,
+  classes,
+  modifiers,
+  eventsEnabled,
+  positionFixed,
+  dark,
+  window,
+  ...rest
+}) => {
+  const [visibleState, setVisibleState] = useState(false);
+  const [toggledThisFrame, setToggledThisFrame] = useState(false);
+  const visible =
+    controlledVisible !== undefined ? controlledVisible : visibleState;
+  const includeArrow =
+    !modifiers || !modifiers.arrow || modifiers.arrow.enabled;
+  const popoverClassName = cn(classes.popover, {
+    [classes.top]: placement.startsWith("top"),
+    [classes.left]: placement.startsWith("left"),
+    [classes.right]: placement.startsWith("right"),
+    [classes.bottom]: placement.startsWith("bottom"),
+  });
 
-class Popover extends React.Component<PopoverProps> {
-  public static defaultProps: Partial<PopoverProps> = {
-    placement: "top",
-  };
-  public state: State = {
-    visible: false,
-  };
-
-  private toggleVisibility = (() => {
+  const toggleVisibility = (() => {
     let fn = (event?: React.SyntheticEvent | Event) => {
-      this.setState((state: State) => ({
-        visible: !state.visible,
-      }));
+      setVisibleState(!visibleState);
     };
     if (process.env.NODE_ENV !== "test") {
       /**
@@ -87,88 +103,56 @@ class Popover extends React.Component<PopoverProps> {
        * We don't wan this behavior when running in a simulated browser
        * environment with simulated events.
        */
-      fn = oncePerFrame(fn);
+      fn = oncePerFrame(fn, toggledThisFrame, setToggledThisFrame);
     }
     return fn;
   })();
 
-  private close = () => {
-    this.setState((state: State) => ({
-      visible: false,
-    }));
+  const close = () => {
+    setVisibleState(false);
   };
 
-  private handleEsc = (e: KeyboardEvent) => {
+  const handleEsc = (e: KeyboardEvent) => {
     if (e.key === "Escape") {
       e.preventDefault();
-      this.close();
+      close();
     }
   };
 
-  public componentDidMount() {
-    document.addEventListener("keydown", this.handleEsc, true);
-  }
+  useEffect(() => {
+    window.document.addEventListener("keydown", handleEsc, true);
 
-  public componentWillUnmount() {
-    document.removeEventListener("keydown", this.handleEsc, true);
-  }
+    return () => {
+      window.document.removeEventListener("keydown", handleEsc, true);
+    };
+  }, []);
 
-  public render() {
-    const {
-      id,
-      body,
-      children,
-      description,
-      className,
-      placement,
-      classes,
-      visible: controlledVisible,
-      positionFixed,
-      modifiers,
-      eventsEnabled,
-      dark,
-      ...rest
-    } = this.props;
-
-    const visible =
-      controlledVisible !== undefined ? controlledVisible : this.state.visible;
-    const includeArrow =
-      !modifiers || !modifiers.arrow || modifiers.arrow.enabled;
-    const popoverClassName = cn(classes.popover, {
-      [classes.top]: placement!.startsWith("top"),
-      [classes.left]: placement!.startsWith("left"),
-      [classes.right]: placement!.startsWith("right"),
-      [classes.bottom]: placement!.startsWith("bottom"),
-    });
-
-    return (
-      <div className={cn(classes.root, className)} {...rest}>
-        <Manager>
-          <Reference>
-            {(props) =>
-              children({
-                ref: props.ref,
-                toggleVisibility: this.toggleVisibility,
-                visible,
-              })
-            }
-          </Reference>
-          <Popper
-            placement={placement}
-            eventsEnabled={eventsEnabled}
-            positionFixed={positionFixed}
-            modifiers={modifiers}
-          >
-            {(props) => (
+  return (
+    <div className={cn(classes.root, className)} {...rest}>
+      <Manager>
+        <Reference>
+          {(props) => {
+            return children({
+              ref: props.ref,
+              toggleVisibility,
+              visible,
+            });
+          }}
+        </Reference>
+        <Popper
+          placement={placement}
+          eventsEnabled={eventsEnabled}
+          positionFixed={positionFixed}
+          modifiers={modifiers}
+        >
+          {(props) => {
+            return (
               <div
                 id={id}
                 role="dialog"
-                aria-labelledby={`${id}-ariainfo`}
+                aria-label={description}
                 aria-hidden={!visible}
               >
-                {description && (
-                  <AriaInfo id={`${id}-ariainfo`}>{description}</AriaInfo>
-                )}
                 {visible && (
                   <div
                     style={props.style}
@@ -188,21 +172,23 @@ class Popover extends React.Component<PopoverProps> {
                     {typeof body === "function"
                       ? body({
                           scheduleUpdate: props.scheduleUpdate,
-                          toggleVisibility: this.toggleVisibility,
+                          toggleVisibility,
                           visible,
                         })
                       : body}
                   </div>
                 )}
               </div>
-            )}
-          </Popper>
-        </Manager>
-      </div>
-    );
-  }
-}
+            );
+          }}
+        </Popper>
+      </Manager>
+    </div>
+  );
+};
 
-const enhanced = withStyles(styles)(Popover);
+const enhanced = withStyles(styles)(
+  withUIContext(({ renderWindow }) => ({ window: renderWindow }))(Popover)
+);
 
 export default enhanced;

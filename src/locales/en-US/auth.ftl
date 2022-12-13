@@ -23,7 +23,7 @@ general-confirmEmailAddressTextField =
 ## Sign In
 
 signIn-signInToJoinHeader =
-  <title>Sign in</title><subtitle>to join the conversation<subtitle>
+  <title>Sign in</title><subtitle>to join the conversation</subtitle>
 
 signIn-signInWithEmail = Sign in with Email
 signIn-signInWithFacebook = Sign in with Facebook
@@ -49,6 +49,8 @@ signUp-signUpWithGoogle = Sign up with Google
 signUp-signUpWithOIDC = Sign up with { $name }
 
 signUp-accountAvailableSignIn = Already have an account? <textlink>Sign in</textlink>
+
+signUp-usernameAlreadyExists = This username already exists. Please choose another.
 
 ## Forgot Password
 

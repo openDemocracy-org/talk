@@ -1,9 +1,9 @@
 import { Response } from "express";
 import { Redis } from "ioredis";
 import jwks, { JwksClient } from "jwks-rsa";
-import { Db } from "mongodb";
 
 import { Config } from "coral-server/config";
+import { MongoContext } from "coral-server/data/context";
 import { OIDCAuthIntegration } from "coral-server/models/settings";
 import { JWTSigningConfig } from "coral-server/services/jwt";
 import {
@@ -20,7 +20,7 @@ import { ExchangeResponse, OAuth2Authenticator } from "../oauth2";
 import { storeNonce, verifyNonce } from "./nonce";
 
 interface Options {
-  mongo: Db;
+  mongo: MongoContext;
   redis: Redis;
   config: Config;
   signingConfig: JWTSigningConfig;
@@ -29,15 +29,17 @@ interface Options {
 }
 
 export class OIDCAuthenticator extends OAuth2Authenticator {
+  private readonly config: Config;
   private readonly jwks: JwksClient;
   private readonly integration: Readonly<Required<OIDCAuthIntegration>>;
-  private readonly mongo: Db;
+  private readonly mongo: MongoContext;
   private readonly redis: Redis;
 
-  constructor({ integration, mongo, redis, ...options }: Options) {
+  constructor({ integration, mongo, redis, config, ...options }: Options) {
     super({
       ...options,
       ...integration,
+      config,
       scope: "openid email profile",
     });
 
@@ -45,6 +47,7 @@ export class OIDCAuthenticator extends OAuth2Authenticator {
     this.integration = integration;
     this.mongo = mongo;
     this.redis = redis;
+    this.config = config;
   }
 
   private async verifyToken(
@@ -87,59 +90,58 @@ export class OIDCAuthenticator extends OAuth2Authenticator {
     return token;
   }
 
-  public authenticate: RequestHandler<
-    TenantCoralRequest,
-    Promise<void>
-  > = async (req, res, next) => {
-    const { tenant, now } = req.coral;
+  public authenticate: RequestHandler<TenantCoralRequest, Promise<void>> =
+    async (req, res, next) => {
+      const { tenant, now } = req.coral;
 
-    let response: ExchangeResponse;
+      let response: ExchangeResponse;
 
-    try {
-      // If we don't have a code on the request, then we should redirect the user.
-      if (!req.query.code) {
-        // We're starting the authentication flow! Create the nonce.
-        const nonce = storeNonce(req, res, req.secure || this.secure);
+      try {
+        // If we don't have a code on the request, then we should redirect the user.
+        if (!req.query.code) {
+          // We're starting the authentication flow! Create the nonce.
+          const nonce = storeNonce(req, res, req.secure || this.secure);
 
-        // Redirect the user (Adding the nonce value to the authorization
-        // params).
-        return this.redirect(req, res, { nonce });
+          // Redirect the user (Adding the nonce value to the authorization
+          // params).
+          return this.redirect(req, res, { nonce });
+        }
+
+        // Exchange the code for tokens.
+        response = await this.exchange(req, res);
+      } catch (err) {
+        return next(err);
       }
 
-      // Exchange the code for tokens.
-      response = await this.exchange(req, res);
-    } catch (err) {
-      return next(err);
-    }
+      const {
+        state,
+        tokens: {
+          params: { id_token: idToken },
+        },
+      } = response;
 
-    const {
-      state,
-      tokens: {
-        params: { id_token: idToken },
-      },
-    } = response;
+      try {
+        // Try to get the id_token out of the params.
+        if (!idToken || typeof idToken !== "string") {
+          throw new Error("no id_token provided");
+        }
 
-    try {
-      // Try to get the id_token out of the params.
-      if (!idToken || typeof idToken !== "string") {
-        throw new Error("no id_token provided");
+        // Verify the id_token.
+        const token = await this.verifyToken(req, res, idToken);
+
+        // Find or create the user.
+        const user = await findOrCreateOIDCUser(
+          this.config,
+          this.mongo,
+          tenant,
+          this.integration,
+          token,
+          now
+        );
+
+        return this.success(state, user, req, res);
+      } catch (err) {
+        return this.fail(state, err, req, res);
       }
-
-      // Verify the id_token.
-      const token = await this.verifyToken(req, res, idToken);
-
-      // Find or create the user.
-      const user = await findOrCreateOIDCUser(
-        this.mongo,
-        tenant,
-        this.integration,
-        token,
-        now
-      );
-
-      return this.success(state, user, req, res);
-    } catch (err) {
-      return this.fail(state, err, req, res);
-    }
-  };
+    };
 }

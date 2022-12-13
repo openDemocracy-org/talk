@@ -24,6 +24,8 @@ export interface GlobalModerationSettings {
   live: LiveConfiguration;
   moderation: GQLMODERATION_MODE;
   premodLinksEnable: boolean;
+  premoderateAllCommentsSites: string[];
+  emailDomainModeration: EmailDomain[];
 }
 
 export type OIDCAuthIntegration = Omit<
@@ -69,19 +71,30 @@ export interface AccountFeatures {
 }
 
 /**
- * NewCommentersConfiguration is the configuration for how new commenters comments are treated.
+ * NewCommentersModerationConfig is the configuration for how new commenters' comments
+ * are moderated.
+ */
+export interface NewCommentersModerationConfig {
+  mode: GQLMODERATION_MODE;
+  premodSites: string[];
+}
+
+/**
+ * NewCommentersConfiguration is the configuration for how new commenters' comments are treated.
  */
 export interface NewCommentersConfiguration {
   premodEnabled: boolean;
   approvedCommentsThreshold: number;
+  moderation: NewCommentersModerationConfig;
 }
 
-export interface StaffConfiguration {
+export interface BadgeConfiguration {
   staffLabel?: string;
   // MIGRATE: plan to migrate this to `staffLabel` in 7.0.0.
   label: string;
   adminLabel?: string;
   moderatorLabel?: string;
+  memberLabel?: string;
 }
 
 /**
@@ -274,6 +287,12 @@ export interface StoryConfiguration {
   disableLazy: boolean;
 }
 
+export interface EmailDomain {
+  id: string;
+  domain: string;
+  newUserModeration: "BAN" | "PREMOD";
+}
+
 export type Settings = GlobalModerationSettings &
   Pick<
     GQLSettings,
@@ -284,6 +303,8 @@ export type Settings = GlobalModerationSettings &
     | "reaction"
     | "editCommentWindowLength"
     | "customCSSURL"
+    | "customFontsCSSURL"
+    | "disableDefaultFonts"
     | "communityGuidelines"
     | "createdAt"
     | "slack"
@@ -345,14 +366,37 @@ export type Settings = GlobalModerationSettings &
     media?: Omit<GQLMediaConfiguration, "external">;
 
     /**
-     * staff configures the labels for staff members in comment stream.
+     * badges configures the labels for any member with role above COMMENTER.
      */
-    staff: StaffConfiguration;
+    badges: BadgeConfiguration;
+
+    /**
+     * DEPRECATED: for backwards compatibility for badges field
+     */
+    staff?: BadgeConfiguration;
 
     /**
      * stories stores the configuration around stories.
      */
     stories: StoryConfiguration;
+
+    /**
+     * amp activates Accelerated Mobile Pages support.
+     */
+    amp?: boolean;
+
+    /**
+     * flattenReplies is whether the tenant wants replies to be hidden behind
+     * a "Show more of this conversation" link.
+     */
+    flattenReplies: boolean;
+
+    /**
+     * forReviewQueue is whether the tenant wants to enable the For Review
+     * moderation queue in the admin to review every flag that has been
+     * put on a comment by a user.
+     */
+    forReviewQueue?: boolean;
   };
 
 export const defaultRTEConfiguration: RTEConfiguration = {

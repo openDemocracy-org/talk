@@ -217,7 +217,7 @@ it("renders rejected queue with comments and load more", async () => {
   const { getByText, getAllByTestID, getByTestID } = within(moderateContainer);
 
   // Get previous count of comments.
-  const previousCount = getAllByTestID(/^moderate-comment-.*$/).length;
+  const previousCount = getAllByTestID(/^moderate-comment-card-.*$/).length;
 
   const loadMore = await waitForElement(() => getByText("Load More"));
 
@@ -229,54 +229,55 @@ it("renders rejected queue with comments and load more", async () => {
   await waitUntilThrow(() => getByText("Load More"));
 
   // Verify we have one more item now.
-  const comments = getAllByTestID(/^moderate-comment-.*$/);
+  const comments = getAllByTestID(/^moderate-comment-card-.*$/);
   expect(comments.length).toBe(previousCount + 1);
 
   // Verify last one added was our new one
   expect(comments[comments.length - 1].props["data-testid"]).toBe(
-    `moderate-comment-${rejectedComments[2].id}`
+    `moderate-comment-card-${rejectedComments[2].id}`
   );
 
   // Snapshot of added comment.
   expect(
-    toJSON(getByTestID(`moderate-comment-${rejectedComments[2].id}`))
+    toJSON(getByTestID(`moderate-comment-card-${rejectedComments[2].id}`))
   ).toMatchSnapshot();
 });
 
 it("approves comment in rejected queue", async () => {
-  const approveCommentStub = createMutationResolverStub<
-    MutationToApproveCommentResolver
-  >(({ variables }) => {
-    expectAndFail(variables).toMatchObject({
-      commentID: rejectedComments[0].id,
-      commentRevisionID: rejectedComments[0].revision!.id,
-    });
-    return {
-      comment: {
-        ...rejectedComments[0],
-        status: GQLCOMMENT_STATUS.APPROVED,
-        statusHistory: {
-          edges: [
-            {
-              node: {
-                id: "mod-action",
-                status: GQLCOMMENT_STATUS.APPROVED,
-                moderator: {
-                  id: viewer.id,
-                  username: viewer.username,
+  const approveCommentStub =
+    createMutationResolverStub<MutationToApproveCommentResolver>(
+      ({ variables }) => {
+        expectAndFail(variables).toMatchObject({
+          commentID: rejectedComments[0].id,
+          commentRevisionID: rejectedComments[0].revision!.id,
+        });
+        return {
+          comment: {
+            ...rejectedComments[0],
+            status: GQLCOMMENT_STATUS.APPROVED,
+            statusHistory: {
+              edges: [
+                {
+                  node: {
+                    id: "mod-action",
+                    status: GQLCOMMENT_STATUS.APPROVED,
+                    moderator: {
+                      id: viewer.id,
+                      username: viewer.username,
+                    },
+                  },
                 },
-              },
+              ],
             },
-          ],
-        },
-      },
-      moderationQueues: pureMerge(emptyModerationQueues, {
-        reported: {
-          count: 1,
-        },
-      }),
-    };
-  });
+          },
+          moderationQueues: pureMerge(emptyModerationQueues, {
+            reported: {
+              count: 1,
+            },
+          }),
+        };
+      }
+    );
 
   const { testRenderer } = await createTestRenderer({
     resolvers: createResolversStub<GQLResolver>({
@@ -314,7 +315,7 @@ it("approves comment in rejected queue", async () => {
     }),
   });
 
-  const testID = `moderate-comment-${rejectedComments[0].id}`;
+  const testID = `moderate-comment-card-${rejectedComments[0].id}`;
   const { getByTestID } = within(testRenderer.root);
   const comment = await waitForElement(() => getByTestID(testID));
 

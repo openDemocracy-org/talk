@@ -7,11 +7,16 @@ import logger from "coral-server/logger";
 import { EncodedCommentActionCounts } from "coral-server/models/action/comment";
 import { PUBLISHED_STATUSES } from "coral-server/models/comment/constants";
 
-import { GQLCOMMENT_STATUS } from "coral-server/graph/schema/__generated__/types";
+import {
+  GQLCOMMENT_STATUS,
+  GQLCommentTagCounts,
+} from "coral-server/graph/schema/__generated__/types";
 
 import {
   createEmptyCommentModerationQueueCounts,
   createEmptyCommentStatusCounts,
+  createEmptyCommentTagCounts,
+  createEmptyRelatedCommentCounts,
 } from "./empty";
 
 /**
@@ -68,6 +73,12 @@ export interface CommentStatusCounts {
   [GQLCOMMENT_STATUS.SYSTEM_WITHHELD]: number;
 }
 
+export interface CommentTagCounts {
+  total: number;
+
+  tags: GQLCommentTagCounts;
+}
+
 /**
  * RelatedCommentCounts stores all the Comment Counts that will be stored on
  * each related document (like a Story, or a Site).
@@ -90,6 +101,8 @@ export interface RelatedCommentCounts {
    * ModerationQueue's on this related document.
    */
   moderationQueue: CommentModerationQueueCounts;
+
+  tags: CommentTagCounts;
 }
 
 /**
@@ -133,6 +146,28 @@ export function mergeCommentModerationQueueCount(
     merged.queues.unmoderated += moderationQueue.queues.unmoderated;
     merged.queues.pending += moderationQueue.queues.pending;
     merged.queues.reported += moderationQueue.queues.reported;
+  }
+
+  return merged;
+}
+
+export function mergeCommentTagCounts(
+  ...tags: CommentTagCounts[]
+): CommentTagCounts {
+  const merged = createEmptyCommentTagCounts();
+
+  for (const tagSet of tags) {
+    merged.total += tagSet.total;
+
+    merged.tags.ADMIN += tagSet.tags.ADMIN;
+    merged.tags.EXPERT += tagSet.tags.EXPERT;
+    merged.tags.FEATURED += tagSet.tags.FEATURED;
+    merged.tags.MEMBER += tagSet.tags.MEMBER;
+    merged.tags.MODERATOR += tagSet.tags.MODERATOR;
+    merged.tags.QUESTION += tagSet.tags.QUESTION;
+    merged.tags.REVIEW += tagSet.tags.REVIEW;
+    merged.tags.STAFF += tagSet.tags.STAFF;
+    merged.tags.UNANSWERED += tagSet.tags.UNANSWERED;
   }
 
   return merged;
@@ -226,3 +261,52 @@ export async function updateRelatedCommentCounts<
 
   return result.value || null;
 }
+
+export const negateCommentCounts = (options: {
+  commentCounts: Readonly<RelatedCommentCounts>;
+  negate: boolean;
+}) => {
+  const { commentCounts, negate } = options;
+  const multiplier = negate ? -1 : 1;
+
+  const result: RelatedCommentCounts = createEmptyRelatedCommentCounts();
+
+  if (commentCounts.action) {
+    for (const key in commentCounts.action) {
+      if (Object.prototype.hasOwnProperty.call(commentCounts.action, key)) {
+        const value = commentCounts.action[key];
+        result.action[key] = value * multiplier;
+      }
+    }
+  }
+
+  if (commentCounts.moderationQueue) {
+    result.moderationQueue.total =
+      commentCounts.moderationQueue.total * multiplier;
+
+    let key: keyof typeof commentCounts.moderationQueue.queues;
+    for (key in commentCounts.moderationQueue.queues) {
+      if (
+        Object.prototype.hasOwnProperty.call(
+          commentCounts.moderationQueue.queues,
+          key
+        )
+      ) {
+        const value = commentCounts.moderationQueue.queues[key];
+        result.moderationQueue.queues[key] = value * multiplier;
+      }
+    }
+  }
+
+  if (commentCounts.status) {
+    let key: keyof typeof commentCounts.status;
+    for (key in commentCounts.status) {
+      if (Object.prototype.hasOwnProperty.call(commentCounts.status, key)) {
+        const value = commentCounts.status[key];
+        result.status[key] = value * multiplier;
+      }
+    }
+  }
+
+  return result;
+};

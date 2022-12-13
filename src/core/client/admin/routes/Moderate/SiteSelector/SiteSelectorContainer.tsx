@@ -1,14 +1,13 @@
 import React, { useMemo } from "react";
 import { graphql, RelayPaginationProp } from "react-relay";
 
+import { QUEUE_NAME } from "coral-framework/helpers";
 import {
   useLoadMore,
   withPaginationContainer,
 } from "coral-framework/lib/relay";
-import { GQLFEATURE_FLAG } from "coral-framework/schema";
 
 import { SiteSelectorContainer_query } from "coral-admin/__generated__/SiteSelectorContainer_query.graphql";
-import { SiteSelectorContainer_settings } from "coral-admin/__generated__/SiteSelectorContainer_settings.graphql";
 import { SiteSelectorContainer_viewer } from "coral-admin/__generated__/SiteSelectorContainer_viewer.graphql";
 import { SiteSelectorContainerPaginationQueryVariables } from "coral-admin/__generated__/SiteSelectorContainerPaginationQuery.graphql";
 
@@ -17,9 +16,8 @@ import SiteSelector from "./SiteSelector";
 interface Props {
   query: SiteSelectorContainer_query | null;
   viewer: SiteSelectorContainer_viewer | null;
-  settings: SiteSelectorContainer_settings | null;
   relay: RelayPaginationProp;
-  queueName: string;
+  queueName: QUEUE_NAME | undefined;
   siteID: string | null;
 }
 
@@ -29,8 +27,6 @@ const SiteSelectorContainer: React.FunctionComponent<Props> = (props) => {
   const { sites, scoped } = useMemo(() => {
     // If the viewer is moderation scoped, then only provide those sites.
     if (
-      props.settings &&
-      props.settings.featureFlags.includes(GQLFEATURE_FLAG.SITE_MODERATOR) &&
       props.viewer &&
       props.viewer.moderationScopes?.scoped &&
       props.viewer.moderationScopes.sites
@@ -48,7 +44,7 @@ const SiteSelectorContainer: React.FunctionComponent<Props> = (props) => {
     }
 
     return { scoped: false, sites: [] };
-  }, [props.query, props.viewer, props.settings]);
+  }, [props.query, props.viewer]);
 
   return (
     <SiteSelector
@@ -74,10 +70,10 @@ const enhanced = withPaginationContainer<
   {
     query: graphql`
       fragment SiteSelectorContainer_query on Query
-        @argumentDefinitions(
-          count: { type: "Int", defaultValue: 10 }
-          cursor: { type: "Cursor" }
-        ) {
+      @argumentDefinitions(
+        count: { type: "Int", defaultValue: 10 }
+        cursor: { type: "Cursor" }
+      ) {
         sites(first: $count, after: $cursor)
           @connection(key: "SitesConfig_sites") {
           edges {
@@ -98,11 +94,6 @@ const enhanced = withPaginationContainer<
             ...SiteSelectorSite_site
           }
         }
-      }
-    `,
-    settings: graphql`
-      fragment SiteSelectorContainer_settings on Settings {
-        featureFlags
       }
     `,
   },

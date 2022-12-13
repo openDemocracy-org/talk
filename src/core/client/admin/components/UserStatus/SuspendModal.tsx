@@ -3,7 +3,7 @@ import React, { FunctionComponent, useCallback, useState } from "react";
 
 import NotAvailable from "coral-admin/components/NotAvailable";
 import { ScaledUnit } from "coral-common/helpers/i18n";
-import { GetMessage, withGetMessage } from "coral-framework/lib/i18n";
+import { useGetMessage } from "coral-framework/lib/i18n";
 import { Button, Flex, HorizontalGutter } from "coral-ui/components/v2";
 
 import ModalBodyText from "../ModalBodyText";
@@ -14,7 +14,6 @@ import SuspendForm from "./SuspendForm";
 
 interface Props {
   username: string | null;
-  getMessage: GetMessage;
   open: boolean;
   onClose: () => void;
   onConfirm: (timeout: number, message: string) => void;
@@ -26,12 +25,12 @@ const SuspendModal: FunctionComponent<Props> = ({
   open,
   onClose,
   onConfirm,
-  getMessage,
   username,
   success,
   organizationName,
 }) => {
   const [successDuration, setSuccessDuration] = useState("");
+  const getMessage = useGetMessage();
   const onFormSubmit = useCallback(
     ({ original, scaled, unit }: ScaledUnit, message: string) => {
       setSuccessDuration(
@@ -57,9 +56,11 @@ const SuspendModal: FunctionComponent<Props> = ({
             <HorizontalGutter spacing={3}>
               <Localized
                 id="community-suspendModal-success"
-                $username={username}
-                strong={<ModalHeaderUsername />}
-                $duration={successDuration}
+                vars={{
+                  username,
+                  duration: successDuration,
+                }}
+                elems={{ strong: <ModalHeaderUsername /> }}
               >
                 <ModalHeader>
                   <ModalHeaderUsername>{username}</ModalHeaderUsername> has been
@@ -80,8 +81,8 @@ const SuspendModal: FunctionComponent<Props> = ({
             <HorizontalGutter spacing={3}>
               <Localized
                 id="community-suspendModal-areYouSure"
-                strong={<ModalHeaderUsername />}
-                $username={username || <NotAvailable />}
+                elems={{ strong: <ModalHeaderUsername /> }}
+                vars={{ username }}
               >
                 <ModalHeader id="suspendModal-title">
                   Suspend{" "}
@@ -113,6 +114,4 @@ const SuspendModal: FunctionComponent<Props> = ({
   );
 };
 
-const enhanced = withGetMessage(SuspendModal);
-
-export default enhanced;
+export default SuspendModal;

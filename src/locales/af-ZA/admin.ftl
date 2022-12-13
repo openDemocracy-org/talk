@@ -18,6 +18,8 @@ queue-sortMenu-newest = Jongste
 queue-sortMenu-oldest = Oudste
 
 ## Navigation
+navigation-stories = Stories
+navigation-configure = Stel op
 
 ## User Menu
 
@@ -102,11 +104,17 @@ configure-slack-channel-triggers-allComments = Alle kommentare
 ## moderate
 moderate-navigation-reported = Gerapporteer
 moderate-marker-other = Ander
+
+moderate-markers-details = Besonderhede
 moderate-flagDetails-other = Ander
+
 moderate-comment-edited = (geredigeer)
+moderate-comment-inReplyTo = Antwoord op <Username></Username>
 moderate-comment-viewConversation = Sien gesprek
 moderate-comment-moderateStory = Modereer storie
 moderate-comment-featuredText = In fokus
+moderate-comment-featureText = Funksie
+moderate-comment-storyLabel = Lewer kommentaar op
 
 ### Moderate Search Bar
 
@@ -120,8 +128,10 @@ community-banModal-cancel = Kanselleer
 community-banModal-banUser = Blok gebruiker
 community-suspendModal-cancel = Kanselleer
 community-premodModal-cancel = Kanselleer
-community-siteModeratorModal-cancel = Kanselleer
+community-siteRoleModal-cancel = Kanselleer
 community-warnModal-cancel = Kanselleer
+
+community-column-memberSince = Lid sedert
 
 ## Stories
 stories-column-reportedCount = Gerapporteer
@@ -136,4 +146,4 @@ configure-general-reactions-sort-input =
   .placeholder = Bv. Meeste respek
 
 configure-general-reaction-sortMenu-sortBy = Lys volgens
-conversation-modal-moderateStory = Modereer storie
+conversation-modal-header-moderate-link = Modereer storie

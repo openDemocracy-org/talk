@@ -6,9 +6,9 @@ import {
   RsaSigningKey,
   SigningKey,
 } from "jwks-rsa";
-import { isNil } from "lodash";
-import { Db } from "mongodb";
 
+import { Config } from "coral-server/config";
+import { MongoContext } from "coral-server/data/context";
 import { TokenInvalidError } from "coral-server/errors";
 import { validateSchema } from "coral-server/helpers";
 import { OIDCAuthIntegration } from "coral-server/models/settings";
@@ -68,13 +68,13 @@ export const OIDCIDTokenSchema = Joi.object()
     (s) => s.optional()
   );
 
-export function isOIDCToken(token: OIDCIDToken | object): token is OIDCIDToken {
+export function validateToken(token: OIDCIDToken | object): string | undefined {
   const { error } = OIDCIDTokenSchema.validate(token, {
     // OIDC ID tokens may contain many other fields we haven't seen.. We Just
     // need to check to see that it contains at least the fields we need.
     allowUnknown: true,
   });
-  return isNil(error);
+  return error ? "OIDC: " + error.message : undefined;
 }
 
 function isCertSigningKey(
@@ -129,7 +129,12 @@ export function verifyIDToken(
       (err, token) => {
         if (err) {
           return reject(
-            new TokenInvalidError(tokenString, "token validation error", err)
+            new TokenInvalidError(
+              tokenString,
+              "token validation error",
+              undefined,
+              err
+            )
           );
         }
 
@@ -149,7 +154,8 @@ export function verifyIDToken(
 }
 
 export async function findOrCreateOIDCUser(
-  mongo: Db,
+  config: Config,
+  mongo: MongoContext,
   tenant: Tenant,
   integration: OIDCAuthIntegration,
   {
@@ -195,6 +201,7 @@ export async function findOrCreateOIDCUser(
 
   // Create the new user, as one didn't exist before!
   return await findOrCreate(
+    config,
     mongo,
     tenant,
     {
@@ -211,7 +218,8 @@ export async function findOrCreateOIDCUser(
 }
 
 export async function findOrCreateOIDCUserWithToken(
-  mongo: Db,
+  config: Config,
+  mongo: MongoContext,
   tenant: Tenant,
   client: JwksClient,
   integration: Required<OIDCAuthIntegration>,
@@ -227,5 +235,5 @@ export async function findOrCreateOIDCUserWithToken(
   );
 
   // Find or create the user based on the verified token.
-  return findOrCreateOIDCUser(mongo, tenant, integration, token, now);
+  return findOrCreateOIDCUser(config, mongo, tenant, integration, token, now);
 }

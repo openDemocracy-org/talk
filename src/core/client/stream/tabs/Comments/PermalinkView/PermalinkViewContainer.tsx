@@ -17,6 +17,7 @@ import {
   withFragmentContainer,
 } from "coral-framework/lib/relay";
 import CLASSES from "coral-stream/classes";
+import scrollToBeginning from "coral-stream/common/scrollToBeginning";
 import UserBoxContainer from "coral-stream/common/UserBox";
 import { ViewFullDiscussionEvent } from "coral-stream/events";
 import { SetCommentIDMutation } from "coral-stream/mutations";
@@ -24,6 +25,7 @@ import ReplyListContainer from "coral-stream/tabs/Comments/ReplyList";
 import { CommentEnteredSubscription } from "coral-stream/tabs/Comments/Stream/Subscriptions";
 import { Flex, HorizontalGutter } from "coral-ui/components/v2";
 import { Button, CallOut } from "coral-ui/components/v3";
+import { useShadowRootOrDocument } from "coral-ui/encapsulation";
 
 import { PermalinkViewContainer_comment as CommentData } from "coral-stream/__generated__/PermalinkViewContainer_comment.graphql";
 import { PermalinkViewContainer_settings as SettingsData } from "coral-stream/__generated__/PermalinkViewContainer_settings.graphql";
@@ -45,7 +47,9 @@ interface Props {
 const PermalinkViewContainer: FunctionComponent<Props> = (props) => {
   const { comment, story, viewer, settings } = props;
   const setCommentID = useMutation(SetCommentIDMutation);
-  const { pym, eventEmitter } = useCoralContext();
+  const { renderWindow, eventEmitter, window, customScrollContainer } =
+    useCoralContext();
+  const root = useShadowRootOrDocument();
 
   const subscribeToCommentEntered = useSubscription(CommentEnteredSubscription);
 
@@ -65,11 +69,14 @@ const PermalinkViewContainer: FunctionComponent<Props> = (props) => {
   }, [comment?.id, story.id, subscribeToCommentEntered]);
 
   useEffect(() => {
-    if (!pym) {
+    if (!renderWindow) {
       return;
     }
-    setTimeout(() => pym.scrollParentToChildPos(0), 100);
-  }, [pym]);
+    setTimeout(
+      () => scrollToBeginning(root, renderWindow, customScrollContainer),
+      100
+    );
+  }, [root, renderWindow, customScrollContainer]);
 
   const onShowAllComments = useCallback(
     (e: MouseEvent<any>) => {
@@ -83,9 +90,9 @@ const PermalinkViewContainer: FunctionComponent<Props> = (props) => {
   );
 
   const showAllCommentsHref = useMemo(() => {
-    const url = pym?.parentUrl || window.location.href;
+    const url = window.location.href;
     return getURLWithCommentID(url, undefined);
-  }, [pym]);
+  }, [window.location.href]);
 
   const commentVisible = comment && isPublished(comment.status);
 
@@ -98,64 +105,74 @@ const PermalinkViewContainer: FunctionComponent<Props> = (props) => {
       size="double"
     >
       <UserBoxContainer viewer={viewer} settings={settings} />
-      <Flex
-        alignItems="center"
-        justifyContent="center"
-        direction="column"
-        className={styles.header}
+      <Localized
+        id="comments-permalinkView-section"
+        attrs={{ "aria-label": true }}
       >
-        <Localized id="comments-permalinkView-youAreCurrentlyViewing">
-          <div className={styles.title}>
-            You are currently viewing a single conversation
-          </div>
-        </Localized>
-        {showAllCommentsHref && (
-          <Localized id="comments-permalinkView-viewFullDiscussion">
-            <Button
-              className={CLASSES.permalinkView.viewFullDiscussionButton}
-              variant="flat"
-              color="primary"
-              fontSize="medium"
-              fontWeight="semiBold"
-              onClick={onShowAllComments}
-              href={showAllCommentsHref}
-              target="_parent"
-              anchor
-              underline
-            >
-              View full discussion
-            </Button>
-          </Localized>
-        )}
-      </Flex>
-      {!commentVisible && (
-        <CallOut>
-          <Localized id="comments-permalinkView-commentRemovedOrDoesNotExist">
-            This comment has been removed or does not exist.
-          </Localized>
-        </CallOut>
-      )}
-      {comment && commentVisible && (
-        <HorizontalGutter>
-          <ConversationThreadContainer
-            viewer={viewer}
-            comment={comment}
-            story={story}
-            settings={settings}
-          />
-          <div className={styles.replyList}>
-            <ReplyListContainer
-              viewer={viewer}
-              comment={comment}
-              story={story}
-              settings={settings}
-              liveDirectRepliesInsertion
-              allowIgnoredTombstoneReveal
-              disableHideIgnoredTombstone
-            />
-          </div>
+        <HorizontalGutter
+          size="double"
+          container="section"
+          aria-label="Single Conversation"
+        >
+          <Flex
+            alignItems="center"
+            justifyContent="center"
+            direction="column"
+            className={styles.header}
+          >
+            <Localized id="comments-permalinkView-youAreCurrentlyViewing">
+              <div className={styles.title}>
+                You are currently viewing a single conversation
+              </div>
+            </Localized>
+            {showAllCommentsHref && (
+              <Localized id="comments-permalinkView-viewFullDiscussion">
+                <Button
+                  className={CLASSES.permalinkView.viewFullDiscussionButton}
+                  variant="flat"
+                  color="primary"
+                  fontSize="medium"
+                  fontWeight="semiBold"
+                  onClick={onShowAllComments}
+                  href={showAllCommentsHref}
+                  target="_parent"
+                  anchor
+                  underline
+                >
+                  View full discussion
+                </Button>
+              </Localized>
+            )}
+          </Flex>
+          {!commentVisible && (
+            <CallOut aria-live="polite">
+              <Localized id="comments-permalinkView-commentRemovedOrDoesNotExist">
+                This comment has been removed or does not exist.
+              </Localized>
+            </CallOut>
+          )}
+          {comment && commentVisible && (
+            <HorizontalGutter>
+              <ConversationThreadContainer
+                viewer={viewer}
+                comment={comment}
+                story={story}
+                settings={settings}
+              />
+              <div className={styles.replyList}>
+                <ReplyListContainer
+                  viewer={viewer}
+                  comment={comment}
+                  story={story}
+                  settings={settings}
+                  liveDirectRepliesInsertion
+                  allowIgnoredTombstoneReveal
+                />
+              </div>
+            </HorizontalGutter>
+          )}
         </HorizontalGutter>
-      )}
+      </Localized>
     </HorizontalGutter>
   );
 };
@@ -180,6 +197,7 @@ const enhanced = withFragmentContainer<Props>({
   `,
   viewer: graphql`
     fragment PermalinkViewContainer_viewer on User {
+      id
       ...ConversationThreadContainer_viewer
       ...ReplyListContainer1_viewer
       ...UserBoxContainer_viewer

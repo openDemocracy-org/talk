@@ -12,6 +12,7 @@ import CommentToggle from "./CommentToggle";
 import styles from "./IndentedComment.css";
 
 export interface IndentedCommentProps extends Omit<CommentProps, "ref"> {
+  classNameIndented?: string;
   indentLevel?: number;
   blur?: boolean;
   toggleCollapsed?: () => void;
@@ -19,6 +20,8 @@ export interface IndentedCommentProps extends Omit<CommentProps, "ref"> {
   staticTopBarRight: React.ReactNode;
   tags?: React.ReactNode | null;
   badges?: React.ReactNode | null;
+  enableJumpToParent?: boolean;
+  username?: string | null;
 }
 
 const IndentedComment: FunctionComponent<IndentedCommentProps> = ({
@@ -27,38 +30,44 @@ const IndentedComment: FunctionComponent<IndentedCommentProps> = ({
   indentLevel,
   toggleCollapsed,
   blur,
+  classNameIndented,
   ...rest
 }) => {
+  const collapseCommentsLocalizationId = rest.username
+    ? "comments-collapse-toggle-with-username"
+    : "comments-collapse-toggle-without-username";
   return (
     <Indent
       level={indentLevel}
       collapsed={rest.collapsed}
       className={cn(
         {
-          [styles.open]: !rest.collapsed,
           [styles.blur]: blur,
           [CLASSES.comment.collapseToggle.collapsed]: rest.collapsed,
         },
         CLASSES.comment.collapseToggle.indent
       )}
+      classNameIndent={classNameIndented}
     >
       {rest.collapsed ? (
         <CommentToggle
           {...rest}
           toggleCollapsed={toggleCollapsed}
-          username={staticUsername}
+          usernameEl={staticUsername}
+          username={rest.username}
           topBarRight={staticTopBarRight}
         />
       ) : (
-        <Flex alignItems="baseline" spacing={1}>
+        <Flex alignItems="flex-start" spacing={1}>
           {toggleCollapsed && (
             <Localized
-              id="comments-collapse-toggle"
+              id={collapseCommentsLocalizationId}
               attrs={{ "aria-label": true }}
+              vars={{ username: rest.username }}
             >
               <BaseButton
                 onClick={toggleCollapsed}
-                aria-label="Collapse comment thread"
+                aria-label={`Hide comment by ${rest.username} and its replies`}
                 className={cn(
                   styles.toggleButton,
                   CLASSES.comment.collapseToggle.$root

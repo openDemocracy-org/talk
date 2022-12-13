@@ -8,6 +8,9 @@ import styles from "./StoryStatusText.css";
 
 interface Props {
   children: GQLSTORY_STATUS_RL;
+  isArchiving?: boolean;
+  isArchived?: boolean;
+  isUnarchiving?: boolean;
 }
 
 const StoryStatusText: FunctionComponent<Props> = (props) => (
@@ -19,6 +22,9 @@ const StoryStatusText: FunctionComponent<Props> = (props) => (
         })}
       />
     }
+    isArchiving={props.isArchiving}
+    isArchived={props.isArchived}
+    isUnarchiving={props.isUnarchiving}
   >
     {props.children}
   </TranslatedStoryStatus>

@@ -1,38 +1,34 @@
 import { createCacheUrl } from "@ampproject/toolbox-cache-url";
 import builder from "content-security-policy-builder";
 import { compact, flatten } from "lodash";
-import { Db } from "mongodb";
 
 import { AppOptions } from "coral-server/app";
 import { getOrigin, prefixSchemeIfRequired } from "coral-server/app/url";
 import { Config } from "coral-server/config";
-import { retrieveSite, Site } from "coral-server/models/site";
+import { MongoContext } from "coral-server/data/context";
+import {
+  retrieveSite,
+  retrieveSiteByOrigin,
+  Site,
+} from "coral-server/models/site";
 import { retrieveStory } from "coral-server/models/story";
-import { hasFeatureFlag, Tenant } from "coral-server/models/tenant";
+import { isAMPEnabled, Tenant } from "coral-server/models/tenant";
 import { findSiteByURL } from "coral-server/services/sites";
 import { Request, RequestHandler } from "coral-server/types/express";
 
-import { GQLFEATURE_FLAG } from "coral-server/graph/schema/__generated__/types";
-
 interface RequestQuery {
-  parentUrl?: string;
   storyURL?: string;
   storyID?: string;
   siteID?: string;
 }
 
-async function retrieveSiteFromEmbed(
-  mongo: Db,
+async function retrieveSiteFromQuery(
+  mongo: MongoContext,
   req: Request,
   tenant: Tenant
 ): Promise<Site | null> {
   // Attempt to detect the site based on the query parameters.
-  const {
-    storyURL = "",
-    storyID = "",
-    parentUrl = "",
-    siteID = "",
-  }: RequestQuery = req.query;
+  const { storyURL = "", storyID = "", siteID = "" }: RequestQuery = req.query;
 
   // If the siteID is available, use that.
   if (siteID) {
@@ -59,13 +55,6 @@ async function retrieveSiteFromEmbed(
     return retrieveSite(mongo, tenant.id, story.siteID);
   }
 
-  // As the last fallback, if the storyURL and storyID cannot be found, then pym
-  // does provide us with a parentUrl that's the URL of the page embedding
-  // Coral. We'll try to find the site based on this URL.
-  if (parentUrl) {
-    return findSiteByURL(mongo, tenant.id, parentUrl);
-  }
-
   return null;
 }
 
@@ -86,7 +75,7 @@ async function retrieveAMPOrigins(
 }
 
 async function retrieveOriginsFromRequest(
-  mongo: Db,
+  mongo: MongoContext,
   config: Config,
   req: Request
 ): Promise<string[]> {
@@ -95,14 +84,22 @@ async function retrieveOriginsFromRequest(
     return [];
   }
 
-  const site = await retrieveSiteFromEmbed(mongo, req, tenant);
+  let site = await retrieveSiteFromQuery(mongo, req, tenant);
+  if (!site) {
+    const requesterOrigin = getRequesterOrigin(req);
+    // We use the requester's origin, if the site cannot be found from the query.
+    if (requesterOrigin) {
+      site = await retrieveSiteByOrigin(mongo, tenant.id, requesterOrigin);
+    }
+  }
+
   if (!site || site.allowedOrigins.length === 0) {
     return [];
   }
 
   const origins = site.allowedOrigins;
 
-  if (hasFeatureFlag(tenant, GQLFEATURE_FLAG.ENABLE_AMP)) {
+  if (isAMPEnabled(tenant)) {
     const amp = await retrieveAMPOrigins(config, origins);
     origins.push(...amp);
   }
@@ -135,38 +132,33 @@ type Options = Pick<AppOptions, "mongo" | "config"> & {
 /**
  * cspMiddleware handles adding the CSP middleware to each outgoing request.
  */
-export const cspSiteMiddleware = ({
-  mongo,
-  config,
-  frameAncestorsDeny,
-}: Options): RequestHandler => async (req, res, next) => {
-  // If the frame ancestors is being set to deny, then use an empty list,
-  // otherwise look it up from the request.
-  const origins = frameAncestorsDeny
-    ? []
-    : await retrieveOriginsFromRequest(mongo, config, req);
+export const cspSiteMiddleware =
+  ({ mongo, config, frameAncestorsDeny }: Options): RequestHandler =>
+  async (req, res, next) => {
+    // If the frame ancestors is being set to deny, then use an empty list,
+    // otherwise look it up from the request.
+    const origins = frameAncestorsDeny
+      ? []
+      : await retrieveOriginsFromRequest(mongo, config, req);
 
-  const frameOptions = generateFrameOptions(req, origins);
-  if (frameOptions) {
-    res.setHeader("X-Frame-Options", frameOptions);
-  }
+    const frameOptions = generateFrameOptions(req, origins);
+    if (frameOptions) {
+      res.setHeader("X-Frame-Options", frameOptions);
+    }
 
-  // If we have AMP enabled, then we cannot send frame-ancestors because we
-  // can't predict the top level ancestor!
-  if (
-    req.coral.tenant &&
-    hasFeatureFlag(req.coral.tenant, GQLFEATURE_FLAG.ENABLE_AMP)
-  ) {
+    // If we have AMP enabled, then we cannot send frame-ancestors because we
+    // can't predict the top level ancestor!
+    if (req.coral.tenant && isAMPEnabled(req.coral.tenant)) {
+      return next();
+    }
+
+    res.setHeader(
+      "Content-Security-Policy",
+      generateContentSecurityPolicy(origins)
+    );
+
     return next();
-  }
-
-  res.setHeader(
-    "Content-Security-Policy",
-    generateContentSecurityPolicy(origins)
-  );
-
-  return next();
-};
+  };
 
 function generateContentSecurityPolicy(allowedOrigins: string[]) {
   // Only the domains that are allowed by the tenant may embed Coral.

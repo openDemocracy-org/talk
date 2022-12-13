@@ -3,43 +3,35 @@ import { once } from "lodash";
 import React, { FunctionComponent, Suspense } from "react";
 import { graphql } from "react-relay";
 
-import { polyfillCSSVars } from "coral-framework/helpers";
 import {
   QueryRenderData,
   QueryRenderer,
-  withLocalStateContainer,
+  useLocal,
 } from "coral-framework/lib/relay";
 import { Delay, Spinner } from "coral-ui/components/v2";
+import { QueryError } from "coral-ui/components/v3";
 
 import { ConfigureQuery as QueryTypes } from "coral-stream/__generated__/ConfigureQuery.graphql";
-import { ConfigureQueryLocal as Local } from "coral-stream/__generated__/ConfigureQueryLocal.graphql";
+import { ConfigureQueryLocal } from "coral-stream/__generated__/ConfigureQueryLocal.graphql";
 
 const loadConfigureContainer = () =>
-  import("./ConfigureContainer" /* webpackChunkName: "configure" */).then(
-    (x) => {
-      // New css is loaded, take care of polyfilling those css vars for IE11.
-      void polyfillCSSVars();
-      return x;
-    }
-  );
+  import("./ConfigureContainer" /* webpackChunkName: "configure" */);
+
 // (cvle) For some reason without `setTimeout` this request will block other requests.
-const preloadConfigureContainer = once(() =>
-  setTimeout(loadConfigureContainer, 0)
+const preload = once(() =>
+  setTimeout(() => {
+    void loadConfigureContainer();
+  }, 0)
 );
 
 const LazyConfigureContainer = React.lazy(loadConfigureContainer);
 
-interface Props {
-  local: Local;
-}
-
 export const render = ({ error, props }: QueryRenderData<QueryTypes>) => {
   if (error) {
-    return <div>{error.message}</div>;
+    return <QueryError error={error} />;
   }
 
-  // TODO: use official React API once it has one :-)
-  preloadConfigureContainer();
+  preload();
 
   if (props) {
     if (!props.viewer) {
@@ -74,38 +66,37 @@ export const render = ({ error, props }: QueryRenderData<QueryTypes>) => {
   );
 };
 
-const ConfigureQuery: FunctionComponent<Props> = ({
-  local: { storyID, storyURL },
-}) => (
-  <QueryRenderer<QueryTypes>
-    query={graphql`
-      query ConfigureQuery($storyID: ID, $storyURL: String) {
-        story(id: $storyID, url: $storyURL) {
-          ...ConfigureContainer_story
-        }
-        viewer {
-          ...ConfigureContainer_viewer
-        }
-        settings {
-          ...ConfigureContainer_settings
-        }
-      }
-    `}
-    variables={{
-      storyID,
-      storyURL,
-    }}
-    render={render}
-  />
-);
-
-const enhanced = withLocalStateContainer(
-  graphql`
+const ConfigureQuery: FunctionComponent = () => {
+  const [{ storyID, storyURL }] = useLocal<ConfigureQueryLocal>(graphql`
     fragment ConfigureQueryLocal on Local {
       storyID
       storyURL
     }
-  `
-)(ConfigureQuery);
+  `);
+  return (
+    <QueryRenderer<QueryTypes>
+      query={graphql`
+        query ConfigureQuery($storyID: ID, $storyURL: String) {
+          story(id: $storyID, url: $storyURL) {
+            ...ConfigureContainer_story
+          }
+          viewer {
+            ...ConfigureContainer_viewer
+          }
+          settings {
+            ...ConfigureContainer_settings
+          }
+        }
+      `}
+      variables={{
+        storyID,
+        storyURL,
+      }}
+      render={(data) => {
+        return render(data);
+      }}
+    />
+  );
+};
 
-export default enhanced;
+export default ConfigureQuery;

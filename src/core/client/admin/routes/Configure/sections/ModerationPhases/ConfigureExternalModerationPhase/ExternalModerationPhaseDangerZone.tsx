@@ -1,5 +1,5 @@
 import { Localized } from "@fluent/react/compat";
-import { Match, Router, withRouter } from "found";
+import { useRouter } from "found";
 import React, { FunctionComponent, useCallback, useState } from "react";
 import { graphql } from "react-relay";
 
@@ -24,15 +24,13 @@ import RotateSigningSecretModal from "./RotateSigningSecretModal";
 
 interface Props {
   phase: ExternalModerationPhaseDangerZone_phase;
-  router: Router;
-  match: Match;
 }
 
 const ExternalModerationPhaseDangerZone: FunctionComponent<Props> = ({
   phase,
-  router,
 }) => {
   const { localeBundles } = useCoralContext();
+  const { router } = useRouter();
   const enableExternalModerationPhase = useMutation(
     EnableExternalModerationPhaseMutation
   );
@@ -58,6 +56,7 @@ const ExternalModerationPhaseDangerZone: FunctionComponent<Props> = ({
       "Enabling the external moderation phase will start to send moderation queries to this URL. Are you sure you want to continue?"
     );
 
+    // eslint-disable-next-line no-restricted-globals
     if (window.confirm(message)) {
       await enableExternalModerationPhase({ id: phase.id });
     }
@@ -69,6 +68,7 @@ const ExternalModerationPhaseDangerZone: FunctionComponent<Props> = ({
       "Disabling this external moderation phase will stop any new moderation queries from being sent to this URL. Are you sure you want to continue?"
     );
 
+    // eslint-disable-next-line no-restricted-globals
     if (window.confirm(message)) {
       await disableExternalModerationPhase({ id: phase.id });
     }
@@ -81,6 +81,7 @@ const ExternalModerationPhaseDangerZone: FunctionComponent<Props> = ({
       "Deleting this external moderation phase will stop any new moderation queries from being sent to this URL and will remove all the associated settings. Are you sure you want to continue?"
     );
 
+    // eslint-disable-next-line no-restricted-globals
     if (window.confirm(message)) {
       await deleteExternalModerationPhase({ id: phase.id });
 
@@ -171,15 +172,13 @@ const ExternalModerationPhaseDangerZone: FunctionComponent<Props> = ({
   );
 };
 
-const enhanced = withRouter(
-  withFragmentContainer<Props>({
-    phase: graphql`
-      fragment ExternalModerationPhaseDangerZone_phase on ExternalModerationPhase {
-        id
-        enabled
-      }
-    `,
-  })(ExternalModerationPhaseDangerZone)
-);
+const enhanced = withFragmentContainer<Props>({
+  phase: graphql`
+    fragment ExternalModerationPhaseDangerZone_phase on ExternalModerationPhase {
+      id
+      enabled
+    }
+  `,
+})(ExternalModerationPhaseDangerZone);
 
 export default enhanced;

@@ -10,9 +10,9 @@ export interface CompleteAccountInput {
 export async function commit(
   environment: Environment,
   input: CompleteAccountInput,
-  { postMessage }: CoralContext
+  { postMessage, window }: CoralContext
 ) {
-  postMessage.send("setAccessToken", input.accessToken, window.opener);
+  postMessage.send("setAccessToken", input.accessToken, window.opener, "*");
   window.close();
 }
 

@@ -20,7 +20,8 @@ export default function getHTMLPlainText(html: string): string {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     textContent = decode(require("striptags")(htmlWithNewLine));
   } else {
-    const divElement = document.createElement("div");
+    // eslint-disable-next-line no-restricted-globals
+    const divElement = window.document.createElement("div");
     divElement.innerHTML = htmlWithNewLine;
     textContent = divElement.textContent || "";
   }

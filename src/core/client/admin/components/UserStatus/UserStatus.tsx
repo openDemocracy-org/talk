@@ -25,28 +25,26 @@ const render = (className: string, content: React.ReactNode) => (
 );
 
 const UserStatus: FunctionComponent<Props> = (props) => {
-  if (
-    props.moderationScopesEnabled &&
-    props.banned &&
-    props.bannedSiteCount &&
-    props.bannedSiteCount > 0
-  ) {
+  if (props.moderationScopesEnabled && props.banned) {
     return render(
       styles.error,
-      <Localized id="userStatus-banned-count" $count={props.bannedSiteCount}>
-        <div>Banned ({props.bannedSiteCount})</div>
+      <Localized id="userStatus-banned-all">
+        <div>Banned (all)</div>
       </Localized>
     );
   }
   if (
     props.moderationScopesEnabled &&
-    props.banned &&
-    (!props.bannedSiteCount || props.bannedSiteCount === 0)
+    props.bannedSiteCount &&
+    props.bannedSiteCount > 0
   ) {
     return render(
       styles.error,
-      <Localized id="userStatus-banned-all">
-        <div>Banned (all)</div>
+      <Localized
+        id="userStatus-banned-count"
+        vars={{ count: props.bannedSiteCount }}
+      >
+        <div>Banned ({props.bannedSiteCount})</div>
       </Localized>
     );
   }

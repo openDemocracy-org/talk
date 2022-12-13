@@ -163,6 +163,10 @@ export const Mutation: Required<GQLMutationTypeResolver<void>> = {
     ...(await ctx.mutators.Users.deactivateToken(input)),
     clientMutationId: input.clientMutationId,
   }),
+  updateSSOProfileID: async (source, { input }, ctx) => ({
+    user: await ctx.mutators.Users.updateSSOProfileID(input),
+    clientMutationId: input.clientMutationId,
+  }),
   updateUsername: async (source, { input }, ctx) => ({
     user: await ctx.mutators.Users.updateUsername(input),
     clientMutationId: input.clientMutationId,
@@ -173,6 +177,10 @@ export const Mutation: Required<GQLMutationTypeResolver<void>> = {
   }),
   updateEmail: async (source, { input }, ctx) => ({
     user: await ctx.mutators.Users.updateEmail(input),
+    clientMutationId: input.clientMutationId,
+  }),
+  updateUserBan: async (source, { input }, ctx) => ({
+    user: await ctx.mutators.Users.updateUserBan(input),
     clientMutationId: input.clientMutationId,
   }),
   updateUserEmail: async (source, { input }, ctx) => ({
@@ -187,12 +195,24 @@ export const Mutation: Required<GQLMutationTypeResolver<void>> = {
     user: await ctx.mutators.Users.updateUserRole(input),
     clientMutationId: input.clientMutationId,
   }),
-  promoteUser: async (source, { input }, ctx) => ({
-    user: await ctx.mutators.Users.promote(input),
+  promoteModerator: async (source, { input }, ctx) => ({
+    user: await ctx.mutators.Users.promoteModerator(input),
     clientMutationId: input.clientMutationId,
   }),
-  demoteUser: async (source, { input }, ctx) => ({
-    user: await ctx.mutators.Users.demote(input),
+  demoteModerator: async (source, { input }, ctx) => ({
+    user: await ctx.mutators.Users.demoteModerator(input),
+    clientMutationId: input.clientMutationId,
+  }),
+  promoteMember: async (source, { input }, ctx) => ({
+    user: await ctx.mutators.Users.promoteMember(input),
+    clientMutationId: input.clientMutationId,
+  }),
+  demoteMember: async (source, { input }, ctx) => ({
+    user: await ctx.mutators.Users.demoteMember(input),
+    clientMutationId: input.clientMutationId,
+  }),
+  updateUserMembershipScopes: async (source, { input }, ctx) => ({
+    user: await ctx.mutators.Users.updateUserMembershipScopes(input),
     clientMutationId: input.clientMutationId,
   }),
   updateUserModerationScopes: async (source, { input }, ctx) => ({
@@ -217,6 +237,14 @@ export const Mutation: Required<GQLMutationTypeResolver<void>> = {
   }),
   acknowledgeWarning: async (source, { input }, ctx) => ({
     user: await ctx.mutators.Users.acknowledgeWarning(),
+    clientMutationId: input.clientMutationId,
+  }),
+  sendModMessage: async (source, { input }, ctx) => ({
+    user: await ctx.mutators.Users.sendModMessage(input),
+    clientMutationId: input.clientMutationId,
+  }),
+  acknowledgeModMessage: async (source, { input }, ctx) => ({
+    user: await ctx.mutators.Users.acknowledgeModMessage(),
     clientMutationId: input.clientMutationId,
   }),
   suspendUser: async (source, { input }, ctx) => ({
@@ -310,6 +338,30 @@ export const Mutation: Required<GQLMutationTypeResolver<void>> = {
   removeStoryExpert: async (source, { input }, ctx) => ({
     story: await ctx.mutators.Stories.removeStoryExpert(input),
     clientMutationId: input.clientMutationId,
+  }),
+  createEmailDomain: async (
+    source,
+    { input: { clientMutationId, ...input } },
+    ctx
+  ) => ({
+    settings: await ctx.mutators.Settings.createEmailDomain(input),
+    clientMutationId,
+  }),
+  updateEmailDomain: async (
+    source,
+    { input: { clientMutationId, ...input } },
+    ctx
+  ) => ({
+    settings: await ctx.mutators.Settings.updateEmailDomain(input),
+    clientMutationId,
+  }),
+  deleteEmailDomain: async (
+    source,
+    { input: { clientMutationId, ...input } },
+    ctx
+  ) => ({
+    settings: await ctx.mutators.Settings.deleteEmailDomain(input),
+    clientMutationId,
   }),
   createWebhookEndpoint: async (
     source,
@@ -406,9 +458,10 @@ export const Mutation: Required<GQLMutationTypeResolver<void>> = {
     { input: { clientMutationId, ...input } },
     ctx
   ) => ({
-    phase: await ctx.mutators.Settings.rotateExternalModerationPhaseSigningSecret(
-      input
-    ),
+    phase:
+      await ctx.mutators.Settings.rotateExternalModerationPhaseSigningSecret(
+        input
+      ),
     clientMutationId,
   }),
   testSMTP: async (source, { input: { clientMutationId } }, ctx) => {
@@ -419,6 +472,26 @@ export const Mutation: Required<GQLMutationTypeResolver<void>> = {
   },
   updateBio: async (source, { input }, ctx) => ({
     user: await ctx.mutators.Users.updateBio(input),
+    clientMutationId: input.clientMutationId,
+  }),
+  reviewCommentFlag: async (source, { input }, ctx) => ({
+    flag: await ctx.mutators.Actions.reviewCommentFlag(input),
+    clientMutationId: input.clientMutationId,
+  }),
+  archiveStories: async (source, { input }, ctx) => ({
+    stories: await ctx.mutators.Stories.archiveStories(input),
+    clientMutationId: input.clientMutationId,
+  }),
+  unarchiveStories: async (source, { input }, ctx) => ({
+    stories: await ctx.mutators.Stories.unarchiveStories(input),
+    clientMutationId: input.clientMutationId,
+  }),
+  markCommentsAsSeen: async (source, { input }, ctx) => ({
+    comments: await ctx.mutators.Comments.markAsSeen(input),
+    clientMutationId: input.clientMutationId,
+  }),
+  refreshStoryCounts: async (source, { input }, ctx) => ({
+    story: await ctx.mutators.Stories.refreshStoryCounts(input),
     clientMutationId: input.clientMutationId,
   }),
 };

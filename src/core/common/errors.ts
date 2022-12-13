@@ -94,6 +94,12 @@ export enum ERROR_CODES {
   DUPLICATE_EMAIL = "DUPLICATE_EMAIL",
 
   /**
+   * DUPLICATE_EMAIL_DOMAIN is returned when a user attempts to add configuration
+   * for an email domain already configured on the tenant.
+   */
+  DUPLICATE_EMAIL_DOMAIN = "DUPLICATE_EMAIL_DOMAIN",
+
+  /**
    * LOCAL_PROFILE_ALREADY_SET is returned when the user attempts to associate a
    * local profile when the user already has one.
    */
@@ -104,6 +110,12 @@ export enum ERROR_CODES {
    * action which requires a local profile to be associated with the user.
    */
   LOCAL_PROFILE_NOT_SET = "LOCAL_PROFILE_NOT_SET",
+
+  /**
+   * SSO_PROFILE_NOT_SET is returned when the user attempts to perform an
+   * action which requires an SSO profile to be associated with the user.
+   */
+  SSO_PROFILE_NOT_SET = "SSO_PROFILE_NOT_SET",
 
   /**
    * USERNAME_ALREADY_SET is returned when the user attempts to set a username
@@ -203,6 +215,18 @@ export enum ERROR_CODES {
   COMMENT_REVISION_NOT_FOUND = "COMMENT_REVISION_NOT_FOUND",
 
   /**
+   * PARENT_COMMENT_REJECTED is returned when a Comment's parent
+   * comment has been rejected.
+   */
+  PARENT_COMMENT_REJECTED = "PARENT_COMMENT_REJECTED",
+
+  /**
+   * ANCESTOR_REJECTED is returned when a Comment's ancestor
+   * has been rejected.
+   */
+  ANCESTOR_REJECTED = "ANCESTOR_REJECTED",
+
+  /**
    * AUTHENTICATION_ERROR is returned when a general authentication error has
    * occurred and the request can not be processed.
    */
@@ -260,6 +284,12 @@ export enum ERROR_CODES {
    * that is not permitted if they are banned on that site.
    */
   USER_SITE_BANNED = "USER_SITE_BANNED",
+
+  /**
+   * MODERATOR_CANNOT_BE_BANNED_ON_SITE is returned when one or more of the sites
+   * that a user is being banned on is included in the user's moderation scopes.
+   */
+  MODERATOR_CANNOT_BE_BANNED_ON_SITE = "MODERATOR_CANNOT_BE_BANNED_ON_SITE",
 
   /**
    * USER_CANNOT_BE_IGNORED is returned when the user attempts to ignore
@@ -364,4 +394,29 @@ export enum ERROR_CODES {
    * rated a story and attempts to do so again.
    */
   AUTHOR_ALREADY_HAS_RATED_STORY = "AUTHOR_ALREADY_HAS_RATED_STORY",
+
+  /**
+   * CANNOT_CREATE_COMMENT_ON_ARCHIVED_STORY is thrown when a user attempts to
+   * publish a comment on an archived story. We do not allow creating comments
+   * or replies on archived comment data.
+   */
+  CANNOT_CREATE_COMMENT_ON_ARCHIVED_STORY = "CANNOT_CREATE_COMMENT_ON_ARCHIVED_STORY",
+
+  /**
+   * CANNOT_OPEN_AN_ARCHIVED_STORY is thrown when a user attempts to open a
+   * story that is archived or actively being archived.
+   */
+  CANNOT_OPEN_AN_ARCHIVED_STORY = "CANNOT_OPEN_AN_ARCHIVED_STORY",
+
+  /**
+   * CANNOT_MERGE_AN_ARCHIVED_STORY is thrown when a user attempts to merge a
+   * story that is archived or actively being archived.
+   */
+  CANNOT_MERGE_AN_ARCHIVED_STORY = "CANNOT_MERGE_AN_ARCHIVED_STORY",
+
+  /**
+   * USERNAME_ALREADY_EXISTS is thrown when a user is signing up or changing
+   * their username and the provided username has already been taken.
+   */
+  USERNAME_ALREADY_EXISTS = "USERNAME_ALREADY_EXISTS",
 }

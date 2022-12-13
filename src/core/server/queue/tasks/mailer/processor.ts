@@ -1,5 +1,5 @@
 import { FluentBundle } from "@fluent/bundle/compat";
-import { DOMLocalization } from "@fluent/dom/compat";
+import { DOMLocalization } from "@fluent/dom";
 import createDOMPurify from "dompurify";
 import {
   Message,
@@ -13,16 +13,16 @@ import Joi from "joi";
 import { JSDOM } from "jsdom";
 import { juiceResources } from "juice";
 import { camelCase, isNil } from "lodash";
-import { Db } from "mongodb";
 import timeoutPromiseAfter from "p-timeout";
 
 import { LanguageCode } from "coral-common/helpers";
 import { Config } from "coral-server/config";
+import { MongoContext } from "coral-server/data/context";
 import { WrappedInternalError } from "coral-server/errors";
 import { createTimer } from "coral-server/helpers";
 import logger from "coral-server/logger";
 import { hasFeatureFlag, Tenant } from "coral-server/models/tenant";
-import { JobProcessor } from "coral-server/queue/Task";
+import { isLastAttempt, JobProcessor } from "coral-server/queue/Task";
 import { I18n, translate } from "coral-server/services/i18n";
 import {
   TenantCache,
@@ -40,7 +40,7 @@ interface TemplateMeta {
 
 export interface MailProcessorOptions {
   config: Config;
-  mongo: Db;
+  mongo: MongoContext;
   tenantCache: TenantCache;
   i18n: I18n;
 }
@@ -382,10 +382,13 @@ export const createJobProcessor = (
 
       // Reset the sent email counter, we've reset the transport!
       sentEmailsCounter = 0;
-
       log.warn({ err: e }, "reset smtp transport due to a send error");
 
-      throw new WrappedInternalError(e, "could not send email");
+      if (isLastAttempt(job)) {
+        throw new WrappedInternalError(e, "could not send email, not retrying");
+      }
+
+      throw new WrappedInternalError(e, "could not send email, will retry");
     }
 
     // Increment the sent email counter.

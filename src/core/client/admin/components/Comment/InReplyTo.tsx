@@ -12,15 +12,24 @@ interface Props {
 
 const InReplyTo: FunctionComponent<Props> = ({ children, onUsernameClick }) => {
   const Username = () => (
-    <BaseButton onClick={onUsernameClick} className={styles.usernameButton}>
-      <span className={styles.username}>{children}</span>
-    </BaseButton>
+    <Localized
+      id="common-username"
+      attrs={{ "aria-label": true }}
+      vars={{ username: children }}
+    >
+      <BaseButton onClick={onUsernameClick} className={styles.usernameButton}>
+        <span className={styles.username}>{children}</span>
+      </BaseButton>
+    </Localized>
   );
 
   return (
     <Flex alignItems="center">
       <Icon className={styles.icon}>reply</Icon>{" "}
-      <Localized id="moderate-comment-inReplyTo" Username={<Username />}>
+      <Localized
+        id="moderate-comment-inReplyTo"
+        elems={{ Username: <Username /> }}
+      >
         <span className={styles.inReplyTo}>
           Reply to
           <Username />

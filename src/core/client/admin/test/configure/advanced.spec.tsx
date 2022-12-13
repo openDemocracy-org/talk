@@ -1,3 +1,5 @@
+import { noop } from "lodash";
+
 import { pureMerge } from "coral-common/utils";
 import { GQLResolver } from "coral-framework/schema";
 import {
@@ -74,13 +76,10 @@ it("change custom css", async () => {
       },
     },
   });
-  const {
-    configureContainer,
-    advancedContainer,
-    saveChangesButton,
-  } = await createTestRenderer({
-    resolvers,
-  });
+  const { configureContainer, advancedContainer, saveChangesButton } =
+    await createTestRenderer({
+      resolvers,
+    });
 
   const customCSSField = within(advancedContainer).getByLabelText("Custom CSS");
 
@@ -89,7 +88,9 @@ it("change custom css", async () => {
 
   // Send form
   act(() => {
-    within(configureContainer).getByType("form").props.onSubmit();
+    within(configureContainer)
+      .getByType("form")
+      .props.onSubmit({ preventDefault: noop });
   });
 
   // Submit button and text field should be disabled.
@@ -135,7 +136,9 @@ it("remove custom css", async () => {
 
   // Send form
   act(() => {
-    within(configureContainer).getByType("form").props.onSubmit();
+    within(configureContainer)
+      .getByType("form")
+      .props.onSubmit({ preventDefault: noop });
   });
 
   // Wait for submission to be finished
@@ -170,4 +173,44 @@ it("renders without live configuration when not configurable", async () => {
   expect(
     within(advancedContainer).queryByLabelText("Comment Stream Live Updates")
   ).toEqual(null);
+});
+
+it("change review all user reports to enable For review queue", async () => {
+  const resolvers = createResolversStub<GQLResolver>({
+    Query: {
+      settings: () => settings,
+    },
+    Mutation: {
+      updateSettings: ({ variables }) => {
+        expectAndFail(variables.settings.forReviewQueue).toEqual(true);
+        return {
+          settings: pureMerge(settings, variables.settings),
+        };
+      },
+    },
+  });
+  const { configureContainer, advancedContainer } = await createTestRenderer({
+    resolvers,
+  });
+
+  const forReviewQueueBox = within(advancedContainer).getByTestID(
+    "for-review-queue-config-box"
+  );
+
+  const onField = within(forReviewQueueBox).getByLabelText("On");
+  act(() => onField.props.onChange(onField.props.value.toString()));
+
+  // Send form
+  act(() => {
+    within(configureContainer)
+      .getByType("form")
+      .props.onSubmit({ preventDefault: noop });
+  });
+
+  // Wait for submission to be finished
+  await act(async () => {
+    await wait(() => {
+      expect(resolvers.Mutation!.updateSettings!.called).toBe(true);
+    });
+  });
 });

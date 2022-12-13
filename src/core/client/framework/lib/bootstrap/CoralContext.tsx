@@ -1,7 +1,6 @@
 import { FluentBundle } from "@fluent/bundle/compat";
-import { LocalizationProvider } from "@fluent/react/compat";
+import { LocalizationProvider, ReactLocalization } from "@fluent/react/compat";
 import { EventEmitter2 } from "eventemitter2";
-import { Child as PymChild } from "pym.js";
 import React, { FunctionComponent } from "react";
 import { MediaQueryMatchers } from "react-responsive";
 import { Formatter } from "react-timeago";
@@ -14,10 +13,10 @@ import { RestClient } from "coral-framework/lib/rest";
 import { PromisifiedStorage } from "coral-framework/lib/storage";
 import { TransitionControlData } from "coral-framework/testHelpers";
 import { UIContext } from "coral-ui/components/v2";
-import { ClickFarAwayRegister } from "coral-ui/components/v2/ClickOutside";
 
 import { ManagedSubscriptionClient } from "../network/createManagedSubscriptionClient";
 import { TokenRefreshProvider } from "../network/tokenRefreshProvider";
+import { InMemoryStorage } from "../storage/InMemoryStorage";
 
 export interface CoralContext {
   /** relayEnvironment for our relay framework. */
@@ -35,11 +34,30 @@ export interface CoralContext {
   /** formatter for timeago. */
   timeagoFormatter?: Formatter;
 
+  /** inMemory Storage */
+  inMemoryStorage: InMemoryStorage;
+
+  /**
+   * This is the window, where the React code is running.
+   * Usually this is same as the global `window` object.
+   */
+  window: Window;
+
+  /**
+   * This is the window, we are rendering to,
+   * this is different from `window` above, when we
+   * are rendering to another frame.
+   */
+  renderWindow: Window;
+
   /** Local Storage */
   localStorage: PromisifiedStorage;
 
   /** Session storage */
   sessionStorage: PromisifiedStorage;
+
+  /** IndexedDB storage */
+  indexedDBStorage: PromisifiedStorage<any>;
 
   /** media query values for testing purposes */
   mediaQueryValues?: MediaQueryMatchers;
@@ -49,15 +67,6 @@ export interface CoralContext {
 
   /** postMessage service */
   postMessage: PostMessageService;
-
-  /**
-   * A way to listen for clicks that are e.g. outside of the
-   * current frame for `ClickOutside`
-   */
-  registerClickFarAway?: ClickFarAwayRegister;
-
-  /** A pym child that interacts with the pym parent. */
-  pym?: PymChild;
 
   /** Browser detection. */
   browserInfo: BrowserInfo;
@@ -69,7 +78,7 @@ export interface CoralContext {
   eventEmitter: EventEmitter2;
 
   /** TokenRefreshProvider is used to obtain a new access token after expiry */
-  tokenRefreshProvider?: TokenRefreshProvider;
+  tokenRefreshProvider: TokenRefreshProvider;
 
   /** Clear session data. */
   clearSession: (
@@ -82,6 +91,14 @@ export interface CoralContext {
 
   /** Controls router transitions (for tests) */
   transitionControl?: TransitionControlData;
+
+  /** rootURL to the Coral Server */
+  rootURL: string;
+
+  /** Supports a custom scroll container element if Coral is rendered outside
+   * of the render window
+   */
+  customScrollContainer?: HTMLElement;
 }
 
 export const CoralReactContext = React.createContext<CoralContext>({} as any);
@@ -93,47 +110,31 @@ export const useCoralContext = () => React.useContext(CoralReactContext);
  */
 export const CoralContextConsumer = CoralReactContext.Consumer;
 
-const parser = new DOMParser();
-
-function fallbackParseMarkup(str: string) {
-  const doc = document.implementation.createHTMLDocument("");
-  doc.documentElement.innerHTML = str;
-  return doc;
-}
-
-// Use this custom markup parser which works in IE11.
-function parseMarkup(str: string) {
-  const html = `<body>${str}</body>`;
-  let doc = parser.parseFromString(html, "text/html");
-  // occasionally parser.parseFromString will not return document.body synchronously on iOS
-  if (!doc.body) {
-    doc = fallbackParseMarkup(html);
-  }
-  return Array.from(doc.body.childNodes);
+export function getUIContextPropsFromCoralContext(ctx: CoralContext) {
+  return {
+    timeagoFormatter: ctx.timeagoFormatter,
+    mediaQueryValues: ctx.mediaQueryValues,
+    locales: ctx.locales,
+    renderWindow: ctx.renderWindow,
+  };
 }
 
 /**
  * In addition to just providing the context, CoralContextProvider also
- * renders the `LocalizationProvider` with the appropite data.
+ * renders the `LocalizationProvider` with the appropriate data.
  */
 export const CoralContextProvider: FunctionComponent<{
   value: CoralContext;
-}> = ({ value, children }) => (
-  <CoralReactContext.Provider value={value}>
-    <LocalizationProvider
-      bundles={value.localeBundles}
-      parseMarkup={parseMarkup}
-    >
-      <UIContext.Provider
-        value={{
-          timeagoFormatter: value.timeagoFormatter,
-          registerClickFarAway: value.registerClickFarAway,
-          mediaQueryValues: value.mediaQueryValues,
-          locales: value.locales,
-        }}
-      >
-        {children}
-      </UIContext.Provider>
-    </LocalizationProvider>
-  </CoralReactContext.Provider>
-);
+  children?: React.ReactNode;
+}> = ({ value, children }) => {
+  const l10n = new ReactLocalization(value.localeBundles);
+  return (
+    <CoralReactContext.Provider value={value}>
+      <LocalizationProvider l10n={l10n}>
+        <UIContext.Provider value={getUIContextPropsFromCoralContext(value)}>
+          {children}
+        </UIContext.Provider>
+      </LocalizationProvider>
+    </CoralReactContext.Provider>
+  );
+};

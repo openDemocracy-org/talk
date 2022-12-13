@@ -53,6 +53,34 @@ exports[`renders configure advanced 1`] = `
                 </a>
               </li>
               <li>
+                <button
+                  className="BaseButton-root SubLink-subLink"
+                  onBlur={[Function]}
+                  onClick={[Function]}
+                  onFocus={[Function]}
+                  onMouseOut={[Function]}
+                  onMouseOver={[Function]}
+                  onTouchEnd={[Function]}
+                  type="button"
+                >
+                  Comments
+                </button>
+              </li>
+              <li>
+                <button
+                  className="BaseButton-root SubLink-subLink"
+                  onBlur={[Function]}
+                  onClick={[Function]}
+                  onFocus={[Function]}
+                  onMouseOut={[Function]}
+                  onMouseOver={[Function]}
+                  onTouchEnd={[Function]}
+                  type="button"
+                >
+                  Users
+                </button>
+              </li>
+              <li>
                 <a
                   className="Link-link"
                   href="/admin/configure/moderation/phases"
@@ -169,11 +197,20 @@ exports[`renders configure advanced 1`] = `
                 <div
                   className="Box-root HorizontalGutter-root FormField-root HorizontalGutter-spacing-2"
                 >
-                  <p
-                    className="FormFieldDescription-root"
+                  <div
+                    className="Box-root HorizontalGutter-root FormFieldHeader-root HorizontalGutter-spacing-1"
                   >
-                    URL of a CSS stylesheet that will override default Embed Stream styles.
-                  </p>
+                    <label
+                      className="Label-root"
+                    >
+                      Custom CSS Stylesheet URL
+                    </label>
+                    <p
+                      className="HelperText-root"
+                    >
+                      URL of a CSS stylesheet that will override default Embed Stream styles.
+                    </p>
+                  </div>
                   <div
                     className="Box-root HorizontalGutter-root HorizontalGutter-spacing-2"
                   >
@@ -188,6 +225,49 @@ exports[`renders configure advanced 1`] = `
                         disabled={false}
                         id="configure-advanced-customCSSURL"
                         name="customCSSURL"
+                        onBlur={[Function]}
+                        onChange={[Function]}
+                        onFocus={[Function]}
+                        placeholder=""
+                        spellCheck={false}
+                        type="text"
+                        value=""
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div
+                  className="Box-root HorizontalGutter-root FormField-root HorizontalGutter-spacing-2"
+                >
+                  <div
+                    className="Box-root HorizontalGutter-root FormFieldHeader-root HorizontalGutter-spacing-1"
+                  >
+                    <label
+                      className="Label-root"
+                    >
+                      Custom CSS Stylesheet URL for Font Faces
+                    </label>
+                    <p
+                      className="HelperText-root"
+                    >
+                      URL to a custom CSS stylesheet that contains all @font-face
+definitions needed by above stylesheet.
+                    </p>
+                  </div>
+                  <div
+                    className="Box-root HorizontalGutter-root HorizontalGutter-spacing-2"
+                  >
+                    <div
+                      className="TextField-root TextField-fullWidth"
+                    >
+                      <input
+                        autoCapitalize="off"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        className="TextField-input TextField-colorRegular"
+                        disabled={false}
+                        id="configure-advanced-customFontsCSSURL"
+                        name="customFontsCSSURL"
                         onBlur={[Function]}
                         onChange={[Function]}
                         onFocus={[Function]}
@@ -690,6 +770,214 @@ scrape request.
                           visibility
                         </i>
                       </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            className="Box-root ConfigBox-root"
+          >
+            <div
+              className="Box-root Flex-root ConfigBox-title Flex-flex Flex-justifySpaceBetween"
+            >
+              <div>
+                <label
+                  className="Header-root"
+                  htmlFor="configure-advanced-amp"
+                >
+                  Accelerated Mobile Pages
+                </label>
+              </div>
+              <div />
+            </div>
+            <div
+              className="ConfigBox-content"
+            >
+              <div
+                className="Box-root HorizontalGutter-root HorizontalGutter-spacing-4"
+              >
+                <div
+                  className="Box-root HorizontalGutter-root FormField-root HorizontalGutter-spacing-2"
+                >
+                  <p
+                    className="FormFieldDescription-root"
+                  >
+                    Enable support for 
+                    <a
+                      className="TextLink-root"
+                      href="https://amp.dev/"
+                      target="_blank"
+                    >
+                      AMP
+                      <i
+                        aria-hidden="true"
+                        className="Icon-root Icon-xs TextLink-icon"
+                      >
+                        open_in_new
+                      </i>
+                    </a>
+                     on the comment stream.
+Once enabled, you will need to add Coral’s AMP embed code to your page
+template. See our 
+                    <a
+                      className="TextLink-root"
+                      href="https://docs.coralproject.net/amp"
+                      target="_blank"
+                    >
+                      documentation
+                      <i
+                        aria-hidden="true"
+                        className="Icon-root Icon-xs TextLink-icon"
+                      >
+                        open_in_new
+                      </i>
+                    </a>
+                     for more
+details. Enable Enable Support.
+                  </p>
+                  <div>
+                    <div
+                      className="Box-root Flex-root RadioButton-root Flex-flex Flex-alignCenter"
+                    >
+                      <input
+                        checked={false}
+                        className="RadioButton-input"
+                        disabled={false}
+                        id="amp-true"
+                        name="amp"
+                        onBlur={[Function]}
+                        onChange={[Function]}
+                        onFocus={[Function]}
+                        type="radio"
+                        value="true"
+                      />
+                      <label
+                        className="RadioButton-label"
+                        htmlFor="amp-true"
+                      >
+                        <span>
+                          On
+                        </span>
+                      </label>
+                    </div>
+                    <div
+                      className="Box-root Flex-root RadioButton-root Flex-flex Flex-alignCenter"
+                    >
+                      <input
+                        checked={true}
+                        className="RadioButton-input"
+                        disabled={false}
+                        id="amp-false"
+                        name="amp"
+                        onBlur={[Function]}
+                        onChange={[Function]}
+                        onFocus={[Function]}
+                        type="radio"
+                        value="false"
+                      />
+                      <label
+                        className="RadioButton-label RadioButton-labelChecked"
+                        htmlFor="amp-false"
+                      >
+                        <span>
+                          Off
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            className="Box-root ConfigBox-root"
+            data-testid="for-review-queue-config-box"
+          >
+            <div
+              className="Box-root Flex-root ConfigBox-title Flex-flex Flex-justifySpaceBetween"
+            >
+              <div>
+                <label
+                  className="Header-root"
+                  htmlFor="configure-advanced-for-review-queue"
+                >
+                  Review all user reports
+                </label>
+              </div>
+              <div />
+            </div>
+            <div
+              className="ConfigBox-content"
+            >
+              <div
+                className="Box-root HorizontalGutter-root HorizontalGutter-spacing-4"
+              >
+                <div
+                  className="Box-root HorizontalGutter-root FormField-root HorizontalGutter-spacing-2"
+                >
+                  <p
+                    className="FormFieldDescription-root"
+                  >
+                    Once a comment is approved, it won't appear again in the reported queue
+even if additional users report it. This feature adds a "For review" queue,
+allowing moderators to see all user reports in the system, and manually
+mark them as "Reviewed".
+                  </p>
+                  <legend
+                    className="Label-root"
+                  >
+                    Show "For review" queue
+                  </legend>
+                  <div>
+                    <div
+                      className="Box-root Flex-root RadioButton-root Flex-flex Flex-alignCenter"
+                    >
+                      <input
+                        checked={false}
+                        className="RadioButton-input"
+                        disabled={false}
+                        id="forReviewQueue-true"
+                        name="forReviewQueue"
+                        onBlur={[Function]}
+                        onChange={[Function]}
+                        onFocus={[Function]}
+                        type="radio"
+                        value="true"
+                      />
+                      <label
+                        className="RadioButton-label"
+                        htmlFor="forReviewQueue-true"
+                      >
+                        <span>
+                          On
+                        </span>
+                      </label>
+                    </div>
+                    <div
+                      className="Box-root Flex-root RadioButton-root Flex-flex Flex-alignCenter"
+                    >
+                      <input
+                        checked={true}
+                        className="RadioButton-input"
+                        disabled={false}
+                        id="forReviewQueue-false"
+                        name="forReviewQueue"
+                        onBlur={[Function]}
+                        onChange={[Function]}
+                        onFocus={[Function]}
+                        type="radio"
+                        value="false"
+                      />
+                      <label
+                        className="RadioButton-label RadioButton-labelChecked"
+                        htmlFor="forReviewQueue-false"
+                      >
+                        <span>
+                          Off
+                        </span>
+                      </label>
                     </div>
                   </div>
                 </div>

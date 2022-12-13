@@ -159,7 +159,8 @@ export default function createManagedSubscriptionClient(
         if (subscriptionClient && !needWebsocketConnection()) {
           closeClient();
           if (process.env.NODE_ENV !== "production") {
-            window.console.debug(
+            // eslint-disable-next-line no-console
+            console.debug(
               "subscription client disconnecting, no more subscriptions being tracked"
             );
           }
@@ -249,7 +250,7 @@ export default function createManagedSubscriptionClient(
           // If an error is thrown as a result of live updates being
           // disabled, then just close the subscription client.
           if (
-            ((err as unknown) as Error).message ===
+            (err as unknown as Error).message ===
               ERROR_CODES.LIVE_UPDATES_DISABLED &&
             subscriptionClient
           ) {
@@ -347,7 +348,8 @@ export default function createManagedSubscriptionClient(
       // Debug subscriptions being logged. These should be kept here to help
       // with debugging subscriptions.
       if (process.env.NODE_ENV !== "production") {
-        window.console.debug(
+        // eslint-disable-next-line no-console
+        console.debug(
           `+1 [${requests.length - 1} + 1 = ${
             requests.length
           }] subscribe called for subscription:`,
@@ -387,7 +389,8 @@ export default function createManagedSubscriptionClient(
         // Debug subscriptions being logged. These should be kept here to help
         // with debugging subscriptions.
         if (process.env.NODE_ENV !== "production") {
-          window.console.debug(
+          // eslint-disable-next-line no-console
+          console.debug(
             `-1 [${requests.length + 1} - 1 = ${
               requests.length
             }] dispose called for subscription:`,

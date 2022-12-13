@@ -7,8 +7,7 @@ import CLASSES from "coral-stream/classes";
 import { OpenSortMenuEvent } from "coral-stream/events";
 import { AriaInfo, Flex, Option, SelectField } from "coral-ui/components/v2";
 
-import * as styles from "./SortMenu.css";
-
+import styles from "./SortMenu.css";
 interface Props {
   className?: string;
   orderBy:
@@ -26,9 +25,10 @@ interface Props {
 
 const SortMenu: FunctionComponent<Props> = (props) => {
   const emitOpenSortMenuEvent = useViewerEvent(OpenSortMenuEvent);
-  const onClickSelectField = useCallback(() => emitOpenSortMenuEvent(), [
-    emitOpenSortMenuEvent,
-  ]);
+  const onClickSelectField = useCallback(
+    () => emitOpenSortMenuEvent(),
+    [emitOpenSortMenuEvent]
+  );
   let label = (
     <Localized id="comments-sortMenu-sortBy">
       <label className={styles.label} htmlFor="coral-comments-sortMenu">

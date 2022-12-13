@@ -27,33 +27,40 @@ afterEach(() => {
 
 it("Sets comment id", async () => {
   const id = "comment1-id";
-  await commit(environment, { id }, {} as any);
+  const context = {
+    window,
+    renderWindow: window,
+  };
+  await commit(environment, { id }, context as any);
   expect(source.get(LOCAL_ID)!.commentID).toEqual(id);
-  expect(parseQuery(location.search).commentID).toEqual(id);
 });
 
-it("Should call setCommentID in pym", async () => {
+it("Should call setCommentID in eventEmitter", async () => {
   const id = "comment2-id";
   const context = {
-    pym: {
-      sendMessage: sinon.mock().once().withArgs("setCommentID", id),
+    eventEmitter: {
+      emit: sinon.mock().once().withArgs("stream.setCommentID", id),
     },
+    window,
+    renderWindow: window,
   };
   await commit(environment, { id }, context as any);
   await waitFor();
   expect(source.get(LOCAL_ID)!.commentID).toEqual(id);
-  context.pym.sendMessage.verify();
+  context.eventEmitter.emit.verify();
 });
 
-it("Should call setCommentID in pym with empty id", async () => {
+it("Should call setCommentID in eventEmitter with empty id", async () => {
   const context = {
-    pym: {
-      sendMessage: sinon.mock().once().withArgs("setCommentID", ""),
+    eventEmitter: {
+      emit: sinon.mock().once().withArgs("stream.setCommentID", ""),
     },
+    window,
+    renderWindow: window,
   };
   await commit(environment, { id: null }, context as any);
   await waitFor();
   expect(source.get(LOCAL_ID)!.commentID).toEqual(null);
   expect(parseQuery(location.search).commentID).toBeUndefined();
-  context.pym.sendMessage.verify();
+  context.eventEmitter.emit.verify();
 });

@@ -32,10 +32,14 @@ import { CreateCommentReplyMutation as MutationTypes } from "coral-stream/__gene
 
 import {
   determineDepthTillAncestor,
+  determineDepthTillStory,
   getFlattenedReplyAncestorID,
   incrementStoryCommentCounts,
   isPublished,
   lookupFlattenReplies,
+  lookupStoryConnectionKey,
+  lookupStoryConnectionOrderBy,
+  lookupStoryConnectionTag,
   prependCommentEdgeToProfile,
 } from "../../helpers";
 
@@ -57,6 +61,7 @@ function sharedUpdater(
     .getLinkedRecord("edge")!;
   const node = commentEdge.getLinkedRecord("node")!;
   const status = node.getValue("status");
+  node.setValue("CREATE", "lastViewerAction");
 
   // If comment is not published, we don't need to add it.
   if (!isPublished(status)) {
@@ -155,7 +160,16 @@ function addCommentReplyToStory(
   const flattenReplies = lookupFlattenReplies(environment);
   const singleCommentID = lookup(environment, LOCAL_ID).commentID;
   const comment = commentEdge.getLinkedRecord("node")!;
-  const depth = determineDepthTillAncestor(comment, singleCommentID);
+  const depth = singleCommentID
+    ? determineDepthTillAncestor(store, comment, singleCommentID)
+    : determineDepthTillStory(
+        store,
+        comment,
+        input.storyID,
+        lookupStoryConnectionOrderBy(environment),
+        lookupStoryConnectionKey(environment),
+        lookupStoryConnectionTag(environment)
+      );
 
   if (depth === null) {
     // could not trace back to ancestor, that should not happen.
@@ -223,6 +237,7 @@ function addLocalCommentReplyToStory(
 // eslint-disable-next-line no-unused-expressions
 graphql`
   fragment CreateCommentReplyMutation_story on Story {
+    url
     settings {
       moderation
     }
@@ -288,8 +303,8 @@ async function commit(
   const viewer = getViewer(environment)!;
   const currentDate = new Date().toISOString();
   const id = uuidGenerator();
-  const storySettings = lookup<GQLStory>(relayEnvironment, input.storyID)!
-    .settings;
+  const story = lookup<GQLStory>(relayEnvironment, input.storyID)!;
+  const storySettings = story.settings;
   if (!storySettings || !storySettings.moderation) {
     throw new Error("Moderation mode of the story was not included");
   }
@@ -331,7 +346,8 @@ async function commit(
                 createdAt: currentDate,
                 status: "NONE",
                 pending: false,
-                lastViewerAction: null,
+                lastViewerAction: "CREATE",
+                hasTraversalFocus: false,
                 author: {
                   id: viewer.id,
                   username: viewer.username || null,
@@ -346,6 +362,7 @@ async function commit(
                   id: uuidGenerator(),
                   media: null,
                 },
+                canReply: true,
                 rating: null,
                 parent: {
                   id: parentComment.id,
@@ -373,6 +390,7 @@ async function commit(
                 },
                 story: {
                   id: input.storyID,
+                  url: story.url,
                   settings: {
                     live: {
                       enabled: storySettings.live.enabled,
@@ -388,6 +406,7 @@ async function commit(
                   pageInfo: { endCursor: null, hasNextPage: false },
                 },
                 deleted: false,
+                seen: true,
               },
             },
             clientMutationId: (clientMutationId++).toString(),

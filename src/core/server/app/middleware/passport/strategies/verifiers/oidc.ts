@@ -1,28 +1,34 @@
 import jwks, { JwksClient } from "jwks-rsa";
-import { Db } from "mongodb";
 
 import { AppOptions } from "coral-server/app";
 import { getEnabledIntegration } from "coral-server/app/authenticators/oidc/helpers";
+import { Config } from "coral-server/config";
+import { MongoContext } from "coral-server/data/context";
 import logger from "coral-server/logger";
 import { Tenant } from "coral-server/models/tenant";
 import {
   findOrCreateOIDCUserWithToken,
-  isOIDCToken,
   OIDCIDToken,
+  validateToken,
 } from "coral-server/services/oidc";
 import { TenantCacheAdapter } from "coral-server/services/tenant/cache";
 
 import { Verifier } from "../jwt";
 
-export type OIDCVerifierOptions = Pick<AppOptions, "mongo" | "tenantCache">;
+export type OIDCVerifierOptions = Pick<
+  AppOptions,
+  "mongo" | "tenantCache" | "config"
+>;
 
 export class OIDCVerifier implements Verifier<OIDCIDToken> {
-  private mongo: Db;
+  private config: Config;
+  private mongo: MongoContext;
   private cache: TenantCacheAdapter<JwksClient>;
 
-  constructor({ mongo, tenantCache }: OIDCVerifierOptions) {
+  constructor({ mongo, tenantCache, config }: OIDCVerifierOptions) {
     this.mongo = mongo;
     this.cache = new TenantCacheAdapter(tenantCache);
+    this.config = config;
   }
 
   public async verify(
@@ -48,6 +54,7 @@ export class OIDCVerifier implements Verifier<OIDCIDToken> {
     }
 
     return findOrCreateOIDCUserWithToken(
+      this.config,
       this.mongo,
       tenant,
       client,
@@ -57,14 +64,16 @@ export class OIDCVerifier implements Verifier<OIDCIDToken> {
     );
   }
 
-  public supports(
-    token: OIDCIDToken | object,
-    tenant: Tenant
-  ): token is OIDCIDToken {
+  public enabled(tenant: Tenant): boolean {
     return (
       tenant.auth.integrations.oidc.enabled &&
-      Boolean(tenant.auth.integrations.oidc.jwksURI) &&
-      isOIDCToken(token)
+      Boolean(tenant.auth.integrations.oidc.jwksURI)
     );
+  }
+
+  public checkForValidationError(
+    token: OIDCIDToken | object
+  ): string | undefined {
+    return validateToken(token);
   }
 }

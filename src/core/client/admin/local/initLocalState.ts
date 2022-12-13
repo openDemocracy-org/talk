@@ -4,6 +4,7 @@ import {
   ADMIN_REDIRECT_PATH_KEY,
   MOD_QUEUE_SORT_ORDER,
 } from "coral-admin/constants";
+import { DEFAULT_AUTO_ARCHIVE_OLDER_THAN } from "coral-common/constants";
 import { clearHash, getParamsFromHash } from "coral-framework/helpers";
 import { parseAccessToken } from "coral-framework/lib/auth";
 import { InitLocalState } from "coral-framework/lib/bootstrap/createManaged";
@@ -17,6 +18,7 @@ const initLocalState: InitLocalState = async ({
   environment,
   context,
   auth = null,
+  staticConfig,
   ...rest
 }) => {
   let redirectPath = await context.localStorage.getItem(
@@ -30,10 +32,10 @@ const initLocalState: InitLocalState = async ({
   let error: string | null = null;
 
   // Get all the parameters from the hash.
-  const params = getParamsFromHash();
+  const params = getParamsFromHash(context.window);
   if (params && (params.accessToken || params.error)) {
     // If there were params in the hash, then clear them!
-    clearHash();
+    clearHash(context.window);
 
     // If there was an error, add it.
     if (params.error) {
@@ -47,11 +49,21 @@ const initLocalState: InitLocalState = async ({
     }
   }
 
-  await initLocalBaseState({ environment, context, auth, ...rest });
+  await initLocalBaseState({
+    environment,
+    context,
+    auth,
+    staticConfig,
+    ...rest,
+  });
 
   const modQueueSortOrder = await context.localStorage.getItem(
     MOD_QUEUE_SORT_ORDER
   );
+
+  const archivingEnabled = staticConfig?.archivingEnabled || false;
+  const autoArchiveOlderThanMs =
+    staticConfig?.autoArchiveOlderThanMs ?? DEFAULT_AUTO_ARCHIVE_OLDER_THAN;
 
   commitLocalUpdate(environment, (s) => {
     const localRecord = s.get(LOCAL_ID)!;
@@ -63,6 +75,13 @@ const initLocalState: InitLocalState = async ({
       modQueueSortOrder ? modQueueSortOrder : GQLCOMMENT_SORT.CREATED_AT_DESC,
       "moderationQueueSort"
     );
+    localRecord.setValue(
+      staticConfig?.forceAdminLocalAuth ?? false,
+      "forceAdminLocalAuth"
+    );
+
+    localRecord.setValue(archivingEnabled, "archivingEnabled");
+    localRecord.setValue(autoArchiveOlderThanMs, "autoArchiveOlderThanMs");
   });
 };
 

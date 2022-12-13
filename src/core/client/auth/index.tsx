@@ -1,8 +1,6 @@
 import React, { FunctionComponent } from "react";
-import ReactDOM from "react-dom";
+import { createRoot } from "react-dom/client";
 
-import injectConditionalPolyfills from "coral-framework/helpers/injectConditionalPolyfills";
-import potentiallyInjectAxe from "coral-framework/helpers/potentiallyInjectAxe";
 import { createManaged } from "coral-framework/lib/bootstrap";
 
 import App from "./App";
@@ -13,11 +11,6 @@ import localesData from "./locales";
 import "coral-ui/theme/stream.css";
 
 async function main() {
-  await injectConditionalPolyfills();
-
-  // Potentially inject react-axe for runtime a11y checks.
-  await potentiallyInjectAxe();
-
   const ManagedCoralContextProvider = await createManaged({
     initLocalState,
     localesData,
@@ -30,7 +23,10 @@ async function main() {
     </ManagedCoralContextProvider>
   );
 
-  ReactDOM.render(<Index />, document.getElementById("app"));
+  // eslint-disable-next-line no-restricted-globals
+  const container = document.getElementById("app");
+  const root = createRoot(container!);
+  root.render(<Index />);
 }
 
 void main();

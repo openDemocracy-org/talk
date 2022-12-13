@@ -1,4 +1,11 @@
-import { noop } from "lodash";
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import { pureMerge } from "coral-common/utils";
 import {
@@ -8,24 +15,22 @@ import {
   MutationToOpenStoryResolver,
 } from "coral-framework/schema";
 import {
-  act,
   createMutationResolverStub,
   createResolversStub,
   CreateTestRendererParams,
-  findParentWithType,
   replaceHistoryLocation,
-  wait,
-  waitForElement,
-  waitUntilThrow,
-  within,
+  TransitionControlData,
 } from "coral-framework/testHelpers";
 
-import create from "../create";
+import { createContext } from "../create";
+import customRenderAppWithContext from "../customRenderAppWithContext";
 import {
   emptyStories,
   settings,
+  settingsWithMultisite,
   site,
   siteConnection,
+  sites,
   stories,
   storyConnection,
   users,
@@ -40,7 +45,7 @@ beforeEach(async () => {
 async function createTestRenderer(
   params: CreateTestRendererParams<GQLResolver> = {}
 ) {
-  const { testRenderer, context } = create({
+  const { context } = createContext({
     ...params,
     resolvers: pureMerge(
       createResolversStub<GQLResolver>({
@@ -63,98 +68,104 @@ async function createTestRenderer(
       }
     },
   });
-
-  return await act(async () => {
-    const container = await waitForElement(() =>
-      within(testRenderer.root).getByTestID("stories-container")
-    );
-
-    return { testRenderer, container, context };
-  });
+  customRenderAppWithContext(context);
+  return { context };
 }
 
 it("renders stories", async () => {
-  const { container } = await createTestRenderer();
   await act(async () => {
-    await wait(() => {
-      expect(within(container).toJSON()).toMatchSnapshot();
-    });
+    await createTestRenderer();
   });
+
+  const container = await screen.findByTestId("stories-container");
+
+  expect(
+    within(container).getByRole("row", {
+      name: "Finally a Cure for Cancer Vin Hoa 11/29/2018, 4:01 PM 3 2 5 Open",
+    })
+  ).toBeVisible();
+  expect(
+    within(container).getByRole("row", {
+      name: "First Colony on Mars Linh Nguyen 11/29/2018, 4:01 PM 3 2 5 Open",
+    })
+  ).toBeVisible();
 });
 
 it("renders empty stories", async () => {
-  const { container } = await createTestRenderer({
-    resolvers: createResolversStub<GQLResolver>({
-      Query: {
-        users: () => emptyStories,
-      },
-    }),
-  });
-
   await act(async () => {
-    await wait(() => {
-      expect(within(container).toJSON()).toMatchSnapshot();
+    await createTestRenderer({
+      resolvers: createResolversStub<GQLResolver>({
+        Query: {
+          stories: () => emptyStories,
+        },
+      }),
     });
   });
+  const container = await screen.findByTestId("stories-container");
+
+  // renders only the row of table headings
+  expect(within(container).getAllByRole("row").length).toEqual(1);
+  expect(
+    within(container).getByText("There are currently no published stories.")
+  ).toBeVisible();
 });
 
 it("goes to moderation when clicking on title", async () => {
-  const {
-    container,
-    context: { transitionControl },
-  } = await createTestRenderer();
+  let transitionControlData: TransitionControlData;
+  await act(async () => {
+    const {
+      context: { transitionControl },
+    } = await createTestRenderer();
+    transitionControlData = transitionControl;
+  });
+  const container = await screen.findByTestId("stories-container");
 
   // Prevent router transitions.
-  transitionControl.allowTransition = false;
+  transitionControlData!.allowTransition = false;
 
   const story = storyConnection.edges[0].node;
-  act(() => {
-    within(container)
-      .getByText(story.metadata!.title!)
-      .props.onClick({ button: 0, preventDefault: noop });
+  const storyLink = within(container).getByRole("link", {
+    name: "Finally a Cure for Cancer",
   });
+  userEvent.click(storyLink);
 
-  // Expect a routing request was made to the right url.
-  await act(async () => {
-    await wait(() => {
-      expect(transitionControl.history[0].pathname).toBe(
-        `/admin/moderate/stories/${story.id}`
-      );
-    });
+  await waitFor(() => {
+    expect(transitionControlData!.history[0].pathname).toBe(
+      `/admin/moderate/stories/${story.id}`
+    );
   });
 });
 
 it("filter by status", async () => {
-  const { container } = await createTestRenderer({
-    resolvers: createResolversStub<GQLResolver>({
-      Query: {
-        stories: ({ variables, callCount }) => {
-          switch (callCount) {
-            case 0:
-              return storyConnection;
-            default:
-              expectAndFail(variables.status).toBe(GQLSTORY_STATUS.CLOSED);
-              return emptyStories;
-          }
+  await act(async () => {
+    await createTestRenderer({
+      resolvers: createResolversStub<GQLResolver>({
+        Query: {
+          stories: ({ variables, callCount }) => {
+            switch (callCount) {
+              case 0:
+                return storyConnection;
+              default:
+                expectAndFail(variables.status).toBe(GQLSTORY_STATUS.CLOSED);
+                return emptyStories;
+            }
+          },
         },
-      },
-    }),
-  });
-
-  const selectField = within(container).getByLabelText("Search by status");
-  const closedOption = within(selectField).getByText("Closed Stories");
-
-  act(() => {
-    selectField.props.onChange({
-      target: { value: closedOption.props.value.toString() },
+      }),
     });
   });
+  const container = await screen.findByTestId("stories-container");
 
-  await act(async () => {
-    await waitForElement(() =>
-      within(container).getByText("could not find any", { exact: false })
-    );
+  const selectField = within(container).getByRole("combobox", {
+    name: "Search by status",
   });
+  userEvent.selectOptions(selectField, "CLOSED");
+
+  expect(
+    await within(container).findByText(
+      "We could not find any stories matching your criteria."
+    )
+  ).toBeVisible();
 });
 
 it("change story status", async () => {
@@ -191,140 +202,176 @@ it("change story status", async () => {
     }
   );
 
-  const { container } = await createTestRenderer({
-    resolvers: {
-      Mutation: { openStory, closeStory },
-    },
+  await act(async () => {
+    await createTestRenderer({
+      resolvers: {
+        Mutation: { openStory, closeStory },
+        Query: {
+          story: () => story,
+        },
+      },
+    });
   });
+  const container = await screen.findByTestId("stories-container");
 
-  const storyRow = within(container).getByText(story.metadata!.title!, {
-    selector: "tr",
+  const storyRow = within(container).getByRole("row", {
+    name: "First Colony on Mars Linh Nguyen 11/29/2018, 4:01 PM 3 2 5 Open",
   });
+  const openStoryDrawerButton = within(storyRow).getByRole("button", {
+    name: "Open Info Drawer",
+  });
+  userEvent.click(openStoryDrawerButton);
 
-  const changeStatusButton = within(storyRow).getByLabelText("Select action");
-  const popup = within(storyRow).getByLabelText(
-    "A dropdown to select story actions"
+  const modal = await screen.findByTestId("modal-storyInfoDrawer");
+  const changeStatusButton = await within(modal).findByLabelText(
+    "Select action"
   );
+  userEvent.click(changeStatusButton);
 
   /** CLOSE STORY */
-  act(() => {
-    changeStatusButton.props.onClick();
-  });
-  act(() => {
-    within(popup)
-      .getByText("Close story", { selector: "button" })
-      .props.onClick();
-  });
-
-  within(storyRow).getByText("Closed");
+  fireEvent.click(within(modal).getByRole("button", { name: "Closed" }));
   expect(closeStory.called).toBe(true);
 
   /** OPEN STORY */
-  act(() => {
-    changeStatusButton.props.onClick();
-  });
-
-  act(() => {
-    within(popup)
-      .getByText("Open story", { selector: "button" })
-      .props.onClick();
-  });
-
-  within(storyRow).getByText("Open");
+  userEvent.click(changeStatusButton);
+  fireEvent.click(within(modal).getByRole("button", { name: "Open" }));
   expect(openStory.called).toBe(true);
 });
 
 it("load more", async () => {
-  const { container } = await createTestRenderer({
-    resolvers: createResolversStub<GQLResolver>({
-      Query: {
-        stories: ({ callCount }) => {
-          switch (callCount) {
-            case 0:
-              return {
-                edges: [
-                  { node: stories[0], cursor: stories[0].createdAt },
-                  { node: stories[1], cursor: stories[1].createdAt },
-                ],
-                pageInfo: {
-                  endCursor: stories[1].createdAt,
-                  hasNextPage: true,
-                },
-              };
-            default:
-              return {
-                edges: [{ node: stories[2], cursor: stories[2].createdAt }],
-                pageInfo: {
-                  endCursor: stories[2].createdAt,
-                  hasNextPage: false,
-                },
-              };
-          }
+  await act(async () => {
+    await createTestRenderer({
+      resolvers: createResolversStub<GQLResolver>({
+        Query: {
+          stories: ({ callCount }) => {
+            switch (callCount) {
+              case 0:
+                return {
+                  edges: [
+                    { node: stories[0], cursor: stories[0].createdAt },
+                    { node: stories[1], cursor: stories[1].createdAt },
+                  ],
+                  pageInfo: {
+                    endCursor: stories[1].createdAt,
+                    hasNextPage: true,
+                  },
+                };
+              default:
+                return {
+                  edges: [{ node: stories[2], cursor: stories[2].createdAt }],
+                  pageInfo: {
+                    endCursor: stories[2].createdAt,
+                    hasNextPage: false,
+                  },
+                };
+            }
+          },
         },
-      },
-    }),
-  });
-  const loadMore = within(container).getByText("Load More");
-  act(() => {
-    loadMore.props.onClick();
-  });
-
-  await act(async () => {
-    // Wait for load more to disappear.
-    await waitUntilThrow(() => within(container).getByText("Load More"));
-  });
-
-  await act(async () => {
-    await wait(() => {
-      // Make sure third user was added.
-      within(container).getByText(stories[2].metadata!.title!);
+      }),
     });
   });
+  const container = await screen.findByTestId("stories-container");
+
+  const loadMore = within(container).getByText("Load More");
+  userEvent.click(loadMore);
+  await waitFor(() => {
+    expect(within(container).queryByText("Load More")).not.toBeInTheDocument();
+  });
+
+  expect(
+    within(container).getByRole("row", {
+      name: "World hunger has been defeated 11/29/2018, 4:01 PM 3 2 5 Closed",
+    })
+  ).toBeVisible();
 });
 
 it("filter by search", async () => {
-  const { container } = await createTestRenderer({
-    resolvers: createResolversStub<GQLResolver>({
-      Query: {
-        stories: ({ variables, callCount }) => {
-          switch (callCount) {
-            case 0:
-              return storyConnection;
-            default:
-              expectAndFail(variables.query).toBe("search");
-              return emptyStories;
-          }
-        },
-      },
-    }),
-  });
-
-  const searchField = within(container).getByLabelText(
-    "Search by story title",
-    { exact: false }
-  );
-  const form = findParentWithType(searchField, "form")!;
-
-  act(() =>
-    searchField.props.onChange({
-      target: { value: "search" },
-    })
-  );
-  act(() => {
-    form.props.onSubmit();
-  });
-
   await act(async () => {
-    await waitForElement(() =>
-      within(container).getByText("could not find any", { exact: false })
-    );
+    await createTestRenderer({
+      resolvers: createResolversStub<GQLResolver>({
+        Query: {
+          stories: ({ variables, callCount }) => {
+            switch (callCount) {
+              case 0:
+                return storyConnection;
+              default:
+                expectAndFail(variables.query).toBe("search");
+                return emptyStories;
+            }
+          },
+        },
+      }),
+    });
   });
+  const container = await screen.findByTestId("stories-container");
+
+  const searchField = within(container).getByRole("textbox", {
+    name: "Search by story title or author",
+  });
+  userEvent.type(searchField, "search");
+  userEvent.click(within(container).getByRole("button", { name: "Search" }));
+  expect(
+    await within(container).findByText(
+      "We could not find any stories matching your criteria."
+    )
+  ).toBeVisible();
+});
+
+it("search by site name", async () => {
+  await act(async () => {
+    await createTestRenderer({
+      resolvers: createResolversStub<GQLResolver>({
+        Query: {
+          settings: () => settingsWithMultisite,
+          sites: ({ variables, callCount }) => {
+            switch (callCount) {
+              case 0:
+                expectAndFail(variables.query).toBe("Test");
+                return {
+                  edges: [{ node: sites[0], cursor: sites[0].createdAt }],
+                  pageInfo: { endCursor: null, hasNextPage: false },
+                };
+              case 1:
+                expectAndFail(variables.query).toBe("Not a site");
+                return {
+                  edges: [],
+                  pageInfo: { endCursor: null, hasNextPage: false },
+                };
+              default:
+                return siteConnection;
+            }
+          },
+        },
+      }),
+    });
+  });
+  const container = await screen.findByTestId("stories-container");
+
+  const siteSearchField = within(container).getByRole("textbox", {
+    name: "Search by site name",
+  });
+
+  userEvent.type(siteSearchField, "Test");
+  const siteSearchButton = within(container).getByTestId("site-search-button");
+  userEvent.click(siteSearchButton);
+  const testSite = await within(container).findByText("Test Site");
+  userEvent.click(testSite);
+  await waitFor(() => {
+    expect(siteSearchField).toHaveValue("Test Site");
+  });
+
+  userEvent.clear(siteSearchField);
+  userEvent.type(siteSearchField, "Not a site");
+  userEvent.click(siteSearchButton);
+  expect(
+    await within(container).findByText("No sites were found with that search")
+  ).toBeVisible();
 });
 
 it("use searchFilter from url", async () => {
   const searchFilter = "CandyMountain";
   replaceHistoryLocation(`http://localhost/admin/stories?q=${searchFilter}`);
-  const { container } = await createTestRenderer({
+  await createTestRenderer({
     resolvers: createResolversStub<GQLResolver>({
       Query: {
         stories: ({ variables }) => {
@@ -334,15 +381,54 @@ it("use searchFilter from url", async () => {
       },
     }),
   });
+  const container = await screen.findByTestId("stories-container");
 
-  const searchField = within(container).getByLabelText(
-    "Search by story title",
-    { exact: false }
-  );
+  const searchField = within(container).getByRole("textbox", {
+    name: "Search by story title or author",
+  });
+  await waitFor(() => {
+    expect(searchField).toHaveValue(searchFilter);
+  });
+});
 
+it("shows stories only for sites within a site moderator's scope and single-site mods have no site search", async () => {
   await act(async () => {
-    await wait(() => {
-      expect(searchField.props.value).toBe(searchFilter);
+    await createTestRenderer({
+      resolvers: createResolversStub<GQLResolver>({
+        Query: {
+          viewer: () => users.moderators[1],
+          stories: ({ variables }) => {
+            expectAndFail(variables).toMatchObject({
+              first: 10,
+              query: null,
+              siteIDs: ["site-1"],
+            });
+            return {
+              edges: [{ node: stories[0], cursor: stories[0].createdAt }],
+              pageInfo: { endCursor: null, hasNextPage: false },
+            };
+          },
+        },
+      }),
     });
   });
+  const container = await screen.findByTestId("stories-container");
+
+  expect(
+    within(container).getByRole("row", {
+      name: "Finally a Cure for Cancer Vin Hoa 11/29/2018, 4:01 PM 3 2 5 Open",
+    })
+  ).toBeVisible();
+  expect(
+    within(container).queryByRole("row", {
+      name: "First Colony on Mars Linh Nguyen 11/29/2018, 4:01 PM 3 2 5 Open",
+    })
+  ).not.toBeInTheDocument();
+
+  // single-site moderators will only ever need to see stories for one site, so they don't
+  // see a site search
+  const siteSearchField = within(container).queryByRole("textbox", {
+    name: "Search by site name",
+  });
+  expect(siteSearchField).not.toBeInTheDocument();
 });

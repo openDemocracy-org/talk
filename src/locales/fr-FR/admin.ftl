@@ -497,7 +497,7 @@ configure-sites-site-edit = Éditer les détails de { $site }
 configure-sites-site-form-embed-code = Code intégré
 sites-emptyMessage = Aucun site ne correspond aux critères de recherche.
 sites-selector-allSites = Tous les sites
-sites-filter-sites-allSites = Tous les sites
+site-filter-option-allSites = Tous les sites
 
 site-selector-all-sites = Tous les sites
 stories-filter-sites-allSites = Tous les sites
@@ -1166,14 +1166,14 @@ configure-general-reactions-sort-input =
 configure-general-reactions-preview = Aperçu
 configure-general-reaction-sortMenu-sortBy = Trier par
 
-configure-general-staff-title = Badge de membre du staff
-configure-general-staff-explanation =
+configure-general-badges-title = Badge de membre du staff
+configure-general-badges-explanation =
   Montre un badge personnalisé pour les membres du staff de votre organisation.
   Ce badge apparaît sur le flux de commentaires et sur l'interface d'administration.
-configure-general-staff-label = Texte du badge
-configure-general-staff-input =
+configure-general-badges-label = Texte du badge
+configure-general-badges-input =
   .placeholder = Ex: Staff
-configure-general-staff-preview = Aperçu
+configure-general-badges-preview = Aperçu
 
 configure-account-features-title = Les droits du compte membre
 configure-account-features-explanation =

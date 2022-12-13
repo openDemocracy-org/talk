@@ -103,6 +103,7 @@ it("post a reply", async () => {
               author: commenters[0],
               body: "<b>Hello world! (from server)</b>",
               parent: stories[0].comments.edges[0].node,
+              seen: true,
             },
           },
           clientMutationId: data.input.clientMutationId,
@@ -161,6 +162,7 @@ it("post a reply and handle non-visible comment state", async () => {
               author: commenters[0],
               body: "<b>Hello world!</b>",
               parent: stories[0].comments.edges[0].node,
+              seen: true,
             },
           },
           clientMutationId: data.input.clientMutationId,
@@ -193,7 +195,10 @@ it("post a reply and handle server error", async () => {
     {
       Mutation: {
         createCommentReply: sinon.stub().callsFake(() => {
-          throw new InvalidRequestError({ code: ERROR_CODES.INTERNAL_ERROR });
+          throw new InvalidRequestError({
+            code: ERROR_CODES.INTERNAL_ERROR,
+            traceID: "traceID",
+          });
         }),
       },
     },
@@ -224,14 +229,15 @@ it("handle moderation nudge error", async () => {
                 input: {
                   storyID: stories[0].id,
                   parentID: stories[0].comments.edges[0].node.id,
-                  parentRevisionID: stories[0].comments.edges[0].node.revision!
-                    .id,
+                  parentRevisionID:
+                    stories[0].comments.edges[0].node.revision!.id,
                   body: "<b>Hello world!</b>",
                   nudge: true,
                 },
               });
               throw new ModerationNudgeError({
                 code: ERROR_CODES.TOXIC_COMMENT,
+                traceID: "traceID",
               });
             }),
           (s) =>
@@ -252,6 +258,7 @@ it("handle moderation nudge error", async () => {
                     status: "SYSTEM_WITHHELD",
                     author: commenters[0],
                     body: "<b>Hello world!</b>",
+                    seen: true,
                   },
                 },
                 clientMutationId: data.input.clientMutationId,
@@ -294,6 +301,7 @@ it("handle disabled commenting error", async () => {
         createCommentReply: sinon.stub().callsFake(() => {
           throw new InvalidRequestError({
             code: ERROR_CODES.COMMENTING_DISABLED,
+            traceID: "traceID",
           });
         }),
       },
@@ -334,6 +342,7 @@ it("handle story closed error", async () => {
           createCommentReply: sinon.stub().callsFake(() => {
             throw new InvalidRequestError({
               code: ERROR_CODES.STORY_CLOSED,
+              traceID: "traceID",
             });
           }),
         },

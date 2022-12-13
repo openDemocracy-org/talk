@@ -1,5 +1,7 @@
 /* eslint-disable jsx-a11y/no-noninteractive-tabindex */
-import React, { RefObject } from "react";
+import React, { FunctionComponent, RefObject, useEffect, useRef } from "react";
+
+import { useUIContext } from "coral-ui/components/v2/UIContext";
 
 interface RenderProps {
   firstFocusableRef: RefObject<any>;
@@ -8,7 +10,7 @@ interface RenderProps {
 
 type RenderPropsCallback = (props: RenderProps) => React.ReactNode;
 
-export interface TrapFocusProps {
+interface TrapFocusProps {
   children?: React.ReactNode | RenderPropsCallback;
 }
 
@@ -18,42 +20,58 @@ function isRenderProp(
   return typeof children === "function";
 }
 
-export default class TrapFocus extends React.Component<TrapFocusProps> {
-  private fallbackRef = React.createRef<any>();
-  private firstFocusableRef = React.createRef<any>();
-  private lastFocusableRef = React.createRef<any>();
-  private previousActiveElement: any | null;
+const TrapFocus: FunctionComponent<TrapFocusProps> = ({ children }) => {
+  const { renderWindow } = useUIContext();
+  const fallbackRef = useRef<HTMLDivElement>(null);
+  const firstFocusableRef = useRef<HTMLElement>(null);
+  const lastFocusableRef = useRef<HTMLElement>(null);
+  const previousActiveElement: any | null = renderWindow.document.activeElement;
 
   // Trap keyboard focus inside the dropdown until a value has been chosen.
-  private focusBegin = () =>
-    (this.firstFocusableRef.current || this.fallbackRef.current).focus();
-  private focusEnd = () =>
-    (this.lastFocusableRef.current || this.fallbackRef.current).focus();
-
-  public componentDidMount() {
-    this.previousActiveElement = document.activeElement;
-    this.fallbackRef.current.focus();
-  }
-
-  public componentWillUnmount() {
-    if (this.previousActiveElement && this.previousActiveElement.focus) {
-      this.previousActiveElement.focus();
+  const focusBegin = () => {
+    if (firstFocusableRef.current) {
+      firstFocusableRef.current.focus();
+    } else {
+      if (fallbackRef.current) {
+        fallbackRef.current.focus();
+      }
     }
-  }
+  };
 
-  public render() {
-    return (
-      <>
-        <div tabIndex={0} onFocus={this.focusEnd} />
-        <div tabIndex={-1} ref={this.fallbackRef} />
-        {isRenderProp(this.props.children)
-          ? this.props.children({
-              firstFocusableRef: this.firstFocusableRef,
-              lastFocusableRef: this.lastFocusableRef,
-            })
-          : this.props.children}
-        <div tabIndex={0} onFocus={this.focusBegin} />
-      </>
-    );
-  }
-}
+  const focusEnd = () => {
+    if (lastFocusableRef.current) {
+      lastFocusableRef.current.focus();
+    } else {
+      if (fallbackRef.current) {
+        fallbackRef.current.focus();
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (fallbackRef.current) {
+      fallbackRef.current.focus();
+    }
+    return () => {
+      if (previousActiveElement && previousActiveElement.focus) {
+        previousActiveElement.focus();
+      }
+    };
+  }, []);
+
+  return (
+    <>
+      <div tabIndex={0} onFocus={focusEnd} />
+      <div tabIndex={-1} ref={fallbackRef} />
+      {isRenderProp(children)
+        ? children({
+            firstFocusableRef,
+            lastFocusableRef,
+          })
+        : children}
+      <div tabIndex={0} onFocus={focusBegin} />
+    </>
+  );
+};
+
+export default TrapFocus;

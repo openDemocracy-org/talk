@@ -1,4 +1,4 @@
-import { Match, Router, withRouter } from "found";
+import { useRouter } from "found";
 import React, {
   FunctionComponent,
   useCallback,
@@ -8,7 +8,9 @@ import React, {
 import { graphql } from "react-relay";
 
 import NotAvailable from "coral-admin/components/NotAvailable";
-import BanModal from "coral-admin/components/UserStatus/BanModal";
+import BanModal, {
+  UpdateType,
+} from "coral-admin/components/UserStatus/BanModal";
 import {
   ApproveCommentMutation,
   RejectCommentMutation,
@@ -21,13 +23,7 @@ import {
   useMutation,
   withFragmentContainer,
 } from "coral-framework/lib/relay";
-import {
-  GQLFEATURE_FLAG,
-  GQLSTORY_MODE,
-  GQLTAG,
-  GQLUSER_ROLE,
-  GQLUSER_STATUS,
-} from "coral-framework/schema";
+import { GQLSTORY_MODE, GQLTAG, GQLUSER_STATUS } from "coral-framework/schema";
 
 import {
   COMMENT_STATUS,
@@ -37,6 +33,8 @@ import { ModerateCardContainer_settings } from "coral-admin/__generated__/Modera
 import { ModerateCardContainer_viewer } from "coral-admin/__generated__/ModerateCardContainer_viewer.graphql";
 import { ModerateCardContainerLocal } from "coral-admin/__generated__/ModerateCardContainerLocal.graphql";
 
+import RemoveUserBanMutation from "../UserStatus/RemoveUserBanMutation";
+import UpdateUserBanMutation from "../UserStatus/UpdateUserBanMutation";
 import BanCommentUserMutation from "./BanCommentUserMutation";
 import FeatureCommentMutation from "./FeatureCommentMutation";
 import ModerateCard from "./ModerateCard";
@@ -48,8 +46,6 @@ interface Props {
   comment: ModerateCardContainer_comment;
   settings: ModerateCardContainer_settings;
   danglingLogic: (status: COMMENT_STATUS) => boolean;
-  match: Match;
-  router: Router;
   showStoryInfo: boolean;
   mini?: boolean;
   hideUsername?: boolean;
@@ -83,8 +79,6 @@ const ModerateCardContainer: FunctionComponent<Props> = ({
   viewer,
   danglingLogic,
   showStoryInfo,
-  match,
-  router,
   mini,
   hideUsername,
   selected,
@@ -100,26 +94,24 @@ const ModerateCardContainer: FunctionComponent<Props> = ({
   const featureComment = useMutation(FeatureCommentMutation);
   const unfeatureComment = useMutation(UnfeatureCommentMutation);
   const banUser = useMutation(BanCommentUserMutation);
+  const updateUserBan = useMutation(UpdateUserBanMutation);
+  const removeUserBan = useMutation(RemoveUserBanMutation);
 
-  const [{ moderationQueueSort }] = useLocal<
-    ModerateCardContainerLocal
-  >(graphql`
-    fragment ModerateCardContainerLocal on Local {
-      moderationQueueSort
-    }
-  `);
+  const { match, router } = useRouter();
 
-  const scoped = useMemo(
-    () =>
-      settings.featureFlags.includes(GQLFEATURE_FLAG.SITE_MODERATOR) &&
-      !!viewer.moderationScopes?.scoped,
-    [settings, viewer]
+  const [{ moderationQueueSort }] =
+    useLocal<ModerateCardContainerLocal>(graphql`
+      fragment ModerateCardContainerLocal on Local {
+        moderationQueueSort
+      }
+    `);
+
+  const scoped = useMemo(() => !!viewer.moderationScopes?.scoped, [viewer]);
+
+  const readOnly = useMemo(
+    () => scoped && !comment.canModerate,
+    [scoped, comment]
   );
-
-  const readOnly = useMemo(() => scoped && !comment.canModerate, [
-    scoped,
-    comment,
-  ]);
 
   const [showBanModal, setShowBanModal] = useState(false);
   const handleApprove = useCallback(async () => {
@@ -281,21 +273,40 @@ const ModerateCardContainer: FunctionComponent<Props> = ({
 
   const handleBanConfirm = useCallback(
     async (
+      updateType: UpdateType,
       rejectExistingComments: boolean,
-      message: string,
-      siteIDs: string[] | null | undefined
+      banSiteIDs: string[] | null | undefined,
+      unbanSiteIDs: string[] | null | undefined,
+      message: string
     ) => {
-      if (comment.author) {
-        await banUser({
-          userID: comment.author.id,
-          message,
-          rejectExistingComments,
-          siteIDs,
-        });
+      const viewerIsScoped = !!viewer.moderationScopes?.sites?.length;
+      switch (updateType) {
+        case UpdateType.ALL_SITES:
+          await banUser({
+            userID: comment.author!.id, // Should be defined because the modal shouldn't open if author is null
+            message,
+            rejectExistingComments,
+            siteIDs: viewerIsScoped
+              ? viewer.moderationScopes!.sites!.map(({ id }) => id)
+              : [],
+          });
+          break;
+        case UpdateType.SPECIFIC_SITES:
+          await updateUserBan({
+            userID: comment.author!.id,
+            message,
+            banSiteIDs,
+            unbanSiteIDs,
+          });
+          break;
+        case UpdateType.NO_SITES:
+          await removeUserBan({
+            userID: comment.author!.id,
+          });
       }
       setShowBanModal(false);
     },
-    [comment, banUser, setShowBanModal]
+    [comment, banUser, setShowBanModal, removeUserBan, updateUserBan, viewer]
   );
 
   // Only highlight comments that have been flagged for containing a banned or
@@ -340,7 +351,6 @@ const ModerateCardContainer: FunctionComponent<Props> = ({
           status={getStatus(comment)}
           featured={isFeatured(comment)}
           viewContextHref={comment.permalink}
-          phrases={settings}
           onApprove={handleApprove}
           onReject={handleReject}
           onFeature={onFeature}
@@ -374,28 +384,33 @@ const ModerateCardContainer: FunctionComponent<Props> = ({
           edited={comment.editing.edited}
           readOnly={readOnly}
           isQA={comment.story.settings.mode === GQLSTORY_MODE.QA}
+          bannedWords={comment.revision?.metadata?.wordList?.bannedWords || []}
+          suspectWords={
+            comment.revision?.metadata?.wordList?.suspectWords || []
+          }
+          isArchived={comment.story.isArchived}
+          isArchiving={comment.story.isArchiving}
         />
       </FadeInTransition>
-      <BanModal
-        username={
-          comment.author && comment.author.username
-            ? comment.author.username
-            : ""
-        }
-        open={showBanModal}
-        onClose={handleBanModalClose}
-        onConfirm={handleBanConfirm}
-        viewerScopes={{
-          role: viewer.role,
-          sites: viewer.moderationScopes?.sites?.map((s) => s),
-        }}
-        userScopes={{
-          role: comment.author ? comment.author.role : GQLUSER_ROLE.COMMENTER,
-          sites: comment.author
-            ? comment.author.status.ban.sites?.map((s) => s)
-            : [],
-        }}
-      />
+      {comment.author && (
+        <BanModal
+          username={
+            comment.author && comment.author.username
+              ? comment.author.username
+              : ""
+          }
+          open={showBanModal}
+          onClose={handleBanModalClose}
+          onConfirm={handleBanConfirm}
+          viewerScopes={{
+            role: viewer.role,
+            sites: viewer.moderationScopes?.sites?.map((s) => s),
+          }}
+          userBanStatus={comment.author.status.ban}
+          userRole={comment.author.role}
+          isMultisite={settings.multisite}
+        />
+      )}
     </>
   );
 };
@@ -410,6 +425,7 @@ const enhanced = withFragmentContainer<Props>({
         status {
           current
           ban {
+            active
             sites {
               id
               name
@@ -428,6 +444,20 @@ const enhanced = withFragmentContainer<Props>({
             reasons {
               COMMENT_DETECTED_BANNED_WORD
               COMMENT_DETECTED_SUSPECT_WORD
+            }
+          }
+        }
+        metadata {
+          wordList {
+            bannedWords {
+              value
+              index
+              length
+            }
+            suspectWords {
+              value
+              index
+              length
             }
           }
         }
@@ -457,6 +487,8 @@ const enhanced = withFragmentContainer<Props>({
         settings {
           mode
         }
+        isArchived
+        isArchiving
       }
       site {
         id
@@ -479,7 +511,6 @@ const enhanced = withFragmentContainer<Props>({
         suspect
       }
       multisite
-      featureFlags
       ...MarkersContainer_settings
     }
   `,
@@ -495,6 +526,6 @@ const enhanced = withFragmentContainer<Props>({
       }
     }
   `,
-})(withRouter(ModerateCardContainer));
+})(ModerateCardContainer);
 
 export default enhanced;

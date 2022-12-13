@@ -128,10 +128,10 @@ const statusFilter = (
   }
 };
 
-const siteFilter = (siteID?: string): StoryConnectionInput["filter"] => {
-  if (siteID) {
+const siteFilter = (siteIDs?: string[]): StoryConnectionInput["filter"] => {
+  if (siteIDs) {
     return {
-      siteID,
+      siteID: { $in: siteIDs },
     };
   }
   return {};
@@ -151,28 +151,28 @@ const queryFilter = (query?: string): StoryConnectionInput["filter"] => {
  *
  * @param ctx graph context to use to prime the loaders.
  */
-const primeStoriesFromConnection = (ctx: GraphContext) => (
-  connection: Readonly<Connection<Readonly<Story>>>
-) => {
-  if (!ctx.disableCaching) {
-    // For each of these nodes, prime the story loader.
-    connection.nodes.forEach((story) => {
+const primeStoriesFromConnection =
+  (ctx: GraphContext) =>
+  (connection: Readonly<Connection<Readonly<Story>>>) => {
+    if (!ctx.disableCaching) {
+      // For each of these nodes, prime the story loader.
+      connection.nodes.forEach((story) => {
+        ctx.loaders.Stories.story.prime(story.id, story);
+      });
+    }
+
+    return connection;
+  };
+
+const primeStory =
+  (ctx: GraphContext) =>
+  (story: Readonly<Story> | null): Readonly<Story> | null => {
+    if (story) {
       ctx.loaders.Stories.story.prime(story.id, story);
-    });
-  }
+    }
 
-  return connection;
-};
-
-const primeStory = (ctx: GraphContext) => (
-  story: Readonly<Story> | null
-): Readonly<Story> | null => {
-  if (story) {
-    ctx.loaders.Stories.story.prime(story.id, story);
-  }
-
-  return story;
-};
+    return story;
+  };
 
 export default (ctx: GraphContext) => ({
   findOrCreate: new DataLoader(
@@ -213,14 +213,14 @@ export default (ctx: GraphContext) => ({
       cache: !ctx.disableCaching,
     }
   ),
-  connection: ({ first, after, status, query, siteID }: QueryToStoriesArgs) =>
+  connection: ({ first, after, status, query, siteIDs }: QueryToStoriesArgs) =>
     retrieveStoryConnection(ctx.mongo, ctx.tenant.id, {
       first: defaultTo(first, 10),
       after,
       orderBy: query ? STORY_SORT.TEXT_SCORE : STORY_SORT.CREATED_AT_DESC,
       filter: {
         // Merge the site filter into the connection filter.
-        ...siteFilter(siteID),
+        ...siteFilter(siteIDs),
         // Merge the status filter into the connection filter.
         ...statusFilter(ctx.tenant.closeCommenting, status, ctx.now),
         // Merge the query filters into the query.

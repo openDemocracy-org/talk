@@ -59,6 +59,11 @@ export function createUserStatus(banned = false): GQLUserStatus {
       history: [],
       message: NULL_VALUE,
     },
+    modMessage: {
+      active: false,
+      history: [],
+      message: NULL_VALUE,
+    },
   };
 }
 
@@ -154,6 +159,11 @@ export function createComment(
       viewerActionPresence: { reaction: false, dontAgree: false, flag: false },
       parent: NULL_VALUE,
       canModerate: !!data.canModerate,
+      canReply: true,
+      allChildComments: {
+        edges: [],
+        pageInfo: { endCursor: null, hasNextPage: false },
+      },
     })
   );
 
@@ -271,6 +281,8 @@ export function createStory(
       },
       canModerate: true,
       isClosed: false,
+      isArchived: false,
+      isArchiving: false,
       commentCounts: {
         totalPublished: 0,
         tags: {
@@ -306,11 +318,20 @@ export function createSite() {
   });
 }
 
-export function createSettings() {
+export function createSettings(): GQLSettings {
   return createFixture<GQLSettings>({
     id: "settings",
     moderation: GQLMODERATION_MODE.POST,
     premodLinksEnable: false,
+    featureFlags: [],
+    reaction: {
+      icon: "test-reaction-icon",
+      iconActive: "test-reaction-icon-active",
+      label: "test-reaction-label",
+      labelActive: "test-reaction-label-active",
+      color: "test-reaction-color",
+      sortLabel: "test-reaction-sort-label",
+    },
     live: {
       enabled: true,
       configurable: true,
@@ -362,6 +383,7 @@ export function createSettings() {
       approvedCommentsThreshold: 2,
     },
     premoderateSuspectWords: false,
+    flattenReplies: false,
     auth: {
       integrations: {
         local: {

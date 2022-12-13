@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 
 import {
+  EMAIL_DOMAIN_REGEX,
   EMAIL_REGEX,
   PASSWORD_MIN_LENGTH,
   URL_REGEX,
@@ -17,6 +18,8 @@ import {
   EMAILS_DO_NOT_MATCH,
   INVALID_CHARACTERS,
   INVALID_EMAIL,
+  INVALID_EMAIL_DOMAIN,
+  INVALID_EXTERNAL_PROFILE_URL,
   INVALID_MEDIA_URL,
   INVALID_URL,
   INVALID_WEBHOOK_ENDPOINT_EVENT_SELECTION,
@@ -78,6 +81,15 @@ export const validateEmail = createValidator(
 );
 
 /**
+ * validateEmailDomain is a Validator that checks that the value is an email domain without the @
+ * at the beginning and including at least one dot.
+ */
+export const validateEmailDomain = createValidator(
+  (v) => !v || EMAIL_DOMAIN_REGEX.test(v),
+  INVALID_EMAIL_DOMAIN()
+);
+
+/**
  * validateUsernameCharacters is a Validator that checks that the username only contains valid characters.
  */
 export const validateUsernameCharacters = createValidator(
@@ -105,6 +117,26 @@ export const validateURL = createValidator(
   (v) => !v || URL_REGEX.test(v),
   INVALID_URL()
 );
+
+/**
+ * validateExternalProfileURL is a Validator that checks that the external profile URL,
+ * if it exists, contains either $USER_NAME or $USER_ID
+ */
+export const validateExternalProfileURL = createValidator((v) => {
+  if (v === null) {
+    return true;
+  }
+  const includesUserName = v.includes("$USER_NAME");
+  const includesUserId = v.includes("$USER_ID");
+  if (
+    v &&
+    ((includesUserName && !includesUserId) ||
+      (includesUserId && !includesUserName))
+  ) {
+    return true;
+  }
+  return false;
+}, INVALID_EXTERNAL_PROFILE_URL());
 
 /**
  * validateMinLength is a Validator that checks that the field has a min length of characters

@@ -30,7 +30,7 @@ const IgnoreUserSettingsContainer: FunctionComponent<Props> = ({ viewer }) => {
       emitShow();
     }
     setShowManage((s) => !s);
-  }, [showManage, setShowManage]);
+  }, [showManage, setShowManage, emitShow]);
   const remove = useCallback(
     async (id: string) => {
       await removeUserIgnore({ userID: id });
@@ -50,12 +50,18 @@ const IgnoreUserSettingsContainer: FunctionComponent<Props> = ({ viewer }) => {
   });
 
   return (
-    <div
+    <section
       data-testid="profile-account-ignoredCommenters"
       className={cn(styles.root, CLASSES.ignoredCommenters.$root)}
+      aria-labelledby="profile-account-ignoredCommenters-title"
     >
       <Localized id="profile-account-ignoredCommenters">
-        <div className={styles.title}>Ignored Commenters</div>
+        <h1
+          className={styles.title}
+          id="profile-account-ignoredCommenters-title"
+        >
+          Ignored Commenters
+        </h1>
       </Localized>
       <Localized id="profile-account-ignoredCommenters-description">
         <div className={styles.description}>
@@ -66,7 +72,10 @@ const IgnoreUserSettingsContainer: FunctionComponent<Props> = ({ viewer }) => {
         </div>
       </Localized>
       {showManage && (
-        <Localized id="profile-account-ignoredCommenters-close">
+        <Localized
+          id="profile-account-ignoredCommenters-close"
+          key="toggleButton"
+        >
           <Button
             variant="filled"
             color="secondary"
@@ -79,7 +88,10 @@ const IgnoreUserSettingsContainer: FunctionComponent<Props> = ({ viewer }) => {
         </Localized>
       )}
       {!showManage && (
-        <Localized id="profile-account-ignoredCommenters-manage">
+        <Localized
+          id="profile-account-ignoredCommenters-manage"
+          key="toggleButton"
+        >
           <Button
             variant="outlined"
             color="secondary"
@@ -98,6 +110,9 @@ const IgnoreUserSettingsContainer: FunctionComponent<Props> = ({ viewer }) => {
         <HorizontalGutter
           spacing={1}
           className={cn(styles.list, CLASSES.ignoredCommenters.list)}
+          role="log"
+          aria-live="off"
+          id="profile-account-ignoredCommenters-log"
         >
           {orderedUsers.map((user) => (
             <IgnoreUserListItem
@@ -109,14 +124,14 @@ const IgnoreUserSettingsContainer: FunctionComponent<Props> = ({ viewer }) => {
           ))}
           {orderedUsers.length === 0 && (
             <Localized id="profile-account-ignoredCommenters-empty">
-              <div className={styles.empty}>
+              <div className={styles.empty} aria-live="polite">
                 You are not currently ignoring anyone
               </div>
             </Localized>
           )}
         </HorizontalGutter>
       )}
-    </div>
+    </section>
   );
 };
 

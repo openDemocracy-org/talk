@@ -1,9 +1,9 @@
 import { RedisPubSub } from "graphql-redis-subscriptions";
-import { Db } from "mongodb";
 import { v1 as uuid } from "uuid";
 
 import { LanguageCode } from "coral-common/helpers/i18n/locales";
 import { Config } from "coral-server/config";
+import { MongoContext } from "coral-server/data/context";
 import CoralEventListenerBroker, {
   CoralEventPublisherBroker,
 } from "coral-server/events/publisher";
@@ -16,6 +16,7 @@ import { MailerQueue } from "coral-server/queue/tasks/mailer";
 import { NotifierQueue } from "coral-server/queue/tasks/notifier";
 import { RejectorQueue } from "coral-server/queue/tasks/rejector";
 import { ScraperQueue } from "coral-server/queue/tasks/scraper";
+import { UnarchiverQueue } from "coral-server/queue/tasks/unarchiver";
 import { WebhookQueue } from "coral-server/queue/tasks/webhook";
 import { ErrorReporter } from "coral-server/services/errors";
 import { I18n } from "coral-server/services/i18n";
@@ -26,6 +27,7 @@ import { Request } from "coral-server/types/express";
 
 import loaders from "./loaders";
 import mutators from "./mutators";
+import SeenCommentsCollection from "./seenCommentsCollection";
 
 export interface GraphContextOptions {
   clientID?: string;
@@ -47,7 +49,8 @@ export interface GraphContextOptions {
   scraperQueue: ScraperQueue;
   webhookQueue: WebhookQueue;
   notifierQueue: NotifierQueue;
-  mongo: Db;
+  unarchiverQueue: UnarchiverQueue;
+  mongo: MongoContext;
   pubsub: RedisPubSub;
   redis: AugmentedRedis;
   tenant: Tenant;
@@ -71,7 +74,8 @@ export default class GraphContext {
   public readonly scraperQueue: ScraperQueue;
   public readonly webhookQueue: WebhookQueue;
   public readonly notifierQueue: NotifierQueue;
-  public readonly mongo: Db;
+  public readonly unarchiverQueue: UnarchiverQueue;
+  public readonly mongo: MongoContext;
   public readonly mutators: ReturnType<typeof mutators>;
   public readonly now: Date;
   public readonly pubsub: RedisPubSub;
@@ -85,6 +89,8 @@ export default class GraphContext {
   public readonly req?: Request;
   public readonly signingConfig?: JWTSigningConfig;
   public readonly user?: User;
+
+  public readonly seenComments: SeenCommentsCollection;
 
   constructor(options: GraphContextOptions) {
     this.id = options.id || uuid();
@@ -113,6 +119,7 @@ export default class GraphContext {
     this.rejectorQueue = options.rejectorQueue;
     this.notifierQueue = options.notifierQueue;
     this.webhookQueue = options.webhookQueue;
+    this.unarchiverQueue = options.unarchiverQueue;
     this.signingConfig = options.signingConfig;
     this.clientID = options.clientID;
     this.reporter = options.reporter;
@@ -120,5 +127,7 @@ export default class GraphContext {
     this.broker = options.broker.instance(this);
     this.loaders = loaders(this);
     this.mutators = mutators(this);
+
+    this.seenComments = new SeenCommentsCollection();
   }
 }

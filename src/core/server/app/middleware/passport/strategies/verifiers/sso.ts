@@ -1,12 +1,13 @@
 import { Redis } from "ioredis";
 import Joi from "joi";
-import { isNil, throttle } from "lodash";
+import { throttle } from "lodash";
 import { DateTime } from "luxon";
-import { Db } from "mongodb";
 import { URL } from "url";
 
 import validateImagePathname from "coral-common/helpers/validateImagePathname";
 import { validate } from "coral-server/app/request/body";
+import { Config } from "coral-server/config";
+import { MongoContext } from "coral-server/data/context";
 import { IntegrationDisabled, TokenInvalidError } from "coral-server/errors";
 import logger from "coral-server/logger";
 import {
@@ -33,7 +34,11 @@ import {
   verifyJWT,
 } from "coral-server/services/jwt";
 import { AugmentedRedis } from "coral-server/services/redis";
-import { findOrCreate } from "coral-server/services/users";
+import {
+  findOrCreate,
+  processAutomaticBanForUser,
+  processAutomaticPremodForUser,
+} from "coral-server/services/users";
 
 import {
   GQLSSOAuthIntegration,
@@ -43,7 +48,7 @@ import {
 import { Verifier } from "../jwt";
 
 export interface SSOStrategyOptions {
-  mongo: Db;
+  mongo: MongoContext;
 }
 
 export interface SSOUserProfile {
@@ -64,9 +69,9 @@ export interface SSOToken {
 }
 
 // eslint-disable-next-line @typescript-eslint/ban-types
-export function isSSOToken(token: SSOToken | object): token is SSOToken {
+export function validateToken(token: SSOToken | object): string | undefined {
   const { error } = SSOTokenSchema.validate(token, { allowUnknown: true });
-  return isNil(error);
+  return error ? "SSO: " + error.message : undefined;
 }
 
 function isValidImageURL(url: string) {
@@ -98,7 +103,8 @@ export const SSOTokenSchema = Joi.object().keys({
 });
 
 export async function findOrCreateSSOUser(
-  mongo: Db,
+  config: Config,
+  mongo: MongoContext,
   redis: AugmentedRedis,
   tenant: Tenant,
   integration: GQLSSOAuthIntegration,
@@ -153,6 +159,7 @@ export async function findOrCreateSSOUser(
 
     // Create the new user, as one didn't exist before!
     user = await findOrCreate(
+      config,
       mongo,
       tenant,
       {
@@ -169,6 +176,8 @@ export async function findOrCreateSSOUser(
       { skipUsernameValidation: true },
       now
     );
+
+    await processAutomaticPremodForUser(mongo, tenant, user);
   } else if (iat && needsSSOUpdate(decodedToken.user, user)) {
     // Get the SSO Profile.
     const profile = getSSOProfile(user);
@@ -198,6 +207,13 @@ export async function findOrCreateSSOUser(
     }
   }
 
+  // Check the user's email address against emailDomain configurations
+  // to see if they should be set to banned or always pre-moderated.
+  // We do this here, because if a bad actor obtains access to a user and
+  // updates their old email to a new bad domain email, we will catch that
+  // new bad domain here.
+  await processAutomaticBanForUser(mongo, tenant, user);
+
   return user;
 }
 
@@ -218,7 +234,8 @@ const updateLastUsedAtKID = throttle(
 );
 
 export interface SSOVerifierOptions {
-  mongo: Db;
+  config: Config;
+  mongo: MongoContext;
   redis: AugmentedRedis;
 }
 
@@ -261,23 +278,27 @@ export function getRelevantSSOSigningSecrets(
 }
 
 export class SSOVerifier implements Verifier<SSOToken> {
-  private mongo: Db;
+  private config: Config;
+  private mongo: MongoContext;
   private redis: AugmentedRedis;
 
-  constructor({ mongo, redis }: SSOVerifierOptions) {
+  constructor({ mongo, redis, config }: SSOVerifierOptions) {
+    this.config = config;
     this.mongo = mongo;
     this.redis = redis;
   }
 
-  public supports(
+  public enabled(tenant: Tenant): boolean {
+    return tenant.auth.integrations.sso.enabled;
+  }
+
+  public checkForValidationError(
     // eslint-disable-next-line @typescript-eslint/ban-types
     token: SSOToken | object,
-    tenant: Tenant,
     kid?: string
-  ): token is SSOToken {
+  ): string | undefined {
     // TODO: [CORL-755] (wyattjoh) check that the `kid` it provided and matches a given kid in a future release
-
-    return tenant.auth.integrations.sso.enabled && isSSOToken(token);
+    return validateToken(token);
   }
 
   public async verify(
@@ -353,6 +374,7 @@ export class SSOVerifier implements Verifier<SSOToken> {
     }
 
     return findOrCreateSSOUser(
+      this.config,
       this.mongo,
       this.redis,
       tenant,

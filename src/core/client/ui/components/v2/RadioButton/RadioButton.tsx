@@ -50,20 +50,13 @@ export interface RadioButtonProps {
   keyboardFocus: boolean;
 }
 
-class RadioButton extends Component<RadioButtonProps> {
+export class RadioButton extends Component<RadioButtonProps> {
   public state = {
     randomID: uuid(),
   };
   public render() {
-    const {
-      className,
-      classes,
-      id,
-      light,
-      children,
-      keyboardFocus,
-      ...rest
-    } = this.props;
+    const { className, classes, id, light, children, keyboardFocus, ...rest } =
+      this.props;
 
     const rootClassName = cn(classes.root, className);
     const finalID = id || this.state.randomID;

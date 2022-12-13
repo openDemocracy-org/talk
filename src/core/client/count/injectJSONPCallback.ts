@@ -2,6 +2,8 @@ import { CountJSONPData } from "coral-common/types/count";
 import { COUNT_SELECTOR } from "coral-framework/constants";
 import getPreviousCountStorageKey from "coral-framework/helpers/getPreviousCountStorageKey";
 
+const TEXT_CLASS_NAME = "coral-count-text";
+
 type GetCountFunction = (opts?: { reset?: boolean }) => void;
 
 /**
@@ -54,20 +56,24 @@ function createCountElementEnhancer({
   // Create the root element we're using for this.
   const element = document.createElement("span");
 
+  const showText = html.includes(TEXT_CLASS_NAME);
+
   // Update the innerHTML which contains the count and new value..
   element.innerHTML = html;
 
   if (storyID) {
-    const previousCount = getPreviousCount(storyID);
-    if (previousCount !== null && previousCount < currentCount) {
-      // The new count is just the current count subtracting from the previous
-      // count.
-      const newCount = currentCount - previousCount;
+    const previousCount = getPreviousCount(storyID) ?? 0;
 
-      // Add the counts to the dataset so it can be targeted by CSS if you want.
-      dataset.coralPreviousCount = previousCount.toString();
-      dataset.coralNewCount = newCount.toString();
+    // The new count is the current count subtracted from the previous
+    // count if the counts are different, otherwise, zero.
+    const newCount =
+      previousCount < currentCount ? currentCount - previousCount : 0;
 
+    // Add the counts to the dataset so it can be targeted by CSS if you want.
+    dataset.coralPreviousCount = previousCount.toString();
+    dataset.coralNewCount = newCount.toString();
+
+    if (showText) {
       // Insert the divider " / "
       const dividerElement = document.createElement("span");
       dividerElement.className = "coral-new-count-divider";

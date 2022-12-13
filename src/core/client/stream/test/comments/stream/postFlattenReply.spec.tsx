@@ -36,7 +36,10 @@ const createTestRenderer = async (
             return storyWithDeepestReplies;
           },
           viewer: () => commenters[0],
-          settings: () => settings,
+          settings: () => ({
+            ...settings,
+            flattenReplies: true,
+          }),
         },
       }),
       params.resolvers
@@ -72,7 +75,7 @@ it("post a flattened reply", async () => {
         createCommentReply: ({ variables }) => {
           expectAndFail(variables).toMatchObject({
             storyID: storyWithDeepestReplies.id,
-            parentID: "comment-with-deepest-replies-4",
+            parentID: "comment-with-deepest-replies-7",
             parentRevisionID: "revision-0",
             body: commentBody,
           });
@@ -86,7 +89,7 @@ it("post a flattened reply", async () => {
                 body: commentBody + " (from server)",
                 parent: getCommentRecursively(
                   storyWithDeepestReplies.comments,
-                  "comment-with-deepest-replies-4"
+                  "comment-with-deepest-replies-7"
                 ),
               },
             },
@@ -97,14 +100,14 @@ it("post a flattened reply", async () => {
   });
 
   const deepestReply = within(streamLog).getByTestID(
-    "comment-comment-with-deepest-replies-4"
+    "comment-comment-with-deepest-replies-7"
   );
 
   const form = await act(async () => {
     /* Do stuff */
     // Open reply form.
     within(deepestReply)
-      .getByText("reply", { exact: false, selector: "button" })
+      .getByLabelText("Reply to comment by", { exact: false })
       .props.onClick();
     /* Wait for result */
     return await waitForElement(() => within(deepestReply).getByType("form"));
@@ -119,13 +122,13 @@ it("post a flattened reply", async () => {
     /* Wait for results */
     const deepestReplyList = await waitForElement(() =>
       within(streamLog).getByTestID(
-        "commentReplyList-comment-with-deepest-replies-3"
+        "commentReplyList-comment-with-deepest-replies-6"
       )
     );
     // No reply list after depth 4
     expect(() =>
       within(streamLog).getByTestID(
-        "commentReplyList-comment-with-deepest-replies-4"
+        "commentReplyList-comment-with-deepest-replies-8"
       )
     ).toThrow();
     // optimistic result

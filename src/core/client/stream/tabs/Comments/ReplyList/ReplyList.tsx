@@ -1,4 +1,5 @@
 import { Localized } from "@fluent/react/compat";
+import cn from "classnames";
 import React, { FunctionComponent } from "react";
 
 import { PropTypesOf } from "coral-framework/types";
@@ -6,6 +7,7 @@ import CLASSES from "coral-stream/classes";
 import { HorizontalGutter } from "coral-ui/components/v2";
 import { Button } from "coral-ui/components/v3";
 
+import { useCommentSeenEnabled } from "../commentSeen";
 import Indent from "../Indent";
 import ReplyListCommentContainer from "./ReplyListCommentContainer";
 
@@ -34,17 +36,19 @@ export interface ReplyListProps {
   viewNewCount?: number;
   onViewNew?: () => void;
   allowIgnoredTombstoneReveal?: boolean;
-  disableHideIgnoredTombstone?: boolean;
   showRemoveAnswered?: boolean;
 }
 
 const ReplyList: FunctionComponent<ReplyListProps> = (props) => {
+  const commentSeenEnabled = useCommentSeenEnabled();
   return (
     <HorizontalGutter
       id={`coral-comments-replyList-log--${props.comment.id}`}
       data-testid={`commentReplyList-${props.comment.id}`}
       role="log"
-      className={styles.root}
+      aria-live="off"
+      className={cn({ [styles.withPadding]: !commentSeenEnabled })}
+      spacing={commentSeenEnabled ? 0 : undefined}
     >
       {props.comments.map((comment) => (
         <ReplyListCommentContainer
@@ -54,7 +58,6 @@ const ReplyList: FunctionComponent<ReplyListProps> = (props) => {
           story={props.story}
           settings={props.settings}
           allowIgnoredTombstoneReveal={props.allowIgnoredTombstoneReveal}
-          disableHideIgnoredTombstone={props.disableHideIgnoredTombstone}
           localReply={props.localReply}
           indentLevel={props.indentLevel}
           disableReplies={props.disableReplies}
@@ -86,14 +89,18 @@ const ReplyList: FunctionComponent<ReplyListProps> = (props) => {
       )}
       {!!props.viewNewCount && (
         <Indent level={props.indentLevel} noBorder>
-          <Localized id="comments-replyList-showMoreReplies">
+          <Localized id={"comments-replyList-showMoreReplies"}>
             <Button
+              id={`coral-comments-replyList-showMoreReplies--${props.comment.id}`}
               aria-controls={`coral-comments-replyList-log--${props.comment.id}`}
               onClick={props.onViewNew}
               className={CLASSES.replyList.showMoreReplies}
               variant="outlined"
               color="secondary"
               fullWidth
+              data-key-stop
+              data-is-load-more
+              data-is-view-new
             >
               Show More Replies
             </Button>

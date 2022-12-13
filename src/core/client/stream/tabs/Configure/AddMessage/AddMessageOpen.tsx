@@ -89,6 +89,7 @@ const AddMessageOpen: FunctionComponent<Props> = ({
             }
             visible={showSuccess}
             onClose={onCloseSuccess}
+            aria-live="polite"
           />
         )}
       </div>
@@ -98,7 +99,9 @@ const AddMessageOpen: FunctionComponent<Props> = ({
   return (
     <div className={CLASSES.openCommentStream.$root}>
       <Localized id="configure-addMessage-title">
-        <div className={sharedStyles.heading}>Add a message or question</div>
+        <div className={sharedStyles.heading} id="configure-addMessage-title">
+          Add a message or question
+        </div>
       </Localized>
       <Localized id="configure-addMessage-description">
         <div className={sharedStyles.description}>
@@ -115,7 +118,7 @@ const AddMessageOpen: FunctionComponent<Props> = ({
             id="message-box-form"
             data-testid="configure-addMessage-form"
           >
-            <MessageBoxConfig disabled={false} />
+            <MessageBoxConfig />
             {storySettings.messageBox.content ? (
               <div className={styles.actions}>
                 <Button

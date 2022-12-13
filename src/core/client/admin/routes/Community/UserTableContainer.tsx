@@ -8,7 +8,6 @@ import {
   withPaginationContainer,
 } from "coral-framework/lib/relay";
 import {
-  GQLFEATURE_FLAG,
   GQLUSER_ROLE_RL,
   GQLUSER_STATUS_FILTER_RL,
 } from "coral-framework/schema";
@@ -33,21 +32,15 @@ const UserTableContainer: FunctionComponent<Props> = (props) => {
   const [loadMore, isLoadingMore] = useLoadMore(props.relay, 10);
   const [searchFilter, setSearchFilter] = useState<string>("");
   const [roleFilter, setRoleFilter] = useState<GQLUSER_ROLE_RL | null>(null);
-  const [
-    statusFilter,
-    setStatusFilter,
-  ] = useState<GQLUSER_STATUS_FILTER_RL | null>(null);
+  const [statusFilter, setStatusFilter] =
+    useState<GQLUSER_STATUS_FILTER_RL | null>(null);
   const [, isRefetching] = useRefetch(props.relay, 10, {
     searchFilter: searchFilter || null,
     roleFilter,
     statusFilter,
   });
 
-  const moderationScopesEnabled = !!(
-    props?.query?.settings.featureFlags.includes(
-      GQLFEATURE_FLAG.SITE_MODERATOR
-    ) && props?.query?.settings.multisite
-  );
+  const moderationScopesEnabled = !!props?.query?.settings.multisite;
 
   return (
     <IntersectionProvider>
@@ -66,7 +59,6 @@ const UserTableContainer: FunctionComponent<Props> = (props) => {
         <UserTable
           viewer={props.query && props.query.viewer}
           settings={props.query && props.query.settings}
-          query={props.query}
           loading={!props.query || isRefetching}
           users={users}
           onLoadMore={loadMore}
@@ -89,13 +81,13 @@ const enhanced = withPaginationContainer<
   {
     query: graphql`
       fragment UserTableContainer_query on Query
-        @argumentDefinitions(
-          count: { type: "Int", defaultValue: 10 }
-          cursor: { type: "Cursor" }
-          roleFilter: { type: "USER_ROLE" }
-          statusFilter: { type: "USER_STATUS_FILTER" }
-          searchFilter: { type: "String" }
-        ) {
+      @argumentDefinitions(
+        count: { type: "Int", defaultValue: 10 }
+        cursor: { type: "Cursor" }
+        roleFilter: { type: "USER_ROLE" }
+        statusFilter: { type: "USER_STATUS_FILTER" }
+        searchFilter: { type: "String" }
+      ) {
         viewer {
           ...UserRowContainer_viewer
           ...InviteUsersContainer_viewer
@@ -120,7 +112,6 @@ const enhanced = withPaginationContainer<
             }
           }
         }
-        ...UserRowContainer_query
       }
     `,
   },

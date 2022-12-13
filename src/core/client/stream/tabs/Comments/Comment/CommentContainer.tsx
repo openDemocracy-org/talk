@@ -1,6 +1,5 @@
 import { Localized } from "@fluent/react/compat";
 import cn from "classnames";
-import { EventEmitter2 } from "eventemitter2";
 import { clearLongTimeout, LongTimeout, setLongTimeout } from "long-settimeout";
 import React, {
   FunctionComponent,
@@ -14,9 +13,10 @@ import { graphql } from "react-relay";
 import { isBeforeDate } from "coral-common/utils";
 import { getURLWithCommentID } from "coral-framework/helpers";
 import { useToggleState } from "coral-framework/hooks";
-import { withContext } from "coral-framework/lib/bootstrap";
-import { MutationProp, useMutation } from "coral-framework/lib/relay";
+import { useCoralContext } from "coral-framework/lib/bootstrap";
+import { MutationProp, useLocal, useMutation } from "coral-framework/lib/relay";
 import withFragmentContainer from "coral-framework/lib/relay/withFragmentContainer";
+import { Ability, can } from "coral-framework/permissions";
 import {
   GQLFEATURE_FLAG,
   GQLSTORY_MODE,
@@ -29,6 +29,7 @@ import {
   ShowAuthPopupMutation,
   withShowAuthPopupMutation,
 } from "coral-stream/common/AuthPopup";
+import { SetTraversalFocus } from "coral-stream/common/KeyboardShortcuts/SetTraversalFocus";
 import { MAX_REPLY_INDENT_DEPTH } from "coral-stream/constants";
 import {
   ShowEditFormEvent,
@@ -36,23 +37,34 @@ import {
   ViewConversationEvent,
 } from "coral-stream/events";
 import { SetCommentIDMutation } from "coral-stream/mutations";
-import { Ability, can } from "coral-stream/permissions";
-import { Button, Flex, HorizontalGutter, Icon } from "coral-ui/components/v2";
+import {
+  Button,
+  Flex,
+  Hidden,
+  HorizontalGutter,
+  Icon,
+  RelativeTime,
+} from "coral-ui/components/v2";
 import MatchMedia from "coral-ui/components/v2/MatchMedia";
 
 import { CommentContainer_comment as CommentData } from "coral-stream/__generated__/CommentContainer_comment.graphql";
 import { CommentContainer_settings as SettingsData } from "coral-stream/__generated__/CommentContainer_settings.graphql";
 import { CommentContainer_story as StoryData } from "coral-stream/__generated__/CommentContainer_story.graphql";
 import { CommentContainer_viewer as ViewerData } from "coral-stream/__generated__/CommentContainer_viewer.graphql";
+import { CommentContainerLocal } from "coral-stream/__generated__/CommentContainerLocal.graphql";
 
+import { useCommentSeenEnabled } from "../commentSeen";
 import { isPublished } from "../helpers";
 import AnsweredTag from "./AnsweredTag";
+import { ArchivedReportFlowContainer } from "./ArchivedReportFlow";
 import AuthorBadges from "./AuthorBadges";
 import ButtonsBar from "./ButtonsBar";
-import commentElementID from "./commentElementID";
+import computeCommentElementID from "./computeCommentElementID";
 import EditCommentFormContainer from "./EditCommentForm";
 import FeaturedTag from "./FeaturedTag";
+import { isReplyFlattened } from "./flattenReplies";
 import IndentedComment from "./IndentedComment";
+import MarkCommentsAsSeenMutation from "./MarkCommentsAsSeenMutation";
 import MediaSectionContainer from "./MediaSection/MediaSectionContainer";
 import CaretContainer, {
   ModerationRejectedTombstoneContainer,
@@ -71,10 +83,10 @@ import styles from "./CommentContainer.css";
 
 interface Props {
   viewer: ViewerData | null;
+  enableJumpToParent?: boolean;
   comment: CommentData;
   story: StoryData;
   settings: SettingsData;
-  eventEmitter: EventEmitter2;
   indentLevel?: number;
   showAuthPopup: MutationProp<typeof ShowAuthPopupMutation>;
   /**
@@ -95,6 +107,18 @@ interface Props {
   collapsed?: boolean;
   toggleCollapsed?: () => void;
 
+  /**
+   * Set true, if this is semantically an ancestor to another comment.
+   * Will add appropiate aria label.
+   */
+  ariaIsAncestor?: boolean;
+
+  /**
+   * Set true, if this is semantically a highlighted comment.
+   * Will add appropiate aria label.
+   */
+  ariaIsHighlighted?: boolean;
+
   showRemoveAnswered?: boolean;
 }
 
@@ -106,6 +130,8 @@ export const CommentContainer: FunctionComponent<Props> = ({
   hideAnsweredTag,
   hideModerationCarat,
   highlight,
+  ariaIsAncestor,
+  ariaIsHighlighted,
   indentLevel,
   localReply,
   settings,
@@ -113,18 +139,46 @@ export const CommentContainer: FunctionComponent<Props> = ({
   hideReportButton,
   story,
   toggleCollapsed,
-  eventEmitter,
   viewer,
   showAuthPopup,
   showRemoveAnswered,
+  enableJumpToParent,
 }) => {
+  const [{ showCommentIDs }] = useLocal<CommentContainerLocal>(graphql`
+    fragment CommentContainerLocal on Local {
+      showCommentIDs
+    }
+  `);
+  const commentSeenEnabled = useCommentSeenEnabled();
+  const canCommitCommentSeen = !!(viewer && viewer.id) && commentSeenEnabled;
+  const { eventEmitter } = useCoralContext();
+  const setTraversalFocus = useMutation(SetTraversalFocus);
+  const markCommentsAsSeen = useMutation(MarkCommentsAsSeenMutation);
+  const handleFocus = useCallback(() => {
+    if (canCommitCommentSeen && !comment.seen) {
+      void markCommentsAsSeen({
+        commentIDs: [comment.id],
+        storyID: story.id,
+        updateSeen: true,
+      });
+    }
+
+    void setTraversalFocus({
+      commentID: comment.id,
+      commentSeenEnabled: canCommitCommentSeen,
+    });
+  }, [
+    comment.id,
+    comment.seen,
+    canCommitCommentSeen,
+    markCommentsAsSeen,
+    setTraversalFocus,
+    story.id,
+  ]);
   const setCommentID = useMutation(SetCommentIDMutation);
   const [showReplyDialog, setShowReplyDialog] = useState(false);
-  const [
-    showEditDialog,
-    setShowEditDialog,
-    toggleShowEditDialog,
-  ] = useToggleState(false);
+  const [showEditDialog, setShowEditDialog, toggleShowEditDialog] =
+    useToggleState(false);
   const [showReportFlow, , toggleShowReportFlow] = useToggleState(false);
   const handleShowConversation = useCallback(
     (e: MouseEvent) => {
@@ -209,6 +263,10 @@ export const CommentContainer: FunctionComponent<Props> = ({
       isViewerSuspended ||
       isViewerWarned
     ) {
+      return false;
+    }
+
+    if (story.isArchiving || story.isArchived) {
       return false;
     }
 
@@ -305,11 +363,9 @@ export const CommentContainer: FunctionComponent<Props> = ({
     !!viewer &&
     story.canModerate &&
     can(viewer, Ability.MODERATE) &&
-    !hideModerationCarat;
-
-  const flattenReplies = settings.featureFlags.includes(
-    GQLFEATURE_FLAG.FLATTEN_REPLIES
-  );
+    !hideModerationCarat &&
+    !story.isArchiving &&
+    !story.isArchived;
 
   if (showEditDialog) {
     return (
@@ -339,7 +395,12 @@ export const CommentContainer: FunctionComponent<Props> = ({
 
   // Comment is not published after viewer rejected it.
   if (comment.lastViewerAction === "REJECT" && comment.status === "REJECTED") {
-    return <ModerationRejectedTombstoneContainer comment={comment} />;
+    return (
+      <ModerationRejectedTombstoneContainer
+        comment={comment}
+        settings={settings}
+      />
+    );
   }
 
   // Comment is not published after edit, so don't render it anymore.
@@ -347,21 +408,116 @@ export const CommentContainer: FunctionComponent<Props> = ({
     return null;
   }
 
+  const commentElementID = computeCommentElementID(comment.id);
+
+  // Boolean that indicates whether or not we want to
+  // apply the "comment not seen class" for styling purposes.
+  const shouldApplyNotSeenClass =
+    canCommitCommentSeen &&
+    !comment.seen &&
+    !highlight &&
+    comment.lastViewerAction !== "CREATE" &&
+    comment.lastViewerAction !== "EDIT";
+
   return (
     <div
       className={cn(
+        styles.root,
+        className,
         CLASSES.comment.$root,
         `${CLASSES.comment.reacted}-${comment.actionCounts.reaction.total}`,
-        badgesClassName,
-        className
+        badgesClassName
       )}
-      id={commentElementID(comment.id)}
-      data-testid={commentElementID(comment.id)}
+      tabIndex={-1}
+      id={commentElementID}
+      role="article"
+      aria-labelledby={`${commentElementID}-label`}
+      data-testid={commentElementID}
       // Added for keyboard shortcut support.
       data-key-stop
+      data-not-seen={canCommitCommentSeen && !comment.seen ? true : undefined}
+      onFocus={handleFocus}
     >
+      {/* TODO: (cvle) Refactor at some point */}
+      <Hidden id={`${commentElementID}-label`}>
+        {indentLevel && (
+          <>
+            <Localized
+              id="comments-commentContainer-threadLevelLabel"
+              vars={{ level: indentLevel }}
+            >
+              <span>Thread Level {indentLevel}:</span>
+            </Localized>{" "}
+          </>
+        )}
+        {ariaIsHighlighted && (
+          <>
+            <Localized id="comments-commentContainer-highlightedLabel">
+              <span>Highlighted:</span>
+            </Localized>{" "}
+          </>
+        )}
+        {ariaIsAncestor && (
+          <>
+            <Localized id="comments-commentContainer-ancestorLabel">
+              <span>Ancestor:</span>
+            </Localized>{" "}
+          </>
+        )}
+        {comment.parent && (
+          <Localized
+            id="comments-commentContainer-replyLabel"
+            vars={{ username: comment.author?.username ?? "" }}
+            elems={{ RelativeTime: <RelativeTime date={comment.createdAt} /> }}
+          >
+            <span>
+              Reply from {comment.author?.username}{" "}
+              <RelativeTime date={comment.createdAt} />
+            </span>
+          </Localized>
+        )}
+        {!comment.parent && isQA && (
+          <Localized
+            id="comments-commentContainer-questionLabel"
+            vars={{ username: comment.author?.username ?? "" }}
+            elems={{ RelativeTime: <RelativeTime date={comment.createdAt} /> }}
+          >
+            <span>
+              Question from {comment.author?.username}{" "}
+              <RelativeTime date={comment.createdAt} />
+            </span>
+          </Localized>
+        )}
+        {!comment.parent && !isQA && (
+          <Localized
+            id="comments-commentContainer-commentLabel"
+            vars={{ username: comment.author?.username ?? "" }}
+            elems={{ RelativeTime: <RelativeTime date={comment.createdAt} /> }}
+          >
+            <span>
+              Comment from {comment.author?.username}{" "}
+              <RelativeTime date={comment.createdAt} />
+            </span>
+          </Localized>
+        )}
+      </Hidden>
       <HorizontalGutter>
         <IndentedComment
+          id={comment.id}
+          showCommentID={!!showCommentIDs}
+          enableJumpToParent={enableJumpToParent}
+          classNameIndented={cn(styles.indentedCommentRoot, {
+            [styles.indented]: indentLevel && indentLevel > 0,
+            [styles.commentSeenEnabled]: canCommitCommentSeen,
+            [styles.notSeen]: shouldApplyNotSeenClass,
+            [styles.flattenedPadding]: isReplyFlattened(
+              settings.flattenReplies,
+              indentLevel
+            ),
+            [CLASSES.comment.notSeen]: shouldApplyNotSeenClass,
+            [styles.traversalFocus]: comment.hasTraversalFocus,
+            [CLASSES.comment.focus]: comment.hasTraversalFocus,
+          })}
           indentLevel={indentLevel}
           collapsed={collapsed}
           body={comment.body}
@@ -371,7 +527,7 @@ export const CommentContainer: FunctionComponent<Props> = ({
           showEditedMarker={comment.editing.edited}
           highlight={highlight}
           toggleCollapsed={toggleCollapsed}
-          parentAuthorName={comment.parent?.author?.username}
+          parent={comment.parent}
           staticUsername={
             comment.author && (
               <Flex direction="row" alignItems="center" wrap>
@@ -397,7 +553,8 @@ export const CommentContainer: FunctionComponent<Props> = ({
               </Flex>
             )
           }
-          username={
+          username={comment.author?.username}
+          usernameEl={
             comment.author && (
               <UsernameWithPopoverContainer
                 className={cn(
@@ -466,7 +623,9 @@ export const CommentContainer: FunctionComponent<Props> = ({
                           <Localized
                             id="comments-commentContainer-avatar"
                             attrs={{ alt: true }}
-                            $username={comment.author.username}
+                            vars={{
+                              username: comment.author.username,
+                            }}
                           >
                             <img
                               src={comment.author.avatar}
@@ -512,7 +671,11 @@ export const CommentContainer: FunctionComponent<Props> = ({
                     settings={settings}
                     viewer={viewer}
                     readOnly={
-                      isViewerBanned || isViewerSuspended || isViewerWarned
+                      isViewerBanned ||
+                      isViewerSuspended ||
+                      isViewerWarned ||
+                      story.isArchived ||
+                      story.isArchiving
                     }
                     className={cn(
                       styles.actionButton,
@@ -535,7 +698,11 @@ export const CommentContainer: FunctionComponent<Props> = ({
                         onClick={toggleShowReplyDialog}
                         active={showReplyDialog}
                         disabled={
-                          settings.disableCommenting.enabled || story.isClosed
+                          !comment.canReply ||
+                          settings.disableCommenting.enabled ||
+                          story.isClosed ||
+                          story.isArchived ||
+                          story.isArchiving
                         }
                         className={cn(
                           styles.actionButton,
@@ -578,13 +745,16 @@ export const CommentContainer: FunctionComponent<Props> = ({
             </>
           }
         />
-        {showReportFlow && (
+        {showReportFlow && !story.isArchived && !story.isArchiving && (
           <ReportFlowContainer
             viewer={viewer}
             comment={comment}
             settings={settings}
             onClose={toggleShowReportFlow}
           />
+        )}
+        {showReportFlow && (story.isArchived || story.isArchiving) && (
+          <ArchivedReportFlowContainer settings={settings} comment={comment} />
         )}
         {showReplyDialog && !comment.deleted && (
           <ReplyCommentFormContainer
@@ -596,7 +766,7 @@ export const CommentContainer: FunctionComponent<Props> = ({
             showJumpToComment={Boolean(
               indentLevel &&
                 indentLevel >= MAX_REPLY_INDENT_DEPTH - 1 &&
-                flattenReplies
+                settings.flattenReplies
             )}
           />
         )}
@@ -608,115 +778,123 @@ export const CommentContainer: FunctionComponent<Props> = ({
   );
 };
 
-const enhanced = withContext(({ eventEmitter }) => ({ eventEmitter }))(
-  withShowAuthPopupMutation(
-    withFragmentContainer<Props>({
-      viewer: graphql`
-        fragment CommentContainer_viewer on User {
+const enhanced = withShowAuthPopupMutation(
+  withFragmentContainer<Props>({
+    viewer: graphql`
+      fragment CommentContainer_viewer on User {
+        id
+        status {
+          current
+        }
+        ignoredUsers {
           id
-          status {
-            current
-          }
-          ignoredUsers {
-            id
-          }
+        }
+        badges
+        role
+        scheduledDeletionDate
+        mediaSettings {
+          unfurlEmbeds
+        }
+        ...UsernameWithPopoverContainer_viewer
+        ...ReactionButtonContainer_viewer
+        ...ReportFlowContainer_viewer
+        ...ReportButton_viewer
+        ...CaretContainer_viewer
+      }
+    `,
+    story: graphql`
+      fragment CommentContainer_story on Story {
+        id
+        url
+        isClosed
+        canModerate
+        settings {
+          mode
+        }
+        isArchiving
+        isArchived
+        ...CaretContainer_story
+        ...EditCommentFormContainer_story
+        ...PermalinkButtonContainer_story
+        ...ReplyCommentFormContainer_story
+        ...UserTagsContainer_story
+      }
+    `,
+    comment: graphql`
+      fragment CommentContainer_comment on Comment {
+        id
+        author {
+          id
+          username
+          avatar
           badges
-          role
-          scheduledDeletionDate
-          mediaSettings {
-            unfurlEmbeds
-          }
-          ...UsernameWithPopoverContainer_viewer
-          ...ReactionButtonContainer_viewer
-          ...ReportFlowContainer_viewer
-          ...ReportButton_viewer
-          ...CaretContainer_viewer
         }
-      `,
-      story: graphql`
-        fragment CommentContainer_story on Story {
-          id
-          url
-          isClosed
-          canModerate
-          settings {
-            mode
-          }
-          ...CaretContainer_story
-          ...EditCommentFormContainer_story
-          ...PermalinkButtonContainer_story
-          ...ReplyCommentFormContainer_story
-          ...UserTagsContainer_story
-        }
-      `,
-      comment: graphql`
-        fragment CommentContainer_comment on Comment {
+        parent {
           id
           author {
-            id
             username
-            avatar
-            badges
           }
-          parent {
-            author {
-              username
-            }
-          }
-          body
-          createdAt
-          status
-          rating
-          editing {
-            edited
-            editableUntil
-          }
-          tags {
-            code
-          }
-          pending
-          lastViewerAction
-          deleted
-          actionCounts {
-            reaction {
-              total
-            }
-          }
-          viewerActionPresence {
-            dontAgree
-            flag
-          }
-          ...CaretContainer_comment
-          ...EditCommentFormContainer_comment
-          ...MediaSectionContainer_comment
-          ...ReactionButtonContainer_comment
-          ...ModerationRejectedTombstoneContainer_comment
-          ...ReplyCommentFormContainer_comment
-          ...ReportButton_comment
-          ...ReportFlowContainer_comment
-          ...UsernameContainer_comment
-          ...UsernameWithPopoverContainer_comment
-          ...UserTagsContainer_comment
         }
-      `,
-      settings: graphql`
-        fragment CommentContainer_settings on Settings {
-          disableCommenting {
-            enabled
-          }
-          featureFlags
-          ...CaretContainer_settings
-          ...EditCommentFormContainer_settings
-          ...MediaSectionContainer_settings
-          ...ReactionButtonContainer_settings
-          ...ReplyCommentFormContainer_settings
-          ...ReportFlowContainer_settings
-          ...UsernameWithPopoverContainer_settings
-          ...UserTagsContainer_settings
+        body
+        createdAt
+        status
+        rating
+        editing {
+          edited
+          editableUntil
         }
-      `,
-    })(CommentContainer)
-  )
+        tags {
+          code
+        }
+        pending
+        lastViewerAction
+        deleted
+        actionCounts {
+          reaction {
+            total
+          }
+        }
+        viewerActionPresence {
+          dontAgree
+          flag
+        }
+        hasTraversalFocus
+        seen
+        canReply
+        ...CaretContainer_comment
+        ...EditCommentFormContainer_comment
+        ...MediaSectionContainer_comment
+        ...ReactionButtonContainer_comment
+        ...ModerationRejectedTombstoneContainer_comment
+        ...ReplyCommentFormContainer_comment
+        ...ReportButton_comment
+        ...ReportFlowContainer_comment
+        ...UsernameContainer_comment
+        ...UsernameWithPopoverContainer_comment
+        ...UserTagsContainer_comment
+        ...ArchivedReportFlowContainer_comment
+      }
+    `,
+    settings: graphql`
+      fragment CommentContainer_settings on Settings {
+        flattenReplies
+        disableCommenting {
+          enabled
+        }
+        featureFlags
+        ...CaretContainer_settings
+        ...EditCommentFormContainer_settings
+        ...MediaSectionContainer_settings
+        ...ReactionButtonContainer_settings
+        ...ModerationRejectedTombstoneContainer_settings
+        ...ReplyCommentFormContainer_settings
+        ...ReportFlowContainer_settings
+        ...UsernameWithPopoverContainer_settings
+        ...UserTagsContainer_settings
+        ...ArchivedReportFlowContainer_settings
+      }
+    `,
+  })(CommentContainer)
 );
 
 export type CommentContainerProps = PropTypesOf<typeof enhanced>;

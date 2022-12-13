@@ -1,3 +1,4 @@
+import { FluentBundle } from "@fluent/bundle/compat";
 import {
   authMiddleware,
   cacheMiddleware,
@@ -8,8 +9,6 @@ import {
   urlMiddleware,
 } from "react-relay-network-modern/es";
 import { GraphQLResponse, Observable, SubscribeFunction } from "relay-runtime";
-
-import getLocationOrigin from "coral-framework/utils/getLocationOrigin";
 
 import { AccessTokenProvider } from "../auth";
 import clearHTTPCacheMiddleware from "./clearHTTPCacheMiddleware";
@@ -22,8 +21,6 @@ export type TokenRefresh = (
   req: RelayRequestAny,
   res: RelayNetworkLayerResponse
 ) => string | Promise<string>;
-
-const graphqlURL = `${getLocationOrigin()}/api/graphql`;
 
 function createSubscriptionFunction(
   subscriptionClient: ManagedSubscriptionClient
@@ -53,9 +50,11 @@ function createSubscriptionFunction(
 }
 
 export default function createNetwork(
+  graphqlURL: string,
   subscriptionClient: ManagedSubscriptionClient,
   clientID: string,
   accessTokenProvider: AccessTokenProvider,
+  localeBundles: FluentBundle[],
   tokenRefresh?: TokenRefresh,
   clearCacheBefore?: Date
 ) {
@@ -65,7 +64,7 @@ export default function createNetwork(
       // to invalidate previous http cache. Usually used when the session changes
       // through login or logout.
       clearHTTPCacheMiddleware(clearCacheBefore),
-      customErrorMiddleware,
+      customErrorMiddleware(localeBundles),
       cacheMiddleware({
         size: 100, // max 100 requests
         ttl: 30 * 1000, // 30 seconds
@@ -79,9 +78,14 @@ export default function createNetwork(
         retryDelays: (attempt: number) => Math.pow(2, attempt + 4) * 100,
         // or simple array [3200, 6400, 12800, 25600, 51200, 102400, 204800, 409600],
         statusCodes: [500, 503, 504],
-        beforeRetry: ({ abort, attempt }) => {
+        beforeRetry: ({ abort, attempt, lastError }) => {
           if (attempt > 2) {
-            abort();
+            let message = lastError?.message;
+            if (message && lastError?.name !== "RRNLRetryMiddlewareError") {
+              // Prefix with Error name.
+              message = `(${lastError?.name}) ${message}`;
+            }
+            abort(message);
           }
         },
       }),

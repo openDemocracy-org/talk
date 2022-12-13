@@ -1,5 +1,4 @@
-import { Db } from "mongodb";
-
+import { MongoContext } from "coral-server/data/context";
 import { CoralEventPublisherBroker } from "coral-server/events/publisher";
 import { getLatestRevision } from "coral-server/models/comment";
 import { Tenant } from "coral-server/models/tenant";
@@ -10,10 +9,10 @@ import { Request } from "coral-server/types/express";
 
 import { GQLCOMMENT_STATUS } from "coral-server/graph/schema/__generated__/types";
 
-import { publishChanges, updateAllCommentCounts } from "./helpers";
+import { publishChanges } from "./helpers";
 
 const approveComment = async (
-  mongo: Db,
+  mongo: MongoContext,
   redis: AugmentedRedis,
   broker: CoralEventPublisherBroker,
   tenant: Tenant,
@@ -23,9 +22,12 @@ const approveComment = async (
   now: Date,
   request?: Request | undefined
 ) => {
+  const updateAllCommentCountsArgs = { actionCounts: {} };
+
   // Approve the comment.
-  const result = await moderate(
+  const { result, counts } = await moderate(
     mongo,
+    redis,
     tenant,
     {
       commentID,
@@ -33,7 +35,9 @@ const approveComment = async (
       moderatorID,
       status: GQLCOMMENT_STATUS.APPROVED,
     },
-    now
+    now,
+    undefined,
+    updateAllCommentCountsArgs
   );
 
   const revision = getLatestRevision(result.before);
@@ -51,21 +55,15 @@ const approveComment = async (
     return result.before;
   }
 
-  // Update all the comment counts on stories and users.
-  const counts = await updateAllCommentCounts(mongo, redis, {
-    ...result,
-    tenant,
-    // Rejecting a comment does not change the action counts.
-    actionCounts: {},
-  });
-
-  // Publish changes to the event publisher.
-  await publishChanges(broker, {
-    ...result,
-    ...counts,
-    moderatorID,
-    commentRevisionID,
-  });
+  if (counts) {
+    // Publish changes to the event publisher.
+    await publishChanges(broker, {
+      ...result,
+      ...counts,
+      moderatorID,
+      commentRevisionID,
+    });
+  }
 
   // Return the resulting comment.
   return result.after;

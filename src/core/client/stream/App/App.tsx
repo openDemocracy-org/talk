@@ -1,13 +1,10 @@
+import { Localized } from "@fluent/react/compat";
 import cn from "classnames";
 import React, { FunctionComponent } from "react";
 
+import { useCoralContext } from "coral-framework/lib/bootstrap/CoralContext";
 import CLASSES from "coral-stream/classes";
-import {
-  AriaInfo,
-  HorizontalGutter,
-  TabContent,
-  TabPane,
-} from "coral-ui/components/v2";
+import { HorizontalGutter, TabContent, TabPane } from "coral-ui/components/v2";
 
 import Comments from "../tabs/Comments";
 import Configure from "../tabs/Configure";
@@ -24,45 +21,57 @@ export interface AppProps {
 }
 
 const App: FunctionComponent<AppProps> = (props) => {
+  const { browserInfo } = useCoralContext();
   return (
-    <HorizontalGutter className={cn(CLASSES.app, styles.root)}>
-      <nav>
-        <AriaInfo component="h2">Navigation</AriaInfo>
-        <TabBarQuery />
-      </nav>
-      <main>
-        <TabContent activeTab={props.activeTab} className={styles.tabContent}>
-          <TabPane
-            className={CLASSES.commentsTabPane.$root}
-            tabID="COMMENTS"
-            data-testid="current-tab-pane"
-          >
-            <Comments />
-          </TabPane>
-          <TabPane
-            className={CLASSES.discussionsTabPane.$root}
-            tabID="DISCUSSIONS"
-            data-testid="current-tab-pane"
-          >
-            <Discussions />
-          </TabPane>
-          <TabPane
-            className={CLASSES.myProfileTabPane.$root}
-            tabID="PROFILE"
-            data-testid="current-tab-pane"
-          >
-            <Profile />
-          </TabPane>
-          <TabPane
-            className={CLASSES.configureTabPane.$root}
-            tabID="CONFIGURE"
-            data-testid="current-tab-pane"
-          >
-            <Configure />
-          </TabPane>
-        </TabContent>
-      </main>
-    </HorizontalGutter>
+    <Localized id="general-commentsEmbedSection" attrs={{ "aria-label": true }}>
+      <HorizontalGutter
+        className={cn(CLASSES.app, styles.root, {
+          // TODO: (cvle) We disable transitions on ios devices to help with performance issues on large streams.
+          // Remove when we introduced virtualised rendering.
+          [styles.disableTransitions]: browserInfo.ios || browserInfo.iPadOS,
+        })}
+        container="main"
+        aria-label="Comments Embed"
+      >
+        <Localized id="general-mainTablist" attrs={{ "aria-label": true }}>
+          <nav aria-label="Main Tablist">
+            <TabBarQuery />
+          </nav>
+        </Localized>
+        <div>
+          <TabContent activeTab={props.activeTab} className={styles.tabContent}>
+            <TabPane
+              className={CLASSES.commentsTabPane.$root}
+              tabID="COMMENTS"
+              data-testid="current-tab-pane"
+            >
+              <Comments />
+            </TabPane>
+            <TabPane
+              className={CLASSES.discussionsTabPane.$root}
+              tabID="DISCUSSIONS"
+              data-testid="current-tab-pane"
+            >
+              <Discussions />
+            </TabPane>
+            <TabPane
+              className={CLASSES.myProfileTabPane.$root}
+              tabID="PROFILE"
+              data-testid="current-tab-pane"
+            >
+              <Profile />
+            </TabPane>
+            <TabPane
+              className={CLASSES.configureTabPane.$root}
+              tabID="CONFIGURE"
+              data-testid="current-tab-pane"
+            >
+              <Configure />
+            </TabPane>
+          </TabContent>
+        </div>
+      </HorizontalGutter>
+    </Localized>
   );
 };
 

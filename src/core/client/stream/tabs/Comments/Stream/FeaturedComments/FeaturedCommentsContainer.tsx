@@ -126,9 +126,9 @@ export const FeaturedCommentsContainer: FunctionComponent<Props> = (props) => {
       <HorizontalGutter
         id="comments-featuredComments-log"
         data-testid="comments-featuredComments-log"
-        role="log"
-        aria-live="polite"
         spacing={3}
+        role="log"
+        aria-live="off"
       >
         {comments.map((comment) => (
           <FeaturedCommentContainer
@@ -142,6 +142,7 @@ export const FeaturedCommentsContainer: FunctionComponent<Props> = (props) => {
         {props.relay.hasMore() && (
           <Localized id="comments-loadMore">
             <Button
+              key={comments.length}
               onClick={loadMoreAndEmit}
               color="secondary"
               variant="outlined"
@@ -199,11 +200,11 @@ const enhanced = withPaginationContainer<
   {
     story: graphql`
       fragment FeaturedCommentsContainer_story on Story
-        @argumentDefinitions(
-          count: { type: "Int", defaultValue: 5 }
-          cursor: { type: "Cursor" }
-          orderBy: { type: "COMMENT_SORT!", defaultValue: CREATED_AT_DESC }
-        ) {
+      @argumentDefinitions(
+        count: { type: "Int", defaultValue: 5 }
+        cursor: { type: "Cursor" }
+        orderBy: { type: "COMMENT_SORT!", defaultValue: CREATED_AT_DESC }
+      ) {
         id
         isClosed
         featuredComments(first: $count, after: $cursor, orderBy: $orderBy)

@@ -53,6 +53,34 @@ exports[`renders configure auth 1`] = `
                 </a>
               </li>
               <li>
+                <button
+                  className="BaseButton-root SubLink-subLink"
+                  onBlur={[Function]}
+                  onClick={[Function]}
+                  onFocus={[Function]}
+                  onMouseOut={[Function]}
+                  onMouseOver={[Function]}
+                  onTouchEnd={[Function]}
+                  type="button"
+                >
+                  Comments
+                </button>
+              </li>
+              <li>
+                <button
+                  className="BaseButton-root SubLink-subLink"
+                  onBlur={[Function]}
+                  onClick={[Function]}
+                  onFocus={[Function]}
+                  onMouseOut={[Function]}
+                  onMouseOver={[Function]}
+                  onTouchEnd={[Function]}
+                  type="button"
+                >
+                  Users
+                </button>
+              </li>
+              <li>
                 <a
                   className="Link-link"
                   href="/admin/configure/moderation/phases"
@@ -1266,7 +1294,7 @@ more about creating a JWT Token with
 
                     <a
                       className="ExternalLink-root"
-                      href="https://docs.coralproject.net/coral/v5/integrating/sso/"
+                      href="https://docs.coralproject.net/sso"
                       rel="noopener noreferrer"
                       target="_blank"
                     >
@@ -1459,17 +1487,10 @@ more about creating a JWT Token with
                           </button>
                           <div
                             aria-hidden={true}
-                            aria-labelledby="sso-key-rotate-ariainfo"
+                            aria-label="A dropdown to rotate the SSO key"
                             id="sso-key-rotate"
                             role="dialog"
-                          >
-                            <div
-                              className="AriaInfo-root"
-                              id="sso-key-rotate-ariainfo"
-                            >
-                              A dropdown to rotate the SSO key
-                            </div>
-                          </div>
+                          />
                         </div>
                       </div>
                     </div>

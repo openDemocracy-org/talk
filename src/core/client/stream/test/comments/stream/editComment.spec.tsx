@@ -96,11 +96,14 @@ it("edit a comment", async () => {
   expect(within(comment).toJSON()).toMatchSnapshot(
     "render comment with edit button"
   );
+  expect(within(comment).queryByText("Edited")).toBe(null);
 
   // Open edit form.
   act(() => within(comment).getByTestID("comment-edit-button").props.onClick());
   expect(within(comment).toJSON()).toMatchSnapshot("edit form");
-  expect(await within(comment).axe()).toHaveNoViolations();
+  await act(async () => {
+    expect(await within(comment).axe()).toHaveNoViolations();
+  });
 
   act(() =>
     testRenderer.root
@@ -125,6 +128,8 @@ it("edit a comment", async () => {
 
   // Test after server response.
   expect(within(comment).toJSON()).toMatchSnapshot("server response");
+
+  expect(within(comment).getByText("Edited"));
 });
 
 it("edit a comment and handle non-published comment state", async () => {
@@ -207,7 +212,7 @@ it("shows expiry message", async () => {
   act(() => within(comment).getByTestID("comment-edit-button").props.onClick());
 
   timekeeper.reset();
-  jest.runOnlyPendingTimers();
+  act(() => jest.runOnlyPendingTimers());
 
   // Show edit time expired.
   expect(within(comment).toJSON()).toMatchSnapshot("edit time expired");
@@ -222,7 +227,10 @@ it("edit a comment and handle server error", async () => {
     {
       Mutation: {
         editComment: sinon.stub().callsFake(() => {
-          throw new InvalidRequestError({ code: ERROR_CODES.INTERNAL_ERROR });
+          throw new InvalidRequestError({
+            code: ERROR_CODES.INTERNAL_ERROR,
+            traceID: "traceID",
+          });
         }),
       },
     },

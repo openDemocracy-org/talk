@@ -2,7 +2,8 @@ import { stripIndent } from "common-tags";
 import React, { FunctionComponent, useMemo } from "react";
 
 import { CopyButton } from "coral-framework/components";
-import { GetMessage, withGetMessage } from "coral-framework/lib/i18n";
+import { useCoralContext } from "coral-framework/lib/bootstrap";
+import { useGetMessage } from "coral-framework/lib/i18n";
 import { getLocationOrigin } from "coral-framework/utils";
 import { HorizontalGutter, Textarea } from "coral-ui/components/v2";
 
@@ -10,13 +11,14 @@ import styles from "./EmbedCode.css";
 
 interface Props {
   staticURI: string | null;
-  getMessage: GetMessage;
 }
 
-const EmbedCode: FunctionComponent<Props> = ({ staticURI, getMessage }) => {
+const EmbedCode: FunctionComponent<Props> = ({ staticURI }) => {
+  const { window } = useCoralContext();
+  const getMessage = useGetMessage();
   const embed = useMemo(() => {
     // Get the origin of the current page.
-    const origin = getLocationOrigin();
+    const origin = getLocationOrigin(window);
 
     // Optionally use the staticURI for configuration.
     const script = staticURI || origin;
@@ -89,6 +91,4 @@ const EmbedCode: FunctionComponent<Props> = ({ staticURI, getMessage }) => {
   );
 };
 
-const enhanced = withGetMessage(EmbedCode);
-
-export default enhanced;
+export default EmbedCode;

@@ -43,7 +43,7 @@ const UserDrawerAccountHistory: FunctionComponent<Props> = ({ user }) => {
   const system = (
     <Localized
       id="moderate-user-drawer-account-history-system"
-      icon={<Icon size="md">computer</Icon>}
+      elems={{ icon: <Icon size="md">computer</Icon> }}
     >
       <span>
         <Icon size="md">computer</Icon> System
@@ -165,7 +165,7 @@ const UserDrawerAccountHistory: FunctionComponent<Props> = ({ user }) => {
       });
     });
 
-    user.status.warning.history.forEach((record, i) => {
+    user.status.warning.history.forEach((record) => {
       let action: "created" | "acknowledged" | "removed";
       if (record.active) {
         action = "created";
@@ -178,6 +178,24 @@ const UserDrawerAccountHistory: FunctionComponent<Props> = ({ user }) => {
       }
       history.push({
         kind: "warning",
+        date: new Date(record.createdAt),
+        takenBy: record.createdBy.username,
+        action: {
+          action,
+          acknowledgedAt: record.acknowledgedAt
+            ? new Date(record.acknowledgedAt)
+            : null,
+        },
+        description: record.message,
+      });
+    });
+
+    user.status.modMessage.history.forEach((record) => {
+      const action: "created" | "acknowledged" = record.active
+        ? "created"
+        : "acknowledged";
+      history.push({
+        kind: "modMessage",
         date: new Date(record.createdAt),
         takenBy: record.createdBy.username,
         action: {
@@ -280,6 +298,17 @@ const enhanced = withFragmentContainer<any>({
           }
         }
         warning {
+          history {
+            active
+            createdBy {
+              username
+            }
+            acknowledgedAt
+            createdAt
+            message
+          }
+        }
+        modMessage {
           history {
             active
             createdBy {

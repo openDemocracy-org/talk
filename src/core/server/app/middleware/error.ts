@@ -42,8 +42,10 @@ const serializeError = (err: CoralError, req: Request, bundles?: I18n) => {
     }
   }
 
+  const traceID = req.coral ? req.coral.id : "";
+
   return {
-    error: err.serializeExtensions(bundle),
+    error: err.serializeExtensions(bundle, traceID),
   };
 };
 
@@ -76,7 +78,11 @@ function wrapAndReport(
   if (!reporter || !reporter.shouldReport(err)) {
     // Log the error.
     log.error(
-      { ...extractLoggerMetadata(req, res), err, statusCode: e.status },
+      {
+        ...extractLoggerMetadata(req, res),
+        err,
+        statusCode: e.status,
+      },
       "http error"
     );
 
@@ -130,20 +136,20 @@ function wrapAndReport(
   };
 }
 
-export const JSONErrorHandler = (
-  options: ErrorHandlerOptions = {}
-): ErrorRequestHandler => (err, req, res, next) => {
-  const { status, context } = wrapAndReport(err, req, res, options);
+export const JSONErrorHandler =
+  (options: ErrorHandlerOptions = {}): ErrorRequestHandler =>
+  (err, req, res, next) => {
+    const { status, context } = wrapAndReport(err, req, res, options);
 
-  // Send the response via JSON.
-  res.status(status).json(context);
-};
+    // Send the response via JSON.
+    res.status(status).json(context);
+  };
 
-export const HTMLErrorHandler = (
-  options: ErrorHandlerOptions = {}
-): ErrorRequestHandler => (err, req, res, next) => {
-  const { status, context } = wrapAndReport(err, req, res, options);
+export const HTMLErrorHandler =
+  (options: ErrorHandlerOptions = {}): ErrorRequestHandler =>
+  (err, req, res, next) => {
+    const { status, context } = wrapAndReport(err, req, res, options);
 
-  // Send the response via HTML.
-  res.status(status).render("error", context);
-};
+    // Send the response via HTML.
+    res.status(status).render("error", context);
+  };

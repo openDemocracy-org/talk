@@ -1,21 +1,27 @@
 import { Redis } from "ioredis";
 import { isUndefined, toLower, uniqBy } from "lodash";
-import { Db } from "mongodb";
 import { URL } from "url";
 
 import { Config } from "coral-server/config";
+import { MongoContext } from "coral-server/data/context";
 import { TenantInstalledAlreadyError } from "coral-server/errors";
 import logger from "coral-server/logger";
 import {
   CreateAnnouncementInput,
+  CreateEmailDomainInput,
   createTenant,
   createTenantAnnouncement,
+  createTenantEmailDomain,
   CreateTenantInput,
+  DeleteEmailDomainInput,
   deleteTenantAnnouncement,
+  deleteTenantEmailDomain,
   disableTenantFeatureFlag,
   enableTenantFeatureFlag,
   Tenant,
+  UpdateEmailDomainInput,
   updateTenant,
+  updateTenantEmailDomain,
 } from "coral-server/models/tenant";
 import { User } from "coral-server/models/user";
 import { MailerQueue } from "coral-server/queue/tasks/mailer";
@@ -60,7 +66,7 @@ function cleanWordLists(
 }
 
 export async function update(
-  mongo: Db,
+  mongo: MongoContext,
   redis: Redis,
   cache: TenantCache,
   config: Config,
@@ -127,7 +133,7 @@ export async function isInstalled(cache: TenantCache, domain?: string) {
 export type InstallTenant = CreateTenantInput;
 
 export async function install(
-  mongo: Db,
+  mongo: MongoContext,
   redis: Redis,
   cache: TenantCache,
   i18n: I18n,
@@ -178,7 +184,7 @@ export async function discoverOIDCConfiguration(issuerString: string) {
 }
 
 export async function enableFeatureFlag(
-  mongo: Db,
+  mongo: MongoContext,
   redis: Redis,
   cache: TenantCache,
   tenant: Tenant,
@@ -205,7 +211,7 @@ export async function enableFeatureFlag(
 }
 
 export async function disableFeatureFlag(
-  mongo: Db,
+  mongo: MongoContext,
   redis: Redis,
   cache: TenantCache,
   tenant: Tenant,
@@ -232,7 +238,7 @@ export async function disableFeatureFlag(
 }
 
 export async function createAnnouncement(
-  mongo: Db,
+  mongo: MongoContext,
   redis: Redis,
   cache: TenantCache,
   tenant: Tenant,
@@ -249,7 +255,7 @@ export async function createAnnouncement(
 }
 
 export async function deleteAnnouncement(
-  mongo: Db,
+  mongo: MongoContext,
   redis: Redis,
   cache: TenantCache,
   tenant: Tenant
@@ -285,4 +291,52 @@ export async function sendSMTPTest(
     });
   }
   return tenant;
+}
+
+export async function createEmailDomain(
+  mongo: MongoContext,
+  redis: Redis,
+  cache: TenantCache,
+  tenant: Tenant,
+  input: CreateEmailDomainInput
+) {
+  const updated = await createTenantEmailDomain(mongo, tenant.id, input);
+  if (!updated) {
+    throw new Error("tenant not found");
+  }
+  await cache.update(redis, updated);
+
+  return updated;
+}
+
+export async function updateEmailDomain(
+  mongo: MongoContext,
+  redis: Redis,
+  cache: TenantCache,
+  tenant: Tenant,
+  input: UpdateEmailDomainInput
+) {
+  const updated = await updateTenantEmailDomain(mongo, tenant.id, input);
+  if (!updated) {
+    throw new Error("tenant not found");
+  }
+  await cache.update(redis, updated);
+
+  return updated;
+}
+
+export async function deleteEmailDomain(
+  mongo: MongoContext,
+  redis: Redis,
+  cache: TenantCache,
+  tenant: Tenant,
+  input: DeleteEmailDomainInput
+) {
+  const updated = await deleteTenantEmailDomain(mongo, tenant.id, input);
+  if (!updated) {
+    throw new Error("tenant not found");
+  }
+  await cache.update(redis, updated);
+
+  return updated;
 }

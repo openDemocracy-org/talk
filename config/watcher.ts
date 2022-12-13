@@ -15,13 +15,6 @@ const config: Config = {
         runOnInit: true,
       }),
     },
-    generateDocs: {
-      // TODO: there doesn't seem to be a way to watch for files outside the rootDir
-      paths: ["core/server/**/*.graphql"],
-      executor: new CommandExecutor("npm run generate:docs", {
-        runOnInit: true,
-      }),
-    },
     generateRelayStream: {
       paths: [
         "core/client/stream/**/*.ts",
@@ -118,11 +111,11 @@ const config: Config = {
       ignore: ["core/client/**/*"],
       executor: new LongRunningExecutor("npm run --silent start:development"),
     },
-    runServerWithoutClientRoutes: {
+    runServerWithWebpackDevServerSupport: {
       paths: ["core/server/locales/**/*.ftl"],
       ignore: ["core/client/**/*"],
       executor: new LongRunningExecutor(
-        "DISABLE_CLIENT_ROUTES=true npm run --silent start:development"
+        "WEBPACK_DEV_SERVER=true npm run --silent start:development"
       ),
     },
     runServerLint: {
@@ -141,10 +134,6 @@ const config: Config = {
         "npm run --silent start:webpackDevServer"
       ),
     },
-    runDocs: {
-      paths: [],
-      executor: new LongRunningExecutor("npm run docs:watch"),
-    },
     runDocz: {
       paths: [],
       executor: new LongRunningExecutor("npm run --silent docz -- dev"),
@@ -153,15 +142,13 @@ const config: Config = {
   defaultSet: "client",
   sets: {
     server: [
-      "generateDocs",
       "generateSchemaTypes",
       "runServer",
       "runServerLint",
       "runServerSyntaxCheck",
     ],
     client: [
-      "generateDocs",
-      "runServerWithoutClientRoutes",
+      "runServerWithWebpackDevServerSupport",
       "runServerLint",
       "runServerSyntaxCheck",
       "runWebpackDevServer",
@@ -174,9 +161,7 @@ const config: Config = {
       "generateSchemaTypes",
     ],
     docz: ["runDocz", "generate"],
-    docs: ["generateDocs", "runDocs"],
     generate: [
-      "generateDocs",
       "generateSchemaTypes",
       "generateCSSTypes",
       "generateRelayStream",

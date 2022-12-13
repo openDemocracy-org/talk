@@ -1,25 +1,25 @@
 import Joi from "joi";
 import { camelCase, isEqual, omit, pick, uniqWith } from "lodash";
-import { Db } from "mongodb";
 import { v4 as uuid } from "uuid";
 
 import { Sub } from "coral-common/types";
+import { MongoContext } from "coral-server/data/context";
 import logger from "coral-server/logger";
 import {
   Connection,
-  ConnectionInput,
   FilterQuery,
+  OrderedConnectionInput,
   Query,
   resolveConnection,
 } from "coral-server/models/helpers";
 import { TenantResource } from "coral-server/models/tenant";
-import { commentActions as collection } from "coral-server/services/mongodb/collections";
 
 import {
   GQLActionPresence,
   GQLCOMMENT_FLAG_DETECTED_REASON,
   GQLCOMMENT_FLAG_REASON,
   GQLCOMMENT_FLAG_REPORTED_REASON,
+  GQLCOMMENT_SORT,
   GQLDontAgreeActionCounts,
   GQLFlagActionCounts,
   GQLReactionActionCounts,
@@ -134,6 +134,18 @@ export interface CommentAction extends TenantResource {
    * metadata is arbitrary information stored for this Action.
    */
   metadata?: Record<string, any>;
+
+  /**
+   * reviewed is whether this comment action has been reviewed by a moderator.
+   */
+  reviewed?: boolean;
+
+  /**
+   * section is the section of the story of the comment that this action was
+   * performed on. If the section was not available when the action was authored,
+   * the section will be null here.
+   */
+  section?: string;
 }
 
 const ActionSchema = Joi.compile([
@@ -202,7 +214,7 @@ export function filterDuplicateActions<T extends {}>(actions: T[]): T[] {
 }
 
 export async function createAction(
-  mongo: Db,
+  mongo: MongoContext,
   tenantID: string,
   input: CreateActionInput,
   now = new Date()
@@ -239,7 +251,7 @@ export async function createAction(
   };
 
   // Insert the action into the database using an upsert operation.
-  const result = await collection(mongo).findOneAndUpdate(filter, update, {
+  const result = await mongo.commentActions().findOneAndUpdate(filter, update, {
     // We are using this to create a action, so we need to upsert it.
     upsert: true,
 
@@ -267,7 +279,7 @@ export async function createAction(
 }
 
 export async function createActions(
-  mongo: Db,
+  mongo: MongoContext,
   tenantID: string,
   inputs: CreateActionInput[],
   now = new Date()
@@ -278,46 +290,56 @@ export async function createActions(
   );
 }
 
-export type CommentActionConnectionInput = ConnectionInput<CommentAction>;
+export type CommentActionConnectionInput = OrderedConnectionInput<
+  CommentAction,
+  GQLCOMMENT_SORT
+>;
 
-async function retrieveConnection(
-  input: CommentActionConnectionInput,
-  query: Query<CommentAction>
-): Promise<Readonly<Connection<Readonly<CommentAction>>>> {
-  // Apply the pagination arguments to the query.
-  query.orderBy({ createdAt: -1 });
-  if (input.after) {
-    query.where({ createdAt: { $lt: input.after as Date } });
+function applyInputToQuery(
+  query: Query<CommentAction>,
+  input: CommentActionConnectionInput
+) {
+  switch (input.orderBy) {
+    case GQLCOMMENT_SORT.CREATED_AT_DESC:
+      query.orderBy({ createdAt: -1 });
+      if (input.after) {
+        query.where({ createdAt: { $lt: input.after as Date } });
+      }
+      break;
+    case GQLCOMMENT_SORT.CREATED_AT_ASC:
+      query.orderBy({ createdAt: 1 });
+      if (input.after) {
+        query.where({ createdAt: { $gt: input.after as Date } });
+      }
+      break;
   }
 
-  // Return a connection.
-  return resolveConnection(query, input, (action) => action.createdAt);
-}
-
-export async function retrieveCommentActionConnection(
-  mongo: Db,
-  tenantID: string,
-  input: CommentActionConnectionInput
-): Promise<Readonly<Connection<Readonly<CommentAction>>>> {
-  // Create the query.
-  const query = new Query(collection(mongo)).where({ tenantID });
-
-  // If a filter is being applied, filter it as well.
   if (input.filter) {
     query.where(input.filter);
   }
 
-  return retrieveConnection(input, query);
+  return query;
+}
+
+export async function retrieveCommentActionConnection(
+  mongo: MongoContext,
+  tenantID: string,
+  input: CommentActionConnectionInput
+): Promise<Readonly<Connection<Readonly<CommentAction>>>> {
+  const query = new Query(mongo.commentActions()).where({ tenantID });
+  applyInputToQuery(query, input);
+
+  return resolveConnection(query, input, (action) => action.createdAt);
 }
 
 export async function retrieveUserAction(
-  mongo: Db,
+  mongo: MongoContext,
   tenantID: string,
   userID: string | null,
   commentID: string,
   actionType: ACTION_TYPE
 ) {
-  return collection(mongo).findOne({
+  return mongo.commentActions().findOne({
     tenantID,
     actionType,
     commentID,
@@ -330,12 +352,12 @@ export async function retrieveUserAction(
  * user.
  */
 export async function retrieveManyUserActionPresence(
-  mongo: Db,
+  mongo: MongoContext,
   tenantID: string,
   userID: string | null,
   commentIDs: string[]
 ): Promise<GQLActionPresence[]> {
-  const cursor = collection(mongo).find(
+  const cursor = mongo.commentActions().find(
     {
       tenantID,
       userID,
@@ -399,7 +421,7 @@ export interface RemovedActionResultObject {
  * than a specific action by ID.
  */
 export async function removeAction(
-  mongo: Db,
+  mongo: MongoContext,
   tenantID: string,
   input: RemoveActionInput
 ): Promise<RemovedActionResultObject> {
@@ -418,7 +440,7 @@ export async function removeAction(
   }
 
   // Remove the action from the database, returning the action that was deleted.
-  const result = await collection(mongo).findOneAndDelete(filter);
+  const result = await mongo.commentActions().findOneAndDelete(filter);
   return {
     action: result.value,
     wasRemoved: Boolean(result.ok && result.value),
@@ -685,15 +707,39 @@ function incrementActionCounts(
 }
 
 /**
- * removeRootActions will remove all the Action's associated with a given root
- * identifier.
+ * removeStoryModerationActions will remove all the Moderation Action's associated
+ * with the story
+ */
+export async function removeStoryModerationActions(
+  mongo: MongoContext,
+  tenantID: string,
+  storyID: string,
+  isArchive = false
+) {
+  const coll =
+    isArchive && mongo.archive
+      ? mongo.archivedCommentModerationActions()
+      : mongo.commentModerationActions();
+  return coll.deleteMany({
+    tenantID,
+    storyID,
+  });
+}
+
+/**
+ * removeStoryActions will remove all the Action's associated with the story
  */
 export async function removeStoryActions(
-  mongo: Db,
+  mongo: MongoContext,
   tenantID: string,
-  storyID: string
+  storyID: string,
+  isArchive = false
 ) {
-  return collection(mongo).deleteMany({
+  const coll =
+    isArchive && mongo.archive
+      ? mongo.archivedCommentActions()
+      : mongo.commentActions();
+  return coll.deleteMany({
     tenantID,
     storyID,
   });
@@ -704,12 +750,12 @@ export async function removeStoryActions(
  * another.
  */
 export async function mergeManyStoryActions(
-  mongo: Db,
+  mongo: MongoContext,
   tenantID: string,
   newStoryID: string,
   oldStoryIDs: string[]
 ) {
-  return collection(mongo).updateMany(
+  return mongo.commentActions().updateMany(
     {
       tenantID,
       storyID: {

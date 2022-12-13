@@ -1,11 +1,5 @@
-✨🧑🏾‍💻👩🏻‍💻👨🏿‍💻🧑🏾‍💻👩🏽‍💻✨
-
-**Vox Media is hiring a Full-Stack Engineer to help build Coral, [Learn more and apply now.](https://boards.greenhouse.io/voxmedia/jobs/2956407?gh_jid=2956407)**
-
-✨👩🏻‍💻👨🏽‍💻🧑🏾‍💻👩🏼‍💻👨🏻‍💻✨
-
 <p align="center">
-  <a href="https://coralproject.net" target="_blank"><img width="250" src="https://docs.coralproject.net/coral/images/coralproject_by_voxmedia.svg" alt="Coral by Vox Media" /></a>
+  <a href="https://coralproject.net" target="_blank"><img width="250" src="https://docs.coralproject.net/img/coralproject_by_voxmedia.svg" alt="Coral by Vox Media" /></a>
 </p>
 
 <p align="center">
@@ -26,9 +20,6 @@ Online comments are broken. Our open-source commenting platform,
 conversation function, creating the opportunity for safer, smarter discussions
 around your work.
 
-We offer hosting and support packages for Coral, as well as exclusive,
-customer-only features. [Contact us](https://coralproject.net/pricing/) for more
-information or [sign up for a webinar](https://coralproject.net).
 
 ## Documentation
 

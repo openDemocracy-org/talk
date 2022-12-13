@@ -1,5 +1,5 @@
 import { Localized } from "@fluent/react/compat";
-import { Match, Router, withRouter } from "found";
+import { useRouter } from "found";
 import React, { FunctionComponent, useCallback, useState } from "react";
 import { graphql } from "react-relay";
 
@@ -24,15 +24,11 @@ import RotateSigningSecretModal from "./RotateSigningSecretModal";
 
 interface Props {
   webhookEndpoint: EndpointDangerZone_webhookEndpoint;
-  router: Router;
-  match: Match;
 }
 
-const EndpointDangerZone: FunctionComponent<Props> = ({
-  webhookEndpoint,
-  router,
-}) => {
+const EndpointDangerZone: FunctionComponent<Props> = ({ webhookEndpoint }) => {
   const { localeBundles } = useCoralContext();
+  const { router } = useRouter();
   const enableWebhookEndpoint = useMutation(EnableWebhookEndpointMutation);
   const disableWebhookEndpoint = useMutation(DisableWebhookEndpointMutation);
   const deleteWebhookEndpoint = useMutation(DeleteWebhookEndpointMutation);
@@ -52,6 +48,7 @@ const EndpointDangerZone: FunctionComponent<Props> = ({
       "Enabling the webhook endpoint will start to send events to this URL. Are you sure you want to continue?"
     );
 
+    // eslint-disable-next-line no-restricted-globals
     if (window.confirm(message)) {
       await enableWebhookEndpoint({ id: webhookEndpoint.id });
     }
@@ -63,6 +60,7 @@ const EndpointDangerZone: FunctionComponent<Props> = ({
       "Disabling this webhook endpoint will stop any new events from being sent to this URL. Are you sure you want to continue?"
     );
 
+    // eslint-disable-next-line no-restricted-globals
     if (window.confirm(message)) {
       await disableWebhookEndpoint({ id: webhookEndpoint.id });
     }
@@ -75,6 +73,7 @@ const EndpointDangerZone: FunctionComponent<Props> = ({
       "Deleting this webhook endpoint will stop any new events from being sent to this URL, and remove all the associated settings with this webhook endpoint. Are you sure you want to continue?"
     );
 
+    // eslint-disable-next-line no-restricted-globals
     if (window.confirm(message)) {
       await deleteWebhookEndpoint({ id: webhookEndpoint.id });
 
@@ -164,15 +163,13 @@ const EndpointDangerZone: FunctionComponent<Props> = ({
   );
 };
 
-const enhanced = withRouter(
-  withFragmentContainer<Props>({
-    webhookEndpoint: graphql`
-      fragment EndpointDangerZone_webhookEndpoint on WebhookEndpoint {
-        id
-        enabled
-      }
-    `,
-  })(EndpointDangerZone)
-);
+const enhanced = withFragmentContainer<Props>({
+  webhookEndpoint: graphql`
+    fragment EndpointDangerZone_webhookEndpoint on WebhookEndpoint {
+      id
+      enabled
+    }
+  `,
+})(EndpointDangerZone);
 
 export default enhanced;

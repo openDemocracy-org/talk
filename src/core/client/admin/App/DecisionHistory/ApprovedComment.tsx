@@ -11,7 +11,7 @@ import Timestamp from "./Timestamp";
 import Username from "./Username";
 
 interface Props {
-  href: string;
+  href: string | null;
   username: string;
   date: string;
   onGotoComment?: React.EventHandler<React.MouseEvent>;
@@ -21,14 +21,18 @@ const ApprovedComment: FunctionComponent<Props> = (props) => (
   <DecisionItem icon={<ApprovedIcon />}>
     <Localized
       id="decisionHistory-approvedCommentBy"
-      Username={<Username username={props.username} />}
+      elems={{ Username: <Username username={props.username} /> }}
     >
       <Info>{"Approved comment by <Username></Username>"}</Info>
     </Localized>
     <Footer>
       <Timestamp>{props.date}</Timestamp>
-      <DotDivider />
-      <GoToCommentLink href={props.href} onClick={props.onGotoComment} />
+      {props.href && (
+        <>
+          <DotDivider />
+          <GoToCommentLink href={props.href} onClick={props.onGotoComment} />
+        </>
+      )}
     </Footer>
   </DecisionItem>
 );

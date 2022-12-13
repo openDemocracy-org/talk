@@ -42,6 +42,7 @@ const RTEConfig: FunctionComponent<Props> = ({ disabled }) => (
       </Localized>
     }
     container={<FieldSet />}
+    data-testid="rte-config-box"
   >
     <Localized id="configure-general-rte-express">
       <FormFieldDescription>
@@ -62,6 +63,7 @@ const RTEConfig: FunctionComponent<Props> = ({ disabled }) => (
             <span>On - bold, italics, block quotes, and bulleted lists</span>
           </Localized>
         }
+        testIDs={{ on: "rte-config-onField", off: "rte-config-offField" }}
       />
     </FormField>
     <FormSpy subscription={{ values: true }}>

@@ -52,6 +52,8 @@ const DeletionRequestCalloutContainer: FunctionComponent<Props> = ({
       className={cn(styles.container, CLASSES.pendingAccountDeletion.container)}
     >
       <CallOut
+        container="section"
+        aria-labelledby="profile-accountDeletion-title"
         color="error"
         borderPosition="top"
         className={CLASSES.pendingAccountDeletion.$root}
@@ -64,9 +66,9 @@ const DeletionRequestCalloutContainer: FunctionComponent<Props> = ({
         title={
           <Localized
             id="profile-accountDeletion-deletionDesc"
-            $date={deletionDate}
+            vars={{ date: deletionDate ?? "" }}
           >
-            <div>
+            <div id="profile-accountDeletion-title">
               Your account is scheduled to be deleted on {deletionDate}.
             </div>
           </Localized>

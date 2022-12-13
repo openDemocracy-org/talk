@@ -3,6 +3,7 @@ import { SUBSCRIPTION_CHANNELS } from "coral-server/graph/resolvers/Subscription
 
 import {
   CommentCreatedCoralEventPayload,
+  CommentEditedCoralEventPayload,
   CommentEnteredCoralEventPayload,
   CommentEnteredModerationQueueCoralEventPayload,
   CommentFeaturedCoralEventPayload,
@@ -22,10 +23,12 @@ type SubscriptionCoralEventListenerPayloads =
   | CommentEnteredCoralEventPayload
   | CommentCreatedCoralEventPayload
   | CommentFeaturedCoralEventPayload
-  | CommentReleasedCoralEventPayload;
+  | CommentReleasedCoralEventPayload
+  | CommentEditedCoralEventPayload;
 
 export class SubscriptionCoralEventListener
-  implements CoralEventListener<SubscriptionCoralEventListenerPayloads> {
+  implements CoralEventListener<SubscriptionCoralEventListenerPayloads>
+{
   public readonly name = "subscription";
   public readonly events = [
     CoralEventType.COMMENT_ENTERED_MODERATION_QUEUE,
@@ -36,6 +39,7 @@ export class SubscriptionCoralEventListener
     CoralEventType.COMMENT_CREATED,
     CoralEventType.COMMENT_FEATURED,
     CoralEventType.COMMENT_RELEASED,
+    CoralEventType.COMMENT_EDITED,
   ];
 
   private translate(
@@ -58,6 +62,8 @@ export class SubscriptionCoralEventListener
         return SUBSCRIPTION_CHANNELS.COMMENT_RELEASED;
       case CoralEventType.COMMENT_ENTERED:
         return SUBSCRIPTION_CHANNELS.COMMENT_ENTERED;
+      case CoralEventType.COMMENT_EDITED:
+        return SUBSCRIPTION_CHANNELS.COMMENT_EDITED;
     }
   }
 
@@ -68,12 +74,13 @@ export class SubscriptionCoralEventListener
     return createSubscriptionChannelName(tenantID, this.translate(type));
   }
 
-  public initialize: CoralEventPublisherFactory<
-    SubscriptionCoralEventListenerPayloads
-  > = ({ clientID, pubsub, tenant: { id } }) => async ({ type, data }) => {
-    await pubsub.publish(this.trigger(id, type), {
-      ...data,
-      clientID,
-    });
-  };
+  public initialize: CoralEventPublisherFactory<SubscriptionCoralEventListenerPayloads> =
+
+      ({ clientID, pubsub, tenant: { id } }) =>
+      async ({ type, data }) => {
+        await pubsub.publish(this.trigger(id, type), {
+          ...data,
+          clientID,
+        });
+      };
 }

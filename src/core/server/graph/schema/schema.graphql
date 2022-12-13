@@ -316,10 +316,25 @@ type FlagReasonActionCounts {
 
 type Flag {
   """
+  id is the identifier for this flag action.
+  """
+  id: ID!
+
+  """
   flagger is the User that created the Flag. If this is null, then the system
   created the Flag.
   """
   flagger: User
+
+  """
+  comment is the comment this flag was created on.
+  """
+  comment: Comment!
+
+  """
+  revision is the comment revision this flag was generated upon.
+  """
+  revision: CommentRevision
 
   """
   reason is the selected reason why the Flag is being created. If the reason is
@@ -333,6 +348,17 @@ type Flag {
   created or is relevant.
   """
   additionalDetails: String
+
+  """
+  reviewed is whether this flag reason and details have been reviewed by a
+  moderator.
+  """
+  reviewed: Boolean!
+
+  """
+  createdAt is when this flag was created.
+  """
+  createdAt: Time!
 }
 
 type FlagEdge {
@@ -453,12 +479,6 @@ enum FEATURE_FLAG {
   DEFAULT_QA_STORY_MODE
 
   """
-  SITE_MODERATOR will enable the enhanced Site Moderator role by assigning a new
-  modeartion scope to a user.
-  """
-  SITE_MODERATOR
-
-  """
   REDUCED_SECURITY_MODE when true will allow unpersisted queries to be executed
   in production environments.
   """
@@ -515,18 +535,6 @@ enum FEATURE_FLAG {
   ENABLE_RATINGS_AND_REVIEWS
 
   """
-  FLATTEN_REPLIES when enabled, will cause all replies that would normally be
-  hidden by a "Show more of this conversation" button to be displayed linearly
-  sorted by date.
-  """
-  FLATTEN_REPLIES
-
-  """
-  ENABLE_AMP will enable support for embedding Coral within AMP pages.
-  """
-  ENABLE_AMP
-
-  """
   DISABLE_LIVE_UPDATES will disable live updates at the tenant level and
   overrides the configuration option available in the Admin UI for that tenant.
   """
@@ -537,6 +545,22 @@ enum FEATURE_FLAG {
   `X-Coral-Template` header.
   """
   EMAIL_META
+
+  """
+  COMMENT_SEEN will mark comment that has been seen/unseen.
+  """
+  COMMENT_SEEN
+
+  """
+  Z_KEY will allow Z key traversal and the mobile toolbar.
+  """
+  Z_KEY
+
+  """
+  CONFIGURE_PUBLIC_PROFILE_URL will allow configuration in the admin of a link to
+  an external profile for a user.
+  """
+  CONFIGURE_PUBLIC_PROFILE_URL
 }
 
 # The moderation mode of the site.
@@ -551,6 +575,26 @@ enum MODERATION_MODE {
   Comments posted while in `POST` will be visible immediately.
   """
   POST
+
+  """
+  Comments posted while in `SPECIFIC_SITES_PRE` mode will be labeled with
+  a `PREMOD` status if the site is included in premoderateAllCommentsSites.
+  """
+  SPECIFIC_SITES_PRE
+}
+
+enum NEW_USER_MODERATION {
+  """
+  New users who sign up with an email domain configured to this moderation
+  mode will be automatically banned
+  """
+  BAN
+
+  """
+  New users who sign up with an email domain configured to this moderation
+  mode will be automatically always pre-moderated
+  """
+  PREMOD
 }
 
 """
@@ -1555,7 +1599,7 @@ type StoryScrapingConfiguration {
 
   """
   proxyURL when specified, allows scraping requests to use the provided proxy.
-  All requests will then be passed through the appropriote proxy as parsed by
+  All requests will then be passed through the appropriate proxy as parsed by
   the [proxy-agent](https://www.npmjs.com/package/proxy-agent) package.
   """
   proxyURL: String
@@ -1619,14 +1663,19 @@ type CommenterAccountFeatures {
 }
 
 """
-StaffConfiguration specifies the configuration for the staff badges assigned to
+BadgeConfiguration specifies the configuration for the staff badges assigned to
 users with any role above COMMENTER.
 """
-type StaffConfiguration {
+type BadgeConfiguration {
   """
   label is the string used when displaying the STAFF badge to users.
   """
   label: String! @deprecated(reason: "deprecated in favour of staffLabel")
+
+  """
+  memberLabel is the string used when displaying the MEMBER badge to users.
+  """
+  memberLabel: String!
 
   """
   staffLabel is the string used when displaying the STAFF badge to users.
@@ -1655,6 +1704,8 @@ type WebhookDelivery {
 
 enum WEBHOOK_EVENT_NAME {
   STORY_CREATED
+  COMMENT_CREATED
+  COMMENT_REPLY_CREATED
 }
 
 type WebhookEndpoint {
@@ -1711,12 +1762,54 @@ type NewCommentersConfiguration {
   enough approved comments
   """
   premodEnabled: Boolean!
+    @deprecated(
+      reason: "Use moderation instead for whether premod is enabled and on which sites"
+    )
 
   """
   approvedCommentsThreshold is the number of comments a user must have approved before their
   comments do not require premoderation
   """
   approvedCommentsThreshold: Int!
+
+  """
+  moderation is the configuration for moderation for new commenters' comments until
+  they have enough approved comments. It stores whether it is PRE, POST, or SPECIFIC_SITES_PRE
+  for pre-moderation only on specific sites, and in this case, which specific sites.
+  """
+  moderation: NewCommentersModerationConfig
+}
+
+"""
+NewCommentersModerationConfig specifies the configuration for moderation for new
+commenters' comments until they have enough approved comments. It stores whether it
+is PRE, POST, or SPECIFIC_SITES_PRE for pre-moderation only on specific sites, and
+in this case, which specific sites.
+"""
+type NewCommentersModerationConfig {
+  mode: MODERATION_MODE
+  premodSites: [String!]!
+}
+
+"""
+EmailDomain specifies the features that apply to certain email domains
+"""
+type EmailDomain {
+  """
+  domain is the email domain after the @ symbol, ex. example.com
+  """
+  domain: String!
+
+  """
+  id is the identifier for the email domain
+  """
+  id: ID!
+
+  """
+  newUserModeration is how new users who sign up with this email domain
+  should be treated, ex. banned or always premoderated
+  """
+  newUserModeration: NEW_USER_MODERATION!
 }
 
 """
@@ -1725,7 +1818,7 @@ for a set duration
 """
 type Announcement {
   """
-  id is a canonical identifier for this Annoucnement, used to dismiss on front-end.
+  id is a canonical identifier for this Announcement, used to dismiss on front-end.
   """
   id: ID!
 
@@ -1861,6 +1954,12 @@ type Settings @cacheControl(maxAge: 30) {
     @cacheControl(maxAge: 0, scope: PRIVATE)
 
   """
+  premoderateAllCommentsSites are the sites that should have all comments
+  premoderated when moderation mode is SPECIFIC_SITES_PRE
+  """
+  premoderateAllCommentsSites: [ID!]!
+
+  """
   communityGuidelines will be shown in the comments stream.
   """
   communityGuidelines: CommunityGuidelines!
@@ -1879,9 +1978,30 @@ type Settings @cacheControl(maxAge: 30) {
   closeCommenting: CloseCommenting!
 
   """
+  flattenReplies when enabled, will cause all replies that would normally be
+  hidden by a "Show more of this conversation" button to be displayed linearly
+  sorted by date.
+  """
+  flattenReplies: Boolean!
+
+  """
   customCSSURL is the URL of the custom CSS used to display on the frontend.
   """
   customCSSURL: String
+    @auth(roles: [ADMIN, MODERATOR])
+    @cacheControl(maxAge: 0, scope: PRIVATE)
+
+  """
+  customFontsCSSURL is the URL of the custom CSS with @font-face definitions used to display on the frontend.
+  """
+  customFontsCSSURL: String
+    @auth(roles: [ADMIN, MODERATOR])
+    @cacheControl(maxAge: 0, scope: PRIVATE)
+
+  """
+  disableDefaultFonts will turn off font-face loading of Coral's default fonts.
+  """
+  disableDefaultFonts: Boolean!
     @auth(roles: [ADMIN, MODERATOR])
     @cacheControl(maxAge: 0, scope: PRIVATE)
 
@@ -1954,10 +2074,16 @@ type Settings @cacheControl(maxAge: 30) {
   reaction: ReactionConfiguration!
 
   """
-  staff specifies the configuration for the staff badges assigned to users with
+  staff specifies the configuration for the user badges assigned to users with
+  any role above COMMENTER
+  """
+  staff: BadgeConfiguration! @deprecated(reason: "Use badges instead")
+
+  """
+  badges specifies the configuration for the user badges assigned to users with
   any role above COMMENTER.
   """
-  staff: StaffConfiguration!
+  badges: BadgeConfiguration!
 
   """
   accountFeatures stores the configuration for commenter account features.
@@ -2025,6 +2151,33 @@ type Settings @cacheControl(maxAge: 30) {
   memberBios is whether members can define a bio for their account.
   """
   memberBios: Boolean!
+
+  """
+  amp is whether Accelerated Mobile Pages Support is activated.
+  """
+  amp: Boolean!
+
+  """
+  forReviewQueue is whether or not to show the For Review queue in
+  the Moderate tab of the admin. This queue allows moderators to
+  review every flag that has been put on a comment by a user. This
+  feature shall help complying with European Law
+  (European Directive 2000/31/CE).
+  """
+  forReviewQueue: Boolean!
+
+  """
+  emailDomainModeration is for any special configuration by email
+  domain for moderating accounts, such as banning or always
+  pre-moderating new users at a certain email domain
+  """
+  emailDomainModeration: [EmailDomain!]!
+
+  """
+  externalProfileURL is a string template for a link to a user's
+  external profile.
+  """
+  externalProfileURL: String
 }
 
 ################################################################################
@@ -2033,6 +2186,7 @@ type Settings @cacheControl(maxAge: 30) {
 
 enum USER_ROLE {
   COMMENTER
+  MEMBER
   STAFF
   MODERATOR
   ADMIN
@@ -2122,7 +2276,7 @@ type BanStatusHistory {
   active: Boolean!
 
   """
-  createdBy is the User that suspended the User. If `null`, the then the given
+  createdBy is the User that suspended the User. If `null`, then the given
   User was banned by the system.
   """
   createdBy: User
@@ -2133,9 +2287,10 @@ type BanStatusHistory {
   createdAt: Time!
 
   """
-  message is sent to banned user via email.
+  message is sent to banned user via email. If `null`, then no email was sent
+  (i.e. in the case of a system ban of a new user account).
   """
-  message: String!
+  message: String
 
   """
   sites are set when the ban was created to perform a site specific ban.
@@ -2204,15 +2359,15 @@ type SuspensionStatusHistory {
   createdAt: Time!
 
   """
-  modifiedBy is the User that cancelled/edited the suspension. If `null`, then
-  the suspension has not been cancelled/edited, or has been edited by the
+  modifiedBy is the User that canceled/edited the suspension. If `null`, then
+  the suspension has not been canceled/edited, or has been edited by the
   system.
   """
   modifiedBy: User
 
   """
-  modifiedAt is the time that the suspension was cancelled/edited. If `null`,
-  then the suspension has not been cancelled/edited.
+  modifiedAt is the time that the suspension was canceled/edited. If `null`,
+  then the suspension has not been canceled/edited.
   """
   modifiedAt: Time
 
@@ -2288,6 +2443,51 @@ type WarningStatus {
   history: [WarningStatusHistory!]! @auth(roles: [ADMIN, MODERATOR])
 }
 
+type ModMessageStatusHistory {
+  """
+  active when true, indicates that the given user has been sent a moderation message but has not acknowledged the message.
+  """
+  active: Boolean!
+
+  """
+  createdBy is the user that messaged the commenter
+  """
+  createdBy: User!
+
+  """
+  createdAt is the time the user was messaged
+  """
+  createdAt: Time!
+
+  """
+  acknowledgedAt is the time the commenter acknowledged the message. if `null` then the message
+  has not been acknowledged
+  """
+  acknowledgedAt: Time
+
+  """
+  message is the custom message sent to the commenter
+  """
+  message: String
+}
+
+type ModMessageStatus {
+  """
+  active when true, indicates that the given user has been sent a moderation message but has not acknowledged it.
+  """
+  active: Boolean!
+
+  """
+  message is the current message for the moderation message sent to the User.
+  """
+  message: String
+
+  """
+  history will return the status history items for moderation messages.
+  """
+  history: [ModMessageStatusHistory!]! @auth(roles: [ADMIN, MODERATOR])
+}
+
 type PremodStatusHistory {
   """
   active when true, indicates that the given user is premodded.
@@ -2295,9 +2495,10 @@ type PremodStatusHistory {
   active: Boolean!
 
   """
-  createdBy is the user that flagged the commenter as pre-mod
+  createdBy is the user that flagged the commenter as pre-mod. If `null`, then the given
+  User was set to pre-mod by the system.
   """
-  createdBy: User!
+  createdBy: User
 
   """
   createdAt is the time the user was set to pre-mod
@@ -2400,6 +2601,16 @@ type UserStatus {
       roles: [ADMIN, MODERATOR]
       permit: [SUSPENDED, BANNED, PENDING_DELETION, WARNED]
     )
+
+  """
+  modMessage stores the user moderation message status as well as the history of moderation messages
+  """
+  modMessage: ModMessageStatus!
+    @auth(
+      userIDField: "userID"
+      roles: [ADMIN, MODERATOR]
+      permit: [SUSPENDED, BANNED, PENDING_DELETION, WARNED]
+    )
 }
 
 enum USER_STATUS_FILTER {
@@ -2489,7 +2700,7 @@ type ModeratorNote {
 
 enum DIGEST_FREQUENCY {
   """
-  NONE will have the notifications send immediatly rather than bundling for digesting.
+  NONE will have the notifications send immediately rather than bundling for digesting.
   """
   NONE
 
@@ -2566,6 +2777,24 @@ type UserModerationScopes {
   """
   sites (when not null) list the sites that the user is only allowed to moderate
   on. When null, it means that the user is allowed to moderate on all sites.
+  """
+  sites: [Site!]
+}
+
+"""
+UserMembershipScopes describes the scopes of membership. These only apply when
+the user has a MEMBER role.
+"""
+type UserMembershipScopes {
+  """
+  scoped returns true when the user has a scoped membership, and is not a member
+  organization wide.
+  """
+  scoped: Boolean!
+
+  """
+  sites (when not null) list the sites that the user is a member of
+  When null, it means that the user is a member of all sites within the organization.
   """
   sites: [Site!]
 }
@@ -2828,6 +3057,12 @@ type User {
     )
 
   """
+  membershiptScopes describes the scopes for membership. These only apply when
+  the user has a MEMBER role.
+  """
+  membershipScopes: UserMembershipScopes
+
+  """
   ssoURL is the url for managing sso account
   """
   ssoURL: String
@@ -2975,7 +3210,12 @@ type CommentModerationAction {
   """
   revision is the moderated CommentRevision.
   """
-  revision: CommentRevision!
+  revision: CommentRevision
+
+  """
+  comment is the moderated Comment.
+  """
+  comment: Comment
 
   """
   status represents the status that was assigned by the moderator.
@@ -3032,12 +3272,57 @@ type CommentRevisionPerspectiveMetadata {
   score: Float!
 }
 
+type WordlistMatch {
+  """
+  value is the value detected by the word list pipeline.
+  """
+  value: String!
+
+  """
+  index is the starting index of the word occurence in the comment body.
+  """
+  index: Int!
+
+  """
+  length is the length of the value string.
+  """
+  length: Int!
+}
+
 type CommentRevisionWordListMetadata {
   """
   timedOut is whether the wordlist analysis timed out when this revision
   of the comment was sent through the moderation phases.
   """
   timedOut: Boolean
+
+  """
+  suspectWords are any suspect words that were matched and found on this
+  comment revision.
+  """
+  suspectWords: [WordlistMatch!]
+
+  """
+  bannedWords are any banned words that were matched and found on this
+  comment revision.
+  """
+  bannedWords: [WordlistMatch!]
+}
+
+type ExternalModerationPhaseAction {
+  reason: COMMENT_FLAG_REASON
+}
+
+type ExternalModerationPhaseResult {
+  status: COMMENT_STATUS
+  tags: [TAG!]
+  actions: [ExternalModerationPhaseAction!]
+}
+
+type CommentRevisionExternalModerationPhaseMetadata {
+  name: String!
+  analyzedAt: Time!
+  result: ExternalModerationPhaseResult!
 }
 
 type CommentRevisionMetadata {
@@ -3052,6 +3337,12 @@ type CommentRevisionMetadata {
   word list analysis of this comment revision.
   """
   wordList: CommentRevisionWordListMetadata
+
+  """
+  externalModeration are the phases and their actions that were used to
+  analyze this comment revision.
+  """
+  externalModeration: [CommentRevisionExternalModerationPhaseMetadata!]
 }
 
 """
@@ -3226,6 +3517,11 @@ enum TAG {
   MODERATOR
 
   """
+  MEMBER is used when a Comment is written by a User that has the Member role.
+  """
+  MEMBER
+
+  """
   FEATURED is used when a Comment is marked as such by a staff member.
   """
   FEATURED
@@ -3281,14 +3577,34 @@ CommentTagCounts provides count data for Tags made against Comment's.
 """
 type CommentTagCounts {
   """
+  ADMIN is the count of Comment's with the ADMIN tag.
+  """
+  ADMIN: Int!
+
+  """
+  EXPERT is the count of Comment's with the EXPERT tag.
+  """
+  EXPERT: Int!
+
+  """
   FEATURED is the count of Comment's with the FEATURED tag.
   """
   FEATURED: Int!
 
   """
-  UNANSWERED is the count of Comment's with the UNANSWERED tag.
+  MEMBER is the count of Comment's with the MEMBER tag.
   """
-  UNANSWERED: Int!
+  MEMBER: Int!
+
+  """
+  MODERATOR is the count of Comment's with the MODERATOR tag.
+  """
+  MODERATOR: Int!
+
+  """
+  QUESTION is the count of Comment's with the QUESTION tag.
+  """
+  QUESTION: Int!
 
   """
   REVIEW is the count of Comment's with the REVIEW tag.
@@ -3296,35 +3612,40 @@ type CommentTagCounts {
   REVIEW: Int!
 
   """
-  QUESTION is the count of Comment's with the QUESTION tag.
+  STAFF is the count of Comment's with the STAFF tag.
   """
-  QUESTION: Int!
+  STAFF: Int!
+
+  """
+  UNANSWERED is the count of Comment's with the UNANSWERED tag.
+  """
+  UNANSWERED: Int!
 }
 
 """
-Comment is a comment left by a [User](/reference/object/User) on an
-[Story](/reference/object/Story) or another [Comment](/reference/object/Comment)
+Comment is a comment left by a [User](/api/objects/User) on an
+[Story](/api/objects/Story) or another [Comment](/api/objects/Comment)
 as a reply.
 """
 type Comment @cacheControl(maxAge: 5) {
   """
-  id is the identifier of the [Comment](/reference/object/Comment).
+  id is the identifier of the [Comment](/api/objects/Comment).
   """
   id: ID!
 
   """
-  body is the content of the [Comment](/reference/object/Comment), and is an alias to the body of the
+  body is the content of the [Comment](/api/objects/Comment), and is an alias to the body of the
   `revision.body`.
   """
   body: String
 
   """
-  revision is the current revision of the [Comment](/reference/object/Comment)'s body.
+  revision is the current revision of the [Comment](/api/objects/Comment)'s body.
   """
   revision: CommentRevision
 
   """
-  revisionHistory stores the previous [CommentRevision](/reference/object/CommentRevision)'s, with the most recent
+  revisionHistory stores the previous [CommentRevision](/api/objects/comment-revision)'s, with the most recent
   edit last.
   """
   revisionHistory: [CommentRevision!]!
@@ -3364,6 +3685,20 @@ type Comment @cacheControl(maxAge: 5) {
   value is the same as depth.
   """
   parentCount: Int!
+
+  """
+  allChildComments is a CommentsConnection that includes all comments that are
+  children of a comment (i.e. that have the comment included in their ancestorIDs)
+  """
+  allChildComments(
+    first: Int = 10
+    orderBy: COMMENT_SORT = CREATED_AT_DESC
+  ): CommentsConnection!
+
+  """
+  ancestorIDs
+  """
+  ancestorIDs: [String]!
 
   """
   depth is the number of levels that a given comment is deep.
@@ -3459,6 +3794,11 @@ type Comment @cacheControl(maxAge: 5) {
   canModerate: Boolean!
 
   """
+  canReply returns true if the comment is able to be responded to.
+  """
+  canReply: Boolean!
+
+  """
   site is the Site referenced by the Story for this Comment.
   """
   site: Site!
@@ -3467,6 +3807,11 @@ type Comment @cacheControl(maxAge: 5) {
   rating is the optional rating that is attached to the Comment.
   """
   rating: Int
+
+  """
+  seen determines whether a comment has been seen by the user already.
+  """
+  seen: Boolean
 }
 
 type PageInfo {
@@ -3753,7 +4098,7 @@ type Story @cacheControl(maxAge: 30) {
   comments are the comments on the Story.
   """
   comments(
-    first: Int = 20 @constraint(max: 50)
+    first: Int = 20 @constraint(max: 99999)
     orderBy: COMMENT_SORT = CREATED_AT_DESC
     after: Cursor
 
@@ -3798,6 +4143,24 @@ type Story @cacheControl(maxAge: 30) {
   isClosed returns true when the Story is currently closed for commenting.
   """
   isClosed: Boolean!
+
+  """
+  isArchiving returns true when the Story is currently in the process of being
+  archived. A story must always be closed (isClosed: true) when it is archiving.
+  """
+  isArchiving: Boolean!
+
+  """
+  isArchived returns true when the Story is current archived. A story must always
+  be closed (isClosed: true) when it is archived.
+  """
+  isArchived: Boolean!
+
+  """
+  isUnarchiving returns true when a story is in-between being unarchived and is
+  yet to be fully unarchived.
+  """
+  isUnarchiving: Boolean!
 
   """
   commentCounts stores all the counts of Comments that are left on the Comment.
@@ -3897,7 +4260,7 @@ type QueueCounts {
   waiting: Int!
 
   """
-  active is the number of jobs that are being activly processed.
+  active is the number of jobs that are being actively processed.
   """
   active: Int!
 
@@ -3940,6 +4303,11 @@ type Queues {
   rejector is the Queue associated with the Rejector queue.
   """
   rejector: Queue!
+
+  """
+  unarchiver is the Queue associated with unarchiving stories.
+  """
+  unarchiver: Queue!
 }
 
 ################################################################################
@@ -3954,7 +4322,7 @@ type Query {
 
   """
   comments returns a filtered comments connection that can be paginated. This is
-  a fairly expensive edge to filter against, moderation queues should utlilize
+  a fairly expensive edge to filter against, moderation queues should utilize
   the dedicated edges for more optimized responses.
   """
   comments(
@@ -3988,7 +4356,7 @@ type Query {
     after: Cursor
     status: STORY_STATUS
     query: String
-    siteID: ID
+    siteIDs: [ID!]
   ): StoriesConnection! @auth(roles: [ADMIN, MODERATOR])
 
   """
@@ -4013,8 +4381,11 @@ type Query {
 
   site(id: ID!): Site @auth(roles: [ADMIN, MODERATOR])
 
-  sites(first: Int = 10 @constraint(max: 50), after: Cursor): SitesConnection!
-    @auth(roles: [ADMIN, MODERATOR])
+  sites(
+    first: Int = 10 @constraint(max: 50)
+    after: Cursor
+    query: String
+  ): SitesConnection! @auth(roles: [ADMIN, MODERATOR])
 
   """
   viewer is the current logged in User. If no user is currently logged in, it will
@@ -4088,6 +4459,23 @@ type Query {
   """
   externalModerationPhase(id: ID!): ExternalModerationPhase
     @auth(roles: [ADMIN])
+
+  """
+  flags are the list of flags from user reported comments.
+  """
+  flags(
+    first: Int = 10 @constraint(max: 50)
+    after: Cursor
+    orderBy: COMMENT_SORT
+    storyID: ID
+    siteID: ID
+    section: SectionFilter
+  ): FlagsConnection! @auth(roles: [ADMIN, MODERATOR])
+
+  """
+  emailDomain will return a specific emailDomain configuration if it exists.
+  """
+  emailDomain(id: ID!): EmailDomain @auth(roles: [ADMIN])
 }
 
 ################################################################################
@@ -4700,6 +5088,10 @@ input RecentCommentHistoryConfigurationInput {
   triggerRejectionRate: Float
 }
 
+input FlattenRepliesInput {
+  enabled: Boolean!
+}
+
 input CreateAnnouncementInput {
   """
   content of the announcement.
@@ -4829,7 +5221,7 @@ input StoryScrapingConfigurationInput {
 
   """
   proxyURL when specified, allows scraping requests to use the provided proxy.
-  All requests will then be passed through the appropriote proxy as parsed by
+  All requests will then be passed through the appropriate proxy as parsed by
   the [proxy-agent](https://www.npmjs.com/package/proxy-agent) package.
   """
   proxyURL: String
@@ -4912,10 +5304,10 @@ input ReactionConfigurationInput {
 }
 
 """
-StaffConfigurationInput specifies the configuration for the staff badges
+BadgeConfigurationInput specifies the configuration for the staff badges
 assigned to users with any role above COMMENTER.
 """
-input StaffConfigurationInput {
+input BadgeConfigurationInput {
   """
   staffLabel is the string used when displaying the STAFF badge to users.
   """
@@ -4930,6 +5322,11 @@ input StaffConfigurationInput {
   moderatorLabel is the string used when displaying the MODERATOR badge to users.
   """
   moderatorLabel: String
+
+  """
+  memberLabel is the string used when displaying the MEMBER badget to users.
+  """
+  memberLabel: String
 }
 
 """
@@ -5056,7 +5453,25 @@ input MediaConfigurationInput {
 }
 
 """
-NewCommenterConfigurationInput specifies the features that apply to new commenters
+NewCommentersModerationConfigInput specifies the moderation configuration for
+new commenters' comments.
+"""
+input NewCommentersModerationConfigInput {
+  """
+  mode is whether new commenters' comments should be moderated PRE, POST, or
+  SPECIFIC_SITES_PRE (pre-moderated for specific sites)
+  """
+  mode: MODERATION_MODE
+
+  """
+  premodSites is the specific sites that new commenters' comments should be
+  pre-moderated on if the SPECIFIC_SITES_PRE moderation mode is set
+  """
+  premodSites: [String!]
+}
+
+"""
+NewCommentersConfigurationInput specifies the features that apply to new commenters
 """
 input NewCommentersConfigurationInput {
   """
@@ -5070,6 +5485,14 @@ input NewCommentersConfigurationInput {
   comments do not require premoderation
   """
   approvedCommentsThreshold: Int
+
+  """
+  moderation is the configuration for pre-moderation for new commenters' comments until
+  they have enough approved comments. It stores whether it is PRE, POST, or
+  SPECIFIC_SITES_PRE for pre-moderation only on specific sites, and in this case, which
+  specific sites.
+  """
+  moderation: NewCommentersModerationConfigInput
 }
 
 """
@@ -5107,6 +5530,12 @@ input SettingsInput {
   moderation: MODERATION_MODE
 
   """
+  premoderateAllCommentsSites are the sites that should have all comments
+  premoderated when moderation mode is SPECIFIC_SITES_PRE
+  """
+  premoderateAllCommentsSites: [ID!]
+
+  """
   communityGuidelines will be shown in the comments stream.
   """
   communityGuidelines: SettingsCommunityGuidelinesInput
@@ -5120,6 +5549,16 @@ input SettingsInput {
   customCSSURL is the URL of the custom CSS used to display on the frontend.
   """
   customCSSURL: String
+
+  """
+  customFontsCSSURL is the URL of the custom CSS with @font-face definitions used to display on the frontend.
+  """
+  customFontsCSSURL: String
+
+  """
+  disableDefaultFonts will turn off font-face loading of Coral's default fonts.
+  """
+  disableDefaultFonts: Boolean
 
   """
   disableCommenting will disable commenting site-wide.
@@ -5186,10 +5625,16 @@ input SettingsInput {
   reaction: ReactionConfigurationInput
 
   """
-  staff specifies the configuration for the staff badges assigned to users with
+  badges specifies the configuration for user badges assigned to users with
   any role above COMMENTER.
   """
-  staff: StaffConfigurationInput
+  badges: BadgeConfigurationInput
+
+  """
+  DEPRECATED: staff specifies the configuration for user badges assigned to users with
+  any role above COMMENTER.
+  """
+  staff: BadgeConfigurationInput
 
   """
   accountFeatures specifies the configuration for accounts.
@@ -5232,6 +5677,31 @@ input SettingsInput {
   memberBios is whether members can define a bio for their account.
   """
   memberBios: Boolean
+
+  """
+  amp is whether Accelerated Mobile Pages Support is activated.
+  """
+  amp: Boolean
+
+  """
+  flattenReplies is whether or not to flatten replies
+  """
+  flattenReplies: Boolean
+
+  """
+  forReviewQueue is whether or not to show the For Review queue in
+  the Moderate tab of the admin. This queue allows moderators to
+  review every flag that has been put on a comment by a user. This
+  feature shall help complying with European Law
+  (European Directive 2000/31/CE).
+  """
+  forReviewQueue: Boolean
+
+  """
+  externalProfileURL is a string template for a link to a user's
+  external profile.
+  """
+  externalProfileURL: String
 }
 
 """
@@ -5311,6 +5781,12 @@ input RemoveCommentReactionInput {
   commentID: ID!
 
   """
+  commentRevisionID is the Comment's revision ID that we want to remove a
+  reaction on.
+  """
+  commentRevisionID: ID!
+
+  """
   clientMutationId is required for Relay support.
   """
   clientMutationId: String!
@@ -5377,6 +5853,12 @@ input RemoveCommentDontAgreeInput {
   commentID is the Comment's ID that we want to remove a DontAgree on.
   """
   commentID: ID!
+
+  """
+  commentRevisionID is the Comment's revision ID that we want to remove a
+  reaction on.
+  """
+  commentRevisionID: ID!
 
   """
   clientMutationId is required for Relay support.
@@ -7014,6 +7496,45 @@ type UpdateUserModerationScopesPayload {
   clientMutationId: String!
 }
 
+############################
+# updateUserMembershipScopes
+############################
+input MembershipScopesInput {
+  """
+  siteIDs are the ids of the sites on which to scope a user's membership to.
+  """
+  siteIDs: [ID!]!
+}
+
+input UpdateUserMembershipScopesInput {
+  """
+  userID is the id of the user whos membership scopes are to be updated.
+  """
+  userID: ID!
+
+  """
+  membershipScopes represent the scopes of the user's membership.
+  """
+  membershipScopes: MembershipScopesInput!
+
+  """
+  clientMutationId is required for Relay support.
+  """
+  clientMutationId: String!
+}
+
+type UpdateUserMembershipScopesPayload {
+  """
+  user is the possible udpated user.
+  """
+  user: User!
+
+  """
+  clientMutationId is required for Relay support.
+  """
+  clientMutationId: String!
+}
+
 ##################
 # updateUserRole
 ##################
@@ -7048,11 +7569,19 @@ type UpdateUserRolePayload {
 }
 
 ##################
-# promoteUser
+# promoteModerator
 ##################
 
-input PromoteUserInput {
+input PromoteModeratorInput {
+  """
+  userID is the ID of the User that should have their role promoted.
+  """
   userID: ID!
+
+  """
+  siteIDs are the IDs of the Sites on which the User should have their role promoted.
+  """
+  siteIDs: [String!]!
 
   """
   clientMutationId is required for Relay support.
@@ -7060,7 +7589,7 @@ input PromoteUserInput {
   clientMutationId: String!
 }
 
-type PromoteUserPayload {
+type PromoteModeratorPayload {
   """
   clientMutationId is required for Relay support.
   """
@@ -7073,11 +7602,19 @@ type PromoteUserPayload {
 }
 
 ##################
-# demoteUser
+# demoteModerator
 ##################
 
-input DemoteUserInput {
+input DemoteModeratorInput {
+  """
+  userID is the ID of the User that should have their moderator role demoted.
+  """
   userID: ID!
+
+  """
+  siteIDs are the IDs of the Sites on which the User should have their moderator role demoted.
+  """
+  siteIDs: [String!]!
 
   """
   clientMutationId is required for Relay support.
@@ -7085,7 +7622,73 @@ input DemoteUserInput {
   clientMutationId: String!
 }
 
-type DemoteUserPayload {
+type DemoteModeratorPayload {
+  """
+  clientMutationId is required for Relay support.
+  """
+  clientMutationId: String!
+
+  """
+  user is the possibly modified User.
+  """
+  user: User!
+}
+
+##################
+# promoteMember
+##################
+
+input PromoteMemberInput {
+  """
+  userID is the ID of the User that should have their member role promoted.
+  """
+  userID: ID!
+
+  """
+  siteIDs are the IDs of the Sites on which the User should have their member role promoted.
+  """
+  siteIDs: [String!]!
+
+  """
+  clientMutationId is required for Relay support.
+  """
+  clientMutationId: String!
+}
+
+type PromoteMemberPayload {
+  """
+  clientMutationId is required for Relay support.
+  """
+  clientMutationId: String!
+
+  """
+  user is the possibly modified User.
+  """
+  user: User!
+}
+
+##################
+# demoteMember
+##################
+
+input DemoteMemberInput {
+  """
+  userID is the ID of the User that should have their member role demoted.
+  """
+  userID: ID!
+
+  """
+  siteIDs are the IDs of the Sites on which the User should have their member role demoted.
+  """
+  siteIDs: [String!]!
+
+  """
+  clientMutationId is required for Relay support.
+  """
+  clientMutationId: String!
+}
+
+type DemoteMemberPayload {
   """
   clientMutationId is required for Relay support.
   """
@@ -7172,6 +7775,56 @@ type AcknowledgeWarningPayload {
 }
 
 ##################
+# sendModMessage
+##################
+input SendModMessageInput {
+  """
+  userID is the ID of the User that should have their account messaged.
+  """
+  userID: ID!
+
+  """
+  clientMutationId is required for Relay support.
+  """
+  clientMutationId: String!
+
+  """
+  message is displayed to the user in the stream
+  """
+  message: String!
+}
+
+type SendModMessagePayload {
+  """
+  clientMutationId is required for Relay support.
+  """
+  clientMutationId: String!
+
+  """
+  user is the possibly modified User.
+  """
+  user: User!
+}
+
+input AcknowledgeModMessageInput {
+  """
+  clientMutationId is required for Relay support.
+  """
+  clientMutationId: String!
+}
+
+type AcknowledgeModMessagePayload {
+  """
+  clientMutationId is required for Relay support.
+  """
+  clientMutationId: String!
+  """
+  user is the possibly modified User.
+  """
+  user: User!
+}
+
+##################
 # banUser
 ##################
 
@@ -7210,6 +7863,52 @@ type BanUserPayload {
 
   """
   clientMutationId is required for Relay support.
+  """
+  clientMutationId: String!
+}
+
+input UpdateUserBanInput {
+  """
+  userID is the id of the user whose ban status should be updated
+  """
+  userID: ID!
+
+  """
+  banSiteIDs are the ids of sites on which the user should be banned
+  """
+  banSiteIDs: [ID!]
+
+  """
+  unbanSiteIDs are the ids of sites on which the user should be unbanned
+  """
+  unbanSiteIDs: [ID!]
+
+  """
+  message is the message that should be sent to the user (if sites
+  have been added to their ban list)
+  """
+  message: String!
+
+  """
+  rejectExistingComments is whether existing comments should be rejected
+  on sites on which the user has been newly banned, if any.
+  """
+  rejectExistingComments: Boolean
+
+  """
+  clientMutationID is required for relay support
+  """
+  clientMutationId: String!
+}
+
+type UpdateUserBanPayload {
+  """
+  user is the updated user
+  """
+  user: User!
+
+  """
+  clientMutationID is required for relay support
   """
   clientMutationId: String!
 }
@@ -7527,6 +8226,36 @@ type RotateSSOSigningSecretPayload {
 }
 
 #########################
+## updateSSOProfileID
+#########################
+
+input UpdateSSOProfileIDInput {
+  """
+  clientMutationId is required for Relay support.
+  """
+  clientMutationId: String!
+  """
+  userID is the ID of the user whose SSOProfile ID is being updated.
+  """
+  userID: ID!
+  """
+  ssoProfileID is the new ID to set for the user's SSOProfile ID.
+  """
+  ssoProfileID: String!
+}
+
+type UpdateSSOProfileIDPayload {
+  """
+  clientMutationId is required for Relay support.
+  """
+  clientMutationId: String!
+  """
+  user is the User whose SSOProfile ID is being updated.
+  """
+  user: User!
+}
+
+#########################
 ## deactivateSSOSigningSecret
 #########################
 
@@ -7710,6 +8439,117 @@ type UpdateStoryModePayload {
 }
 
 ##################
+## createEmailDomain
+##################
+
+input CreateEmailDomain {
+  """
+  domain is the email domain that was configured
+  """
+  domain: String!
+
+  """
+  newUserModeration is how new users on this domain should be moderated
+  """
+  newUserModeration: NEW_USER_MODERATION!
+}
+
+input CreateEmailDomainInput {
+  """
+  clientMutationId is required for Relay support.
+  """
+  clientMutationId: String!
+
+  """
+  domain is the email domain that was configured
+  """
+  domain: String!
+
+  """
+  newUserModeration is how new users on this domain should be moderated
+  """
+  newUserModeration: NEW_USER_MODERATION!
+}
+
+type CreateEmailDomainPayload {
+  """
+  clientMutationId is required for Relay support.
+  """
+  clientMutationId: String!
+
+  """
+  settings is the Settings that the email domain configuration was created on.
+  """
+  settings: Settings!
+}
+
+##################
+## updateEmailDomain
+##################
+
+input UpdateEmailDomainInput {
+  """
+  clientMutationId is required for Relay support.
+  """
+  clientMutationId: String!
+
+  """
+  id is the identifier for the email domain that was configured
+  """
+  id: String!
+
+  """
+  domain is the email domain that was configured
+  """
+  domain: String!
+
+  """
+  newUserModeration is how new users on this domain should be moderated
+  """
+  newUserModeration: NEW_USER_MODERATION!
+}
+
+type UpdateEmailDomainPayload {
+  """
+  clientMutationId is required for Relay support.
+  """
+  clientMutationId: String!
+
+  """
+  settings is the Settings that the email domain configuration was updated on.
+  """
+  settings: Settings!
+}
+
+##################
+## deleteEmailDomain
+##################
+
+input DeleteEmailDomainInput {
+  """
+  clientMutationId is required for Relay support.
+  """
+  clientMutationId: String!
+
+  """
+  id is the identifier for the email domain that is to be deleted
+  """
+  id: String!
+}
+
+type DeleteEmailDomainPayload {
+  """
+  clientMutationId is required for Relay support.
+  """
+  clientMutationId: String!
+
+  """
+  settings is the Settings from which the email domain configuration was deleted.
+  """
+  settings: Settings!
+}
+
+##################
 ## createSite
 ##################
 
@@ -7812,6 +8652,123 @@ type TestSMTPPayload {
   clientMutationId: String!
 }
 
+input ReviewCommentFlagInput {
+  """
+  clientMutationId is required for Relay support.
+  """
+  clientMutationId: String!
+
+  """
+  id is the id of the Flag being reviewed.
+  """
+  id: ID!
+}
+
+type ReviewCommentFlagPayload {
+  """
+  clientMutationId is required for Relay support.
+  """
+  clientMutationId: String!
+
+  """
+  flag is the flag that was reviewed by the review action.
+  """
+  flag: Flag!
+}
+
+input ArchiveStoriesInput {
+  clientMutationId: String!
+  storyIDs: [ID!]!
+}
+
+type ArchiveStoriesPayload {
+  clientMutationId: String!
+  stories: [Story!]!
+}
+
+input UnarchiveStoriesInput {
+  clientMutationId: String!
+  storyIDs: [ID!]!
+}
+
+type UnarchiveStoriesPayload {
+  clientMutationId: String!
+  stories: [Story!]!
+}
+
+input MarkCommentsAsSeenInput {
+  """
+  clientMutationId is required for Relay support.
+  """
+  clientMutationId: String!
+
+  """
+  storyID is the story of the comment this is for.
+  """
+  storyID: ID!
+
+  """
+  commentID is the comment to be marked as seen.
+  """
+  commentIDs: [ID!]!
+
+  """
+  orderBy is the current sort of comments in the stream.
+  """
+  orderBy: COMMENT_SORT
+
+  """
+  updateSeen is whether to update the comment(s) as seen.
+  """
+  updateSeen: Boolean
+
+  """
+  markAllAsSeen marks all comments as seen.
+  """
+  markAllAsSeen: Boolean
+}
+
+type MarkCommentsAsSeenPayload {
+  """
+  clientMutationId is required for Relay support.
+  """
+  clientMutationId: String!
+
+  """
+  comment is the comment that has been marked as seen.
+  """
+  comments: [Comment!]!
+}
+
+input RefreshStoryCountsInput {
+  """
+  clientMutationId is required for Relay support.
+  """
+  clientMutationId: String!
+
+  """
+  storyID is the story we want to update counts for.
+  """
+  storyID: String!
+
+  """
+  tags if true will update the tag counts for the story.
+  """
+  tags: Boolean!
+}
+
+type RefreshStoryCountsPayload {
+  """
+  clientMutationId is required for Relay support.
+  """
+  clientMutationId: String!
+
+  """
+  story is the story that was updated.
+  """
+  story: Story
+}
+
 ##################
 ## Mutation
 ##################
@@ -7864,6 +8821,10 @@ type Mutation {
   deleteSSOSigningSecret(
     input: DeleteSSOSigningSecretInput!
   ): DeleteSSOSigningSecretPayload! @auth(roles: [ADMIN])
+
+  updateSSOProfileID(
+    input: UpdateSSOProfileIDInput!
+  ): UpdateSSOProfileIDPayload! @auth(roles: [ADMIN])
 
   """
   createCommentReaction will create a Reaction authored by the current logged in
@@ -8139,19 +9100,34 @@ type Mutation {
     @auth(roles: [ADMIN])
 
   """
-  promoteUser will allow the viewer to add one or many scopes that applies to
+  promoteModerator will allow the viewer to add one or many scopes that applies to
   the viewer. If the target user was not already a site moderator, their role is
   set to site moderator.
   """
-  promoteUser(input: PromoteUserInput!): PromoteUserPayload!
+  promoteModerator(input: PromoteModeratorInput!): PromoteModeratorPayload!
     @auth(roles: [MODERATOR])
 
   """
-  demoteUser will allow the viewer to remove one or many scopes that applies to
+  demoteModerator will allow the viewer to remove one or many scopes that applies to
   the viewer and the target user. If the target user does not have any remaining
   scopes, they are set to commenter.
   """
-  demoteUser(input: DemoteUserInput!): DemoteUserPayload!
+  demoteModerator(input: DemoteModeratorInput!): DemoteModeratorPayload!
+    @auth(roles: [MODERATOR])
+
+  """
+  promoteMember will allow the viewer to add one or many scopes that applies to
+  the viewer.
+  """
+  promoteMember(input: PromoteMemberInput!): PromoteModeratorPayload!
+    @auth(roles: [MODERATOR])
+
+  """
+  demoteMember will allow the viewer to remove one or many scopes that applies to
+  the viewer and the target user. If the target user does not have any remaining
+  scopes, they are set to commenter.
+  """
+  demoteMember(input: DemoteMemberInput!): DemoteModeratorPayload!
     @auth(roles: [MODERATOR])
 
   """
@@ -8164,13 +9140,30 @@ type Mutation {
   ): UpdateUserModerationScopesPayload! @auth(roles: [ADMIN])
 
   """
+  updateUserMembershipScopes will update the membership scopes for a given user.
+  This is used to limit the sites on which a user is a member given that they also
+  have the member role.
+  """
+  updateUserMembershipScopes(
+    input: UpdateUserMembershipScopesInput!
+  ): UpdateUserMembershipScopesPayload! @auth(roles: [ADMIN])
+
+  """
   banUser will ban a specific User from interacting with Comments.
   """
   banUser(input: BanUserInput!): BanUserPayload!
     @auth(roles: [ADMIN, MODERATOR])
 
   """
-  removeUserBan will remove an active ban from a User if they have one.
+  updateUserBan will ban a specified user from specified sites (if
+  not already banned from them) and unban a user from specified sites
+  (if currently banned from them)
+  """
+  updateUserBan(input: UpdateUserBanInput!): UpdateUserBanPayload!
+    @auth(roles: [ADMIN, MODERATOR], unscoped: false)
+
+  """
+  removeUserBan will remove an active ban from a User if they have one
   """
   removeUserBan(input: RemoveUserBanInput!): RemoveUserBanPayload!
     @auth(roles: [ADMIN, MODERATOR], unscoped: true)
@@ -8194,11 +9187,26 @@ type Mutation {
     @auth(roles: [ADMIN, MODERATOR])
 
   """
-  acknowledgWarning will remove a warning
+  acknowledgeWarning will remove a warning
   """
   acknowledgeWarning(
     input: AcknowledgeWarningInput!
-  ): AcknowledgeWarningPayload @auth(permit: [WARNED])
+  ): AcknowledgeWarningPayload
+    @auth(permit: [SUSPENDED, BANNED, PENDING_DELETION, WARNED])
+
+  """
+  sendModMessage will send a user a moderation message that they need to acknowledge
+  """
+  sendModMessage(input: SendModMessageInput!): SendModMessagePayload!
+    @auth(roles: [ADMIN, MODERATOR])
+
+  """
+  acknowledgeModMessage will set moderation messages to inactive
+  """
+  acknowledgeModMessage(
+    input: AcknowledgeModMessageInput!
+  ): AcknowledgeModMessagePayload
+    @auth(permit: [SUSPENDED, BANNED, PENDING_DELETION, WARNED])
 
   """
   removeUserSuspension will remove an active suspension from a User if they have
@@ -8294,6 +9302,24 @@ type Mutation {
   updateSite(input: UpdateSiteInput!): UpdateSitePayload! @auth(roles: [ADMIN])
 
   """
+  createEmailDomain creates an email domain configuration.
+  """
+  createEmailDomain(input: CreateEmailDomainInput!): CreateEmailDomainPayload!
+    @auth(roles: [ADMIN])
+
+  """
+  updateEmailDomain updates an email domain configuration.
+  """
+  updateEmailDomain(input: UpdateEmailDomainInput!): UpdateEmailDomainPayload!
+    @auth(roles: [ADMIN])
+
+  """
+  deleteEmailDomain deletes an email domain configuration.
+  """
+  deleteEmailDomain(input: DeleteEmailDomainInput!): DeleteEmailDomainPayload!
+    @auth(roles: [ADMIN])
+
+  """
   createWebhookEndpoint will create a new WebhookEndpoint.
   """
   createWebhookEndpoint(
@@ -8308,14 +9334,14 @@ type Mutation {
   ): UpdateWebhookEndpointPayload! @auth(roles: [ADMIN])
 
   """
-  enableWebhookEndpoint will enable a WebhookEndpoint to recieve new events.
+  enableWebhookEndpoint will enable a WebhookEndpoint to receive new events.
   """
   enableWebhookEndpoint(
     input: EnableWebhookEndpointInput!
   ): EnableWebhookEndpointPayload! @auth(roles: [ADMIN])
 
   """
-  disableWebhookEndpoint will disable a WebhookEndpoint from recieving new
+  disableWebhookEndpoint will disable a WebhookEndpoint from receiving new
   events.
   """
   disableWebhookEndpoint(
@@ -8351,7 +9377,7 @@ type Mutation {
   ): UpdateExternalModerationPhasePayload! @auth(roles: [ADMIN])
 
   """
-  enableExternalModerationPhase will enable a ExternalModerationPhase to recieve
+  enableExternalModerationPhase will enable a ExternalModerationPhase to receive
   new comments.
   """
   enableExternalModerationPhase(
@@ -8360,7 +9386,7 @@ type Mutation {
 
   """
   disableExternalModerationPhase will disable a ExternalModerationPhase from
-  recieving new comments.
+  receiving new comments.
   """
   disableExternalModerationPhase(
     input: DisableExternalModerationPhaseInput!
@@ -8402,7 +9428,37 @@ type Mutation {
   """
   testSMTP sends a test email.
   """
-  testSMTP(input: TestSMTPInput!): TestSMTPPayload! @auth(roles: [ADMIN])
+  testSMTP(input: TestSMTPInput!): TestSMTPPayload!
+    @auth(roles: [ADMIN])
+    @rate(seconds: 10)
+
+  """
+  reviewCommentFlag marks comment flag as reviewed
+  """
+  reviewCommentFlag(input: ReviewCommentFlagInput!): ReviewCommentFlagPayload!
+    @auth(roles: [ADMIN, MODERATOR])
+
+  archiveStories(input: ArchiveStoriesInput!): ArchiveStoriesPayload!
+    @auth(roles: [ADMIN])
+
+  unarchiveStories(input: UnarchiveStoriesInput!): UnarchiveStoriesPayload!
+    @auth(roles: [ADMIN])
+
+  """
+  markCommentsAsSeen will set the seen state to true for the commentIDs provided.
+  Seen state is stored per user, per story. It will do nothing if the request is
+  not issued with a valid logged in user token.
+  """
+  markCommentsAsSeen(
+    input: MarkCommentsAsSeenInput!
+  ): MarkCommentsAsSeenPayload!
+
+  """
+  refreshStoryCounts will recompute the cached counts for a story based on
+  which flags are set to recompute in the operation input.
+  """
+  refreshStoryCounts(input: RefreshStoryCountsInput!): RefreshStoryCountsPayload!
+    @auth(roles: [ADMIN])
 }
 
 ##################
@@ -8415,7 +9471,7 @@ after it was created.
 """
 type CommentStatusUpdatedPayload {
   """
-  newStatus  is the new status assigned to the Comment. This status may not
+  newStatus is the new status assigned to the Comment. This status may not
   match the status provided by `comment.status` due to race conditions in the
   data loaders.
   """
@@ -8548,6 +9604,16 @@ type CommentReleasedPayload {
   comment: Comment!
 }
 
+"""
+CommentEditedPayload is returned when a Comment is edited.
+"""
+type CommentEditedPayload {
+  """
+  comment is the Comment that was edited.
+  """
+  comment: Comment!
+}
+
 type Subscription {
   """
   commentEnteredModerationQueue returns when a Comment enters a ModerationQueue.
@@ -8610,4 +9676,9 @@ type Subscription {
   """
   commentFeatured(storyID: ID!): CommentFeaturedPayload!
     @auth(roles: [MODERATOR, ADMIN])
+
+  """
+  commentEdited returns when a Comment is edited.
+  """
+  commentEdited(storyID: ID!): CommentEditedPayload!
 }

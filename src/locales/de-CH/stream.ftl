@@ -70,7 +70,7 @@ comments-postCommentForm-submit = Kommentar abschicken
 comments-replyList-showAll = Alle anzeigen
 comments-replyList-showMoreReplies = Mehr Antworten anzeigen
 
-comments-postCommentForm-gifSearch = Nach einem GIF suchen
+comments-postComment-gifSearch = Nach einem GIF suchen
 comments-postComment-gifSearch-search =
   .aria-label = Suchen
 comments-postComment-gifSearch-loading = Laden...
@@ -129,7 +129,7 @@ comments-rte-externalImage =
 
 comments-remainingCharacters = { $remaining } Zeichen übrig
 
-comments-postCommentFormFake-signInAndJoin = Melde dich an und nimm an der Diskussion teil
+comments-postCommentFormFake-signInAndJoin = Anmelden und mitdiskutieren
 
 comments-postCommentForm-rteLabel = Kommentar schreiben
 
@@ -206,10 +206,6 @@ comments-userBanPopover-description =
   Wenn der User blockiert wird, wird er nicht mehr kommentieren,
   Reaktionen nutzen, oder Kommentare melden können.
   Dieser Kommentar wird ebenfalls abgewiesen.
-comments-userBanPopover-scopedDescription =
-  Wenn der User von {$sitename} blockiert wird, wird er nicht mehr kommentieren,
-  Reaktionen nutzen, oder Kommentare melden können.
-  Dieser Kommentar wird ebenfalls abgewiesen.
 comments-userBanPopover-cancel = Abbrechen
 comments-userBanPopover-ban = Blockieren
 
@@ -237,14 +233,14 @@ comments-featuredTag = Hervorgehoben
 
 comments-react =
   .aria-label = {$count ->
-    [0] {$reaction} Kommentar von {$username}
-    *[other] {$reaction} ({$count}) Kommentare von {$username}
+    [0] {$reaction} (Kommentar von {$username})
+    *[other] {$reaction} (Insgesamt: {$count}, Kommentar von {$username})
   }
 comments-reacted =
   .aria-label = {$count ->
-    [0] {$reaction} Kommentar von {$username}
-    [one] {$reaction} Kommentar von {$username}
-    *[other] {$reaction} ({$count}) Kommentare von {$username}
+    [0] {$reaction} (Kommentar von {$username})
+    [one] {$reaction} (Kommentar von {$username})
+    *[other] {$reaction} (Insgesamt: {$count}, Kommentar von {$username})
   }
 
 comments-jumpToComment-title = Deine Antwort wird unten angezeigt
@@ -635,27 +631,6 @@ configure-premodLink-commentsContainingLinks =
   Kommentare, welche Links enthalten vormoderieren
 configure-premodLink-description =
   Moderatoren müssen alle Kommentare, welche einen Link enthalten, genehmigen bevor sie beim Artikel veröffentlicht werden.
-
-configure-liveUpdates-title =
-configure-enableLiveUpdates-title = Live Updates aktivieren
-configure-liveUpdates-description =
-configure-enableLiveUpdates-description =
-  Wenn aktiviert, werden Kommentare sofort aktualisiert sobald neue Kommentare und Antworten
-  eingereicht werden. Es ist nicht mehr nötig die Seite neu zu laden. Falls es zur unüblichen
-  Situation kommen sollte, dass der Artikel sehr viel Traffic erhält und die Kommentare dadurch
-  langsamer laden, kannst du dies wieder deaktivieren.
-configure-enableLiveUpdates-enable = Aktivieren
-
-configure-disableLiveUpdates-title = Live Updates deaktivieren
-configure-disableLiveUpdates-description =
-  Wenn deaktiviert, werden Kommentare nicht sofort aktualisiert sobald neue Kommentare und Antworten
-  eingereicht werden. Es ist nötig die Seite neu zu laden. Wir empfehlen diese Einstellung wenn es
-  zur unüblichen Situation kommen sollte, dass der Artikel sehr viel Traffic erhält und die Kommentare
-  dadurch langsamer laden,
-configure-disableLiveUpdates-disable = Deaktivieren
-
-configure-liveUpdates-disabledSuccess = Live Updates sind jetzt deaktiviert
-configure-liveUpdates-enabledSuccess = Live Updates sind jetzt aktiviert
 
 configure-messageBox-title =
 configure-addMessage-title =

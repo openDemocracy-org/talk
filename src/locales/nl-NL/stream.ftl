@@ -351,17 +351,18 @@ profile-account-notifications-button-update = Update
 
 ## Report Comment Popover
 comments-reportPopover =
-  .description = Een veld voor het rapporteren van reacties
+  .description = Een dialoogvenster om reacties te rapporteren
 comments-reportPopover-reportThisComment = Rapporteer deze reactie
-comments-reportPopover-whyAreYouReporting = Waarom wilt u deze reactie rapporteren?
+comments-reportPopover-whyAreYouReporting = Waarom rapporteer je deze reactie?
 
-comments-reportPopover-reasonOffensive = Deze reactie is aanstootgevend
+comments-reportPopover-reasonOffensive = Deze reactie is beledigend
+comments-reportPopover-reasonAbusive = Deze gebruiker is beledigend
 comments-reportPopover-reasonIDisagree = Ik ben het niet eens met deze reactie
-comments-reportPopover-reasonSpam = Dit ziet eruit als een advertentie of marketing actie
-comments-reportPopover-reasonOther = Andere
+comments-reportPopover-reasonSpam = Dit lijkt een advertentie of marketing
+comments-reportPopover-reasonOther = Anders
 
 comments-reportPopover-pleaseLeaveAdditionalInformation =
-  Laat hier extra informatie achter die nuttig kan zijn voor onze moderatoren. (Optioneel)
+  Meer informatie <optional>Optioneel</optional>
 
 comments-reportPopover-maxCharacters = Max. { $maxCharacters } karakters
 comments-reportPopover-cancel = Annuleren
@@ -410,10 +411,6 @@ configure-premod-description =
 configure-premodLink-title = Pre-moderatie van reacties met links
 configure-premodLink-description =
   Moderatoren moeten elke reactie met een link eerst goedkeuren voordat deze zichtbaar wordt.
-
-configure-liveUpdates-title = Inschakelen live updates van dit bericht
-configure-liveUpdates-description =
-  Wanneer ingeschakeld, zullen er real-time reacties ingeladen en geüpdatet worden als er nieuwe reacties en antwoorden toegevoegd worden.
 
 configure-messageBox-title = Inschakelen bericht box voor deze reactiestroom
 configure-messageBox-description =

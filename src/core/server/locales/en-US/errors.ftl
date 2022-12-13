@@ -1,6 +1,8 @@
 error-commentingDisabled = Commenting has been disabled tenant wide.
 error-storyClosed = Story is currently closed for commenting.
 error-commentBodyTooShort = Comment body must have at least {$min} characters.
+error-parentCommentRejected = A comment earlier in this conversation thread was removed. No additional replies can be submitted.
+error-ancestorRejected = A comment earlier in this conversation thread was removed. No additional replies can be submitted.
 error-commentBodyExceedsMaxLength =
   Comment body exceeds maximum length of {$max} characters.
 error-storyURLNotPermitted =
@@ -16,10 +18,12 @@ error-emailNotSet = Email address has not been set yet.
 error-duplicateUser =
   Specified user already exists with a different login method.
 error-duplicateEmail = Specified email address is already in use.
+error-duplicateEmailDomain = Specified email domain is already configured.
 error-localProfileAlreadySet =
   Specified account already has a password set.
 error-localProfileNotSet =
   Specified account does not have a password set.
+error-SSOProfileNotSet = Specified user does not have an SSO profile.
 error-usernameAlreadySet = Specified account already has their username set.
 error-usernameContainsInvalidCharacters =
   Provided username contains invalid characters.
@@ -47,6 +51,7 @@ error-userAlreadySuspended = The user already has an active suspension until {$u
 error-userAlreadyBanned = The user is already banned.
 error-userBanned = Your account is currently banned.
 error-userSiteBanned = Your account is currently banned on { $siteName }.
+error-moderatorCannotBeBannedOnSite = You cannot ban a site moderator from their own site. You can cancel this action or change their role before trying again.
 error-userSuspended = Your account is currently suspended until {$until}.
 error-userWarned = Your account has been issued a warning, to continue participating please review the warning message above.
 error-integrationDisabled = Specified integration is disabled.
@@ -67,3 +72,7 @@ error-validation = A validation error occurred.
 error-userBioTooLong = Bio exceeds maximum length.
 error-commentEditWindowExpired = Edit time has expired. You can no longer edit this comment. Why not post another one?
 error-authorAlreadyHasRatedStory = You’ve already submitted a rating on this page.
+error-cannotCreateCommentOnArchivedStory = Cannot create a comment on an archived story without unarchiving.
+error-cannotOpenAnArchivedStory = Cannot open an archived story. The story must be unarchived first.
+error-cannotMergeAnArchivedStory = Cannot merge an archived story. The story must be unarchived first.
+error-usernameAlreadyExists = This username already exists. Please choose another.

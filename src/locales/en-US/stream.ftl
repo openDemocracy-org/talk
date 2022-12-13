@@ -2,11 +2,18 @@
 
 ## General
 
+general-commentsEmbedSection =
+  .aria-label = Comments Embed
+
 general-moderate = Moderate
+general-archived = Archived
 
 general-userBoxUnauthenticated-joinTheConversation = Join the conversation
 general-userBoxUnauthenticated-signIn = Sign in
 general-userBoxUnauthenticated-register = Register
+
+general-authenticationSection =
+  .aria-label = Authentication
 
 general-userBoxAuthenticated-signedIn =
   Signed in as
@@ -22,12 +29,24 @@ general-tabBar-discussionsTab = Discussions
 general-tabBar-reviewsTab = Reviews
 general-tabBar-configure = Configure
 
+general-mainTablist =
+  .aria-label = Main Tablist
+
+general-secondaryTablist =
+  .aria-label = Secondary Tablist
+
 ## Comment Count
 
 comment-count-text =
   { $count  ->
     [one] Comment
     *[other] Comments
+  }
+
+comment-count-text-ratings =
+  { $count  ->
+    [one] Rating
+    *[other] Ratings
   }
 
 ## Comments Tab
@@ -41,6 +60,14 @@ comments-watchers =
     *[other] { SHORT_NUMBER($count) } people viewing this discussion
   }
 
+comments-announcement-section =
+  .aria-label = Announcement
+comments-announcement-closeButton =
+  .aria-label = Close Announcement
+
+comments-accountStatus-section =
+  .aria-label = Account Status
+
 comments-featuredCommentTooltip-how = How is a comment featured?
 comments-featuredCommentTooltip-handSelectedComments =
   Comments are chosen by our team as worth reading.
@@ -48,8 +75,14 @@ comments-featuredCommentTooltip-toggleButton =
   .aria-label = Toggle featured comments tooltip
   .title = Toggle featured comments tooltip
 
-comments-collapse-toggle =
-  .aria-label = Collapse comment thread
+comments-collapse-toggle-with-username =
+  .aria-label = Hide comment by { $username } and its replies
+comments-collapse-toggle-without-username =
+  .aria-label = Hide comment and its replies
+comments-expand-toggle-with-username =
+  .aria-label = Show comment by { $username } and its replies
+comments-expand-toggle-without-username =
+  .aria-label = Show comment and its replies
 comments-bannedInfo-bannedFromCommenting = Your account has been banned from commenting.
 comments-bannedInfo-violatedCommunityGuidelines =
   Someone with access to your account has violated our community
@@ -62,15 +95,20 @@ comments-noCommentsYet = There are no comments yet. Why don't you write one?
 
 comments-streamQuery-storyNotFound = Story not found
 
+comments-communityGuidelines-section =
+  .aria-label = Community Guidelines
+
 comments-commentForm-cancel = Cancel
 comments-commentForm-saveChanges = Save changes
 comments-commentForm-submit = Submit
 
+comments-postCommentForm-section =
+  .aria-label = Post a Comment
 comments-postCommentForm-submit = Submit
 comments-replyList-showAll = Show All
 comments-replyList-showMoreReplies = Show More Replies
 
-comments-postCommentForm-gifSearch = Search for a GIF
+comments-postComment-gifSearch = Search for a GIF
 comments-postComment-gifSearch-search =
   .aria-label = Search
 comments-postComment-gifSearch-loading = Loading...
@@ -88,12 +126,15 @@ comments-postComment-confirmMedia-add-tweet = Add Tweet
 comments-postComment-confirmMedia-add-video = Add video
 comments-postComment-confirmMedia-remove = Remove
 comments-commentForm-gifPreview-remove = Remove
+comments-viewNew-loading = Loading...
 comments-viewNew =
   { $count ->
     [1] View {$count} New Comment
     *[other] View {$count} New Comments
   }
 comments-loadMore = Load More
+comments-loadAll = Load All Comments
+comments-loadAll-loading = Loading...
 
 comments-permalinkPopover =
   .description = A dialog showing a permalink to the comment
@@ -102,6 +143,8 @@ comments-permalinkPopover-permalinkToComment =
 comments-permalinkButton-share = Share
 comments-permalinkButton =
   .aria-label = Share comment by {$username}
+comments-permalinkView-section =
+  .aria-label = Single Conversation
 comments-permalinkView-viewFullDiscussion = View full discussion
 comments-permalinkView-commentRemovedOrDoesNotExist = This comment has been removed or does not exist.
 
@@ -151,6 +194,15 @@ comments-replyCommentForm-rteLabel = Write a reply
 comments-replyCommentForm-rte =
   .placeholder = { comments-replyCommentForm-rteLabel }
 
+comments-commentContainer-threadLevelLabel = Thread Level { $level }:
+comments-commentContainer-highlightedLabel = Highlighted:
+comments-commentContainer-ancestorLabel = Ancestor:
+comments-commentContainer-replyLabel =
+  Reply from { $username } <RelativeTime></RelativeTime>
+comments-commentContainer-questionLabel =
+  Question from { $username } <RelativeTime></RelativeTime>
+comments-commentContainer-commentLabel =
+  Comment from { $username } <RelativeTime></RelativeTime>
 comments-commentContainer-editButton = Edit
 
 comments-commentContainer-avatar =
@@ -202,14 +254,11 @@ comments-userIgnorePopover-ignore = Ignore
 comments-userIgnorePopover-cancel = Cancel
 
 comments-userBanPopover-title = Ban {$username}?
+comments-userSiteBanPopover-title = Ban {$username} from this site?
 comments-userBanPopover-description =
   Once banned, this user will no longer be able
   to comment, use reactions, or report comments.
   This comment will also be rejected.
-comments-userBanPopover-scopedDescription =
-  Once banned from {$sitename}, this user will
-  no longer be able to comment, use reactions, or report
-  comments. This comment will also be rejected.
 comments-userBanPopover-cancel = Cancel
 comments-userBanPopover-ban = Ban
 
@@ -222,6 +271,7 @@ comments-moderationDropdown-approved = Approved
 comments-moderationDropdown-reject = Reject
 comments-moderationDropdown-rejected = Rejected
 comments-moderationDropdown-ban = Ban User
+comments-moderationDropdown-siteBan = Site Ban
 comments-moderationDropdown-banned = Banned
 comments-moderationDropdown-goToModerate =
 comments-moderationDropdown-moderationView = Moderation view
@@ -235,33 +285,53 @@ comments-moderationRejectedTombstone-moderateLink =
 
 comments-featuredTag = Featured
 
+# $reaction could be "Respect" as an example. Be careful when translating to other languages with different grammar cases.
 comments-react =
   .aria-label = {$count ->
     [0] {$reaction} comment by {$username}
-    *[other] {$reaction} ({$count}) comment by {$username}
+    *[other] {$reaction} comment by {$username} (Total: {$count})
   }
+
+# $reaction could be "Respected" as an example. Be careful when translating to other languages with different grammar cases.
 comments-reacted =
   .aria-label = {$count ->
     [0] {$reaction} comment by {$username}
     [one] {$reaction} comment by {$username}
-    *[other] {$reaction} ({$count}) comment by {$username}
+    *[other] {$reaction} comment by {$username} (Total: {$count})
   }
 
 comments-jumpToComment-title = Your reply has posted below
 comments-jumpToComment-GoToReply = Go to reply
 
+comments-mobileToolbar-closeButton =
+  .aria-label = Close
+comments-mobileToolbar-unmarkAll = Mark all as read
+comments-mobileToolbar-nextUnread = Next unread
+
+comments-replyChangedWarning-theCommentHasJust =
+  This comment has just been edited. The latest version is displayed above.
+
 ### Q&A
 
 general-tabBar-qaTab = Q&A
+
+qa-postCommentForm-section =
+  .aria-label = Post a Question
 
 qa-answeredTab = Answered
 qa-unansweredTab = Unanswered
 qa-allCommentsTab = All
 
+qa-answered-answerLabel =
+  Answer from {$username} <RelativeTime></RelativeTime>
+qa-answered-gotoConversation = Go to conversation
+qa-answered-replies = Replies
+
 qa-noQuestionsAtAll =
   There are no questions on this story.
 qa-noQuestionsYet =
   There are no questions yet. Why don't you ask one?
+qa-viewNew-loading = Loading...
 qa-viewNew =
   { $count ->
     [1] View {$count} New Question
@@ -339,9 +409,16 @@ comments-embedLinks-hide-twitter = Hide Tweet
 comments-embedLinks-show-external = Show image
 comments-embedLinks-hide-external = Hide image
 
+comments-embedLinks-expand = Expand
 
 ### Featured Comments
+comments-featured-label =
+  Featured Comment from {$username} <RelativeTime></RelativeTime>
 comments-featured-gotoConversation = Go to conversation
+comments-featured-gotoConversation-label-with-username =
+  .aria-label = Go to this featured comment by user { $username } in the main comment stream
+comments-featured-gotoConversation-label-without-username =
+  .aria-label = Go to this featured comment in the main comment stream
 comments-featured-replies = Replies
 
 ## Profile Tab
@@ -372,6 +449,10 @@ profile-accountDeletion-cancelAccountDeletion =
   Cancel account deletion
 
 ### Comment History
+profile-commentHistory-section =
+  .aria-label = Comment History
+profile-historyComment-commentLabel =
+  Comment <RelativeTime></RelativeTime> on { $storyTitle }
 profile-historyComment-viewConversation = View Conversation
 profile-historyComment-replies = Replies {$replyCount}
 profile-historyComment-commentHistory = Comment History
@@ -382,6 +463,39 @@ profile-profileQuery-storyNotFound = Story not found
 profile-commentHistory-loadMore = Load More
 profile-commentHistory-empty = You have not written any comments
 profile-commentHistory-empty-subheading = A history of your comments will appear here
+
+profile-commentHistory-archived-thisIsAllYourComments =
+  This is all of your comments from the previous { $value } { $unit ->
+    [second] { $value ->
+      [1] second
+      *[other] seconds
+    }
+    [minute] { $value ->
+      [1] minute
+      *[other] minutes
+    }
+    [hour] { $value ->
+      [1] hour
+      *[other] hours
+    }
+    [day] { $value ->
+      [1] day
+      *[other] days
+    }
+    [week] { $value ->
+      [1] week
+      *[other] weeks
+    }
+    [month] { $value ->
+      [1] month
+      *[other] months
+    }
+    [year] { $value ->
+      [1] year
+      *[other] years
+    }
+    *[other] unknown unit
+  }. To view the rest of your comments, please contact us.
 
 ### Preferences
 
@@ -572,6 +686,26 @@ comments-reportPopover-receivedMessage =
 
 comments-reportPopover-dismiss = Dismiss
 
+## Archived Report Comment Popover
+
+comments-archivedReportPopover-reportThisComment = Report This Comment
+comments-archivedReportPopover-doesThisComment =
+  Does this comment violate our community guidelines? Is this offensive or spam?
+  Send  an email to our moderation team at <a>{ $orgName }</a> with a link to
+  this comment and a brief explanation.
+comments-archivedReportPopover-needALink =
+  Need a link to this comment?
+comments-archivedReportPopover-copyLink = Copy link
+
+comments-archivedReportPopover-emailSubject = Report comment
+comments-archivedReportPopover-emailBody =
+  I would like to report the following comment:
+  %0A
+  { $permalinkURL }
+  %0A
+  %0A
+  For the reasons stated below:
+
 ## Submit Status
 comments-submitStatus-dismiss = Dismiss
 comments-submitStatus-submittedAndWillBeReviewed =
@@ -582,6 +716,15 @@ comments-submitStatus-submittedAndRejected =
 # Configure
 configure-configureQuery-errorLoadingProfile = Error loading configure
 configure-configureQuery-storyNotFound = Story not found
+
+## Archive
+configure-archived-title = This comment stream has been archived
+configure-archived-onArchivedStream =
+  On archived streams, no new comments, reactions, or reports may be
+  submitted. Also, comments cannot be moderated.
+configure-archived-toAllowTheseActions =
+  To allow these actions, unarchive the stream.
+configure-archived-unarchiveStream = Unarchive stream
 
 ## Change username
 profile-changeUsername-username = Username
@@ -633,27 +776,6 @@ configure-premodLink-commentsContainingLinks =
   Pre-moderate comments containing links
 configure-premodLink-description =
   Moderators must approve any comment that contains a link before it is published to this story.
-
-configure-liveUpdates-title =
-configure-enableLiveUpdates-title = Enable live updates
-configure-liveUpdates-description =
-configure-enableLiveUpdates-description =
-  When enabled, the comments will be updated instantly as new comments and
-  replies are submitted, instead of requiring a page refresh. You can
-  disable this in the unusual situation of an article getting so much
-  traffic that the comments are loading slowly.
-configure-enableLiveUpdates-enable = Enable
-
-configure-disableLiveUpdates-title = Disable live updates
-configure-disableLiveUpdates-description =
-  When disabled, new comments and replies will no longer instantly update
-  as they are submitted. Commenters will need to refresh the page to see
-  new comments. We recommend this in the unusual situation of a story
-  getting so much traffic that the comments are loading slowly.
-configure-disableLiveUpdates-disable = Disable
-
-configure-liveUpdates-disabledSuccess = Live updates are now disabled
-configure-liveUpdates-enabledSuccess = Live updates are now enabled
 
 configure-messageBox-title =
 configure-addMessage-title =
@@ -741,12 +863,12 @@ configure-experts-none-yet = There are currently no experts for this Q&A.
 configure-experts-search-title = Search for an expert
 configure-experts-assigned-title = Experts
 configure-experts-noLongerAnExpert = is no longer an expert
-comments-tombstone-ignore = This comment is hidden because you ignored {$username}
+comments-tombstone-ignore-user = This comment is hidden because you ignored this user.
 comments-tombstone-showComment = Show comment
 comments-tombstone-deleted =
   This comment is no longer available. The commenter has deleted their account.
 comments-tombstone-rejected =
-  This commenter has been removed by a moderator for violating our community guidelines.
+  This comment has been removed by a moderator for violating our community guidelines.
 
 suspendInfo-heading =
 suspendInfo-heading-yourAccountHasBeen =
@@ -767,6 +889,9 @@ warning-instructions =
 warning-acknowledge = Acknowledge
 
 warning-notice = Your account has been issued a warning. To continue participating please <a>review the warning message</a>.
+
+modMessage-heading = Your account has been sent a message by a moderator
+modMessage-acknowledge = Acknowledge
 
 profile-changeEmail-unverified = (Unverified)
 profile-changeEmail-current = (current)
@@ -794,6 +919,9 @@ profile-changeEmail-title = Email address
 profile-changeEmail-success = Your email has been successfully updated
 
 ## Ratings and Reviews
+
+ratingsAndReviews-postCommentForm-section =
+  .aria-label = Submit a Review or Ask a Question
 
 ratingsAndReviews-reviewsTab = Reviews
 ratingsAndReviews-questionsTab = Questions
@@ -835,3 +963,5 @@ stream-footer-links-profile = Profile & Replies
   .title = Go to profile and replies
 stream-footer-links-discussions = More discussions
   .title = Go to more discussions
+stream-footer-navigation =
+  .aria-label = Comments Footer

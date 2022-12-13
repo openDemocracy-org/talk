@@ -105,9 +105,11 @@ const SlackConfigContainer: FunctionComponent<Props> = ({ form, settings }) => {
       >
         <Localized
           id="configure-slack-description"
-          externalLink={
-            <ExternalLink href="https://docs.coralproject.net/coral/v5/integrating/slack/" />
-          }
+          elems={{
+            externalLink: (
+              <ExternalLink href="https://docs.coralproject.net/slack/" />
+            ),
+          }}
         >
           <FormFieldDescription>
             Automatically send comments from Coral moderation queues to Slack

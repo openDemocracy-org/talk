@@ -2,6 +2,9 @@ import { Localized } from "@fluent/react/compat";
 import React, { FunctionComponent, useCallback } from "react";
 
 import NotAvailable from "coral-admin/components/NotAvailable";
+import useCommonTranslation, {
+  COMMON_TRANSLATION,
+} from "coral-admin/helpers/useCommonTranslation";
 import { Button, Flex, HorizontalGutter } from "coral-ui/components/v2";
 
 import ModalBodyText from "../ModalBodyText";
@@ -15,7 +18,6 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onConfirm: (message: string) => void;
-  organizationName: string;
   success: boolean;
 }
 
@@ -24,9 +26,11 @@ const WarnModal: FunctionComponent<Props> = ({
   onClose,
   onConfirm,
   username,
-  organizationName,
   success,
 }) => {
+  const notAvailableTranslation = useCommonTranslation(
+    COMMON_TRANSLATION.NOT_AVAILABLE
+  );
   const onFormSubmit = useCallback(
     (message: string) => {
       onConfirm(message);
@@ -46,8 +50,8 @@ const WarnModal: FunctionComponent<Props> = ({
             <HorizontalGutter spacing={3}>
               <Localized
                 id="community-warnModal-success"
-                $username={username}
-                strong={<ModalHeaderUsername />}
+                vars={{ username: username || notAvailableTranslation }}
+                elems={{ strong: <ModalHeaderUsername /> }}
               >
                 <ModalHeader>
                   A warning has been sent to{" "}
@@ -68,8 +72,8 @@ const WarnModal: FunctionComponent<Props> = ({
             <HorizontalGutter spacing={3}>
               <Localized
                 id="community-warnModal-areYouSure"
-                strong={<ModalHeaderUsername />}
-                $username={username || <NotAvailable />}
+                elems={{ strong: <ModalHeaderUsername /> }}
+                vars={{ username: username || notAvailableTranslation }}
               >
                 <ModalHeader id="warnModal-title">
                   Warn{" "}

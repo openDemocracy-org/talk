@@ -52,7 +52,10 @@ function sharedUpdater(
   const commentEdge = store
     .getRootField("createComment")!
     .getLinkedRecord("edge")!;
-  const status = commentEdge.getLinkedRecord("node")!.getValue("status");
+  const node = commentEdge.getLinkedRecord("node")!;
+  const status = node.getValue("status");
+  node.setValue("CREATE", "lastViewerAction");
+
   // If comment is not visible, we don't need to add it.
   if (!isPublished(status)) {
     return;
@@ -149,6 +152,7 @@ graphql`
 graphql`
   fragment CreateCommentMutation_story on Story {
     id
+    url
     viewerRating {
       id
       tags {
@@ -291,7 +295,8 @@ export const CreateCommentMutation = createMutation(
                   createdAt: currentDate,
                   status: "NONE",
                   pending: false,
-                  lastViewerAction: null,
+                  lastViewerAction: "CREATE",
+                  hasTraversalFocus: false,
                   author: {
                     id: viewer.id,
                     username: viewer.username || null,
@@ -333,6 +338,7 @@ export const CreateCommentMutation = createMutation(
                   },
                   story: {
                     id: input.storyID,
+                    url: story.url,
                     settings: {
                       moderation: storySettings.moderation,
                       mode: storySettings.mode,
@@ -368,6 +374,8 @@ export const CreateCommentMutation = createMutation(
                       : null,
                   },
                   deleted: false,
+                  seen: true,
+                  canReply: true,
                 },
               },
               clientMutationId: (clientMutationId++).toString(),

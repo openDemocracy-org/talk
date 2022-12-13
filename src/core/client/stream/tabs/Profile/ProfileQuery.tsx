@@ -3,50 +3,42 @@ import { once } from "lodash";
 import React, { FunctionComponent, Suspense } from "react";
 import { graphql } from "react-relay";
 
-import { polyfillCSSVars } from "coral-framework/helpers";
 import {
   QueryRenderData,
   QueryRenderer,
-  withLocalStateContainer,
+  useLocal,
 } from "coral-framework/lib/relay";
 import useHandleIncompleteAccount from "coral-stream/common/useHandleIncompleteAccount";
 import { CallOut, Delay, Spinner } from "coral-ui/components/v2";
+import { QueryError } from "coral-ui/components/v3";
 
 import { ProfileQuery as QueryTypes } from "coral-stream/__generated__/ProfileQuery.graphql";
-import { ProfileQueryLocal as Local } from "coral-stream/__generated__/ProfileQueryLocal.graphql";
+import { ProfileQueryLocal } from "coral-stream/__generated__/ProfileQueryLocal.graphql";
 
 const loadProfileContainer = () =>
-  import("./ProfileContainer" /* webpackChunkName: "profile" */).then((x) => {
-    // New css is loaded, take care of polyfilling those css vars for IE11.
-    void polyfillCSSVars();
-    return x;
-  });
+  import("./ProfileContainer" /* webpackChunkName: "profile" */);
+
 // (cvle) For some reason without `setTimeout` this request will block other requests.
-const preloadProfileContainer = once(() => setTimeout(loadProfileContainer, 0));
+const preload = once(() =>
+  setTimeout(() => {
+    void loadProfileContainer();
+  }, 0)
+);
 
 const LazyProfileContainer = React.lazy(loadProfileContainer);
 
-interface Props {
-  local: Local;
-}
-
 export const render = ({ error, props }: QueryRenderData<QueryTypes>) => {
   if (error) {
-    return (
-      <CallOut color="error" fullWidth>
-        {error.message}
-      </CallOut>
-    );
+    return <QueryError error={error} />;
   }
 
-  // TODO: use official React API once it has one :-)
-  preloadProfileContainer();
+  preload();
 
   if (props) {
     if (!props.viewer) {
       return (
         <Localized id="profile-profileQuery-errorLoadingProfile">
-          <CallOut color="error" fullWidth>
+          <CallOut color="error" fullWidth aria-live="polite">
             Error loading profile
           </CallOut>
         </Localized>
@@ -55,7 +47,7 @@ export const render = ({ error, props }: QueryRenderData<QueryTypes>) => {
     if (!props.story) {
       return (
         <Localized id="profile-profileQuery-storyNotFound">
-          <CallOut>Story not found</CallOut>
+          <CallOut aria-live="polite">Story not found</CallOut>
         </Localized>
       );
     }
@@ -77,9 +69,13 @@ export const render = ({ error, props }: QueryRenderData<QueryTypes>) => {
   );
 };
 
-const ProfileQuery: FunctionComponent<Props> = ({
-  local: { storyID, storyURL },
-}) => {
+const ProfileQuery: FunctionComponent = () => {
+  const [{ storyID, storyURL }] = useLocal<ProfileQueryLocal>(graphql`
+    fragment ProfileQueryLocal on Local {
+      storyID
+      storyURL
+    }
+  `);
   const handleIncompleteAccount = useHandleIncompleteAccount();
   return (
     <QueryRenderer<QueryTypes>
@@ -110,13 +106,4 @@ const ProfileQuery: FunctionComponent<Props> = ({
   );
 };
 
-const enhanced = withLocalStateContainer(
-  graphql`
-    fragment ProfileQueryLocal on Local {
-      storyID
-      storyURL
-    }
-  `
-)(ProfileQuery);
-
-export default enhanced;
+export default ProfileQuery;

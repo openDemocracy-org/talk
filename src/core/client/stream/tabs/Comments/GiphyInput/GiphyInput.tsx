@@ -14,7 +14,7 @@ import React, {
   useState,
 } from "react";
 import useDebounce from "react-use/lib/useDebounce";
-import useResizeObserver from "use-resize-observer/polyfilled";
+import useResizeObserver from "use-resize-observer";
 
 import {
   Button,
@@ -149,7 +149,7 @@ const GiphyInput: FunctionComponent<Props> = ({
               noResultsMessage={
                 <Localized
                   id="comments-postComment-gifSearch-no-results"
-                  $query={query}
+                  vars={{ query }}
                 >
                   <p className={styles.noResults}>
                     No results found for "{query}"{" "}

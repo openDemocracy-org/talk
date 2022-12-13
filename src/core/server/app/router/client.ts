@@ -1,20 +1,27 @@
+import cors from "cors";
 import express, { Router } from "express";
-import { Db } from "mongodb";
-import path from "path";
 
-import { StaticConfig } from "coral-common/config";
+import { EmbedBootstrapConfig, StaticConfig } from "coral-common/config";
 import { LanguageCode } from "coral-common/helpers/i18n/locales";
 import { cacheHeadersMiddleware } from "coral-server/app/middleware/cacheHeaders";
 import { cspSiteMiddleware } from "coral-server/app/middleware/csp";
 import { installedMiddleware } from "coral-server/app/middleware/installed";
 import { tenantMiddleware } from "coral-server/app/middleware/tenant";
 import { Config } from "coral-server/config";
-import logger from "coral-server/logger";
+import { MongoContext } from "coral-server/data/context";
+import { TenantNotFoundError } from "coral-server/errors";
 import validFeatureFlagsFilter from "coral-server/models/settings/validFeatureFlagsFilter";
 import { TenantCache } from "coral-server/services/tenant/cache";
-import { RequestHandler } from "coral-server/types/express";
+import {
+  Request,
+  RequestHandler,
+  TenantCoralRequest,
+} from "coral-server/types/express";
 
-import Entrypoints, { Entrypoint } from "../helpers/entrypoints";
+import ManifestLoader, {
+  createManifestLoader,
+  EntrypointLoader,
+} from "../helpers/manifestLoader";
 
 export interface ClientTargetHandlerOptions {
   /**
@@ -60,23 +67,18 @@ export interface ClientTargetHandlerOptions {
   /**
    * mongo is used when trying to infer a site from the request.
    */
-  mongo: Db;
+  mongo: MongoContext;
 
   /**
-   * entrypoint is the entrypoint entry to load.
+   * entrypointLoader is the Loader to the entrypoint entry to load.
    */
-  entrypoint: Entrypoint;
+  entrypointLoader: EntrypointLoader;
 
   /**
    * enableCustomCSS will insert the custom CSS into the template if it is
    * available on the Tenant.
    */
   enableCustomCSS?: boolean;
-  /**
-   * enableCustomCSSQuery will insert the custom CSS into the template if it is
-   * passed through in a query string
-   */
-  enableCustomCSSQuery?: boolean;
 
   /**
    * cacheDuration is the cache duration that a given request should be cached
@@ -89,6 +91,11 @@ export interface ClientTargetHandlerOptions {
    * iframe.
    */
   disableFraming?: true;
+
+  /**
+   * templateVariables are variables to be passed into the template.
+   */
+  templateVariables?: Record<string, any>;
 }
 
 function createClientTargetRouter(options: ClientTargetHandlerOptions) {
@@ -124,81 +131,117 @@ interface MountClientRouteOptions {
   staticConfig: StaticConfig;
 
   config: Config;
-  mongo: Db;
+  mongo: MongoContext;
 }
 
-const clientHandler = ({
-  analytics,
-  staticConfig: config,
-  entrypoint,
-  enableCustomCSS,
-  enableCustomCSSQuery,
-  defaultLocale,
-  template: viewTemplate = "client",
-}: ClientTargetHandlerOptions): RequestHandler => (req, res, next) => {
-  // Grab the locale code from the tenant configuration, if available.
-  let locale: LanguageCode = defaultLocale;
-  if (req.coral.tenant) {
-    locale = req.coral.tenant.locale;
-  }
-
+/** populate static config with request dependend data */
+const populateStaticConfig = (staticConfig: StaticConfig, req: Request) => {
   const featureFlags =
     req.coral.tenant?.featureFlags?.filter(validFeatureFlagsFilter(req.user)) ||
     [];
-
-  res.render(viewTemplate, {
-    analytics,
-    staticURI: config.staticURI,
-    entrypoint,
-    enableCustomCSS,
-    locale,
-    config: {
-      ...config,
-      featureFlags,
-    },
-    customCSSURL: enableCustomCSSQuery ? req.query.customCSSURL : null,
-  });
+  const flattenReplies = req.coral.tenant?.flattenReplies || false;
+  return {
+    ...staticConfig,
+    featureFlags,
+    tenantDomain: req.coral.tenant?.domain,
+    flattenReplies,
+  };
 };
 
-function loadEntrypoints(manifestFilename: string) {
-  // TODO: (wyattjoh) figure out a better way of referencing paths.
-  // Load the entrypoint manifest.
-  const manifestFilepath = path.join(
-    __dirname,
-    "..",
-    "..",
-    "..",
-    "..",
-    "..",
-    "dist",
-    "static",
-    manifestFilename
-  );
+const clientHandler =
+  ({
+    analytics,
+    staticConfig,
+    entrypointLoader,
+    enableCustomCSS,
+    defaultLocale,
+    template: viewTemplate = "client",
+    templateVariables = {},
+  }: ClientTargetHandlerOptions): RequestHandler =>
+  async (req, res, next) => {
+    // Grab the locale code from the tenant configuration, if available.
+    let locale: LanguageCode = defaultLocale;
+    let rootURL = "";
+    if (req.coral.tenant) {
+      locale = req.coral.tenant.locale;
+      rootURL = `${req.protocol}://${req.coral.tenant?.domain}`;
+    }
 
-  const entrypoints = Entrypoints.fromFile(manifestFilepath);
-  if (!entrypoints) {
-    logger.error(
-      { manifest: manifestFilepath },
-      "could not load the generated manifest, client routes will remain un-mounted"
-    );
-  }
+    const entrypoint = await entrypointLoader();
+    if (!entrypoint) {
+      next(new Error("Entrypoint not available"));
+      return;
+    }
 
-  return entrypoints;
-}
+    res.render(viewTemplate, {
+      ...templateVariables,
+      analytics,
+      staticURI: staticConfig.staticURI || "/",
+      entrypoint,
+      enableCustomCSS,
+      locale,
+      config: populateStaticConfig(staticConfig, req),
+      rootURL,
+    });
+  };
 
-export function mountClientRoutes(
+const createEmbedBootstrapHandler: (
+  defaultLocale: LanguageCode,
+  manifestLoader: ManifestLoader,
+  staticConfig: StaticConfig
+) => RequestHandler<TenantCoralRequest> =
+  (defaultLocale, manifestLoader, staticConfig) => async (req, res, next) => {
+    if (!req.coral.tenant) {
+      next(new TenantNotFoundError(req.hostname));
+      return;
+    }
+
+    // Grab the locale code from the tenant configuration, if available.
+    let locale: LanguageCode = defaultLocale;
+    if (req.coral.tenant) {
+      locale = req.coral.tenant.locale;
+    }
+
+    const streamEntrypointLoader =
+      manifestLoader.createEntrypointLoader("stream");
+    const entrypoint = await streamEntrypointLoader();
+    const defaultFontsCSSURL = (await manifestLoader.load())[
+      "assets/css/typography.css"
+    ]?.src;
+
+    if (!entrypoint) {
+      next(new Error("Entrypoint not available"));
+      return;
+    }
+
+    const data: EmbedBootstrapConfig = {
+      locale,
+      assets: {
+        js: entrypoint.js.map(({ src }) => ({ src })) || [],
+        css: entrypoint.css.map(({ src }) => ({ src })) || [],
+      },
+      customCSSURL: req.coral.tenant.customCSSURL,
+      customFontsCSSURL: req.coral.tenant.customFontsCSSURL,
+      defaultFontsCSSURL,
+      disableDefaultFonts: Boolean(req.coral.tenant.disableDefaultFonts),
+      staticConfig: populateStaticConfig(staticConfig, req),
+    };
+
+    res.json(data);
+  };
+
+export async function mountClientRoutes(
   router: Router,
   { tenantCache, mongo, ...options }: MountClientRouteOptions
 ) {
-  const entrypoints = loadEntrypoints("asset-manifest.json");
-  if (!entrypoints) {
-    return;
-  }
-
-  const embedEntrypoints = loadEntrypoints("embed-asset-manifest.json");
-  if (!embedEntrypoints) {
-    return;
-  }
+  const manifestLoader = createManifestLoader(
+    options.config,
+    "asset-manifest.json"
+  );
+  const embedManifestLoader = createManifestLoader(
+    options.config,
+    "embed-asset-manifest.json"
+  );
 
   // Tenant identification middleware.
   router.use(
@@ -216,19 +259,8 @@ export function mountClientRoutes(
       mongo,
       ...options,
       cacheDuration: false,
-      entrypoint: embedEntrypoints.get("main"),
+      entrypointLoader: embedManifestLoader.createEntrypointLoader("main"),
       template: "amp",
-    })
-  );
-
-  router.use(
-    "/embed/stream",
-    createClientTargetRouter({
-      mongo,
-      ...options,
-      enableCustomCSS: true,
-      enableCustomCSSQuery: true,
-      entrypoint: entrypoints.get("stream"),
     })
   );
 
@@ -239,7 +271,8 @@ export function mountClientRoutes(
       ...options,
       cacheDuration: false,
       disableFraming: true,
-      entrypoint: entrypoints.get("auth"),
+      entrypointLoader: manifestLoader.createEntrypointLoader("auth"),
+      templateVariables: { title: options.config.get("signin_window_title") },
     })
   );
 
@@ -250,7 +283,7 @@ export function mountClientRoutes(
       ...options,
       cacheDuration: false,
       disableFraming: true,
-      entrypoint: entrypoints.get("account"),
+      entrypointLoader: manifestLoader.createEntrypointLoader("account"),
     })
   );
 
@@ -263,7 +296,7 @@ export function mountClientRoutes(
       ...options,
       cacheDuration: false,
       disableFraming: true,
-      entrypoint: entrypoints.get("admin"),
+      entrypointLoader: manifestLoader.createEntrypointLoader("admin"),
     })
   );
 
@@ -279,8 +312,21 @@ export function mountClientRoutes(
       ...options,
       cacheDuration: false,
       disableFraming: true,
-      entrypoint: entrypoints.get("install"),
+      entrypointLoader: manifestLoader.createEntrypointLoader("install"),
     })
+  );
+
+  // Handle the root path.
+  router.get(
+    "/embed/bootstrap",
+    // Need cors here because we use an XMLHttpRequest to fetch this resource from
+    // the embed.
+    cors(),
+    createEmbedBootstrapHandler(
+      options.defaultLocale,
+      manifestLoader,
+      options.staticConfig
+    )
   );
 
   // Handle the root path.

@@ -1,69 +1,62 @@
 import React, { FunctionComponent } from "react";
-import { findDOMNode } from "react-dom";
 
 import UIContext from "../UIContext";
-
-export type ClickFarAwayCallback = () => void;
-export type ClickFarAwayUnlistenCallback = () => void;
-
-export type ClickFarAwayRegister = (
-  callback: ClickFarAwayCallback
-) => ClickFarAwayUnlistenCallback;
 
 export interface ClickOutsideProps {
   onClickOutside: (e?: MouseEvent) => void;
 
   /**
-   * A way to listen for clicks that are e.g. outside of the
-   * current frame for `ClickOutside`
+   * Allow you to change the `Window` reference.
    */
-  registerClickFarAway?: ClickFarAwayRegister;
+  window?: Window;
 
   children: React.ReactNode;
 }
 
 export class ClickOutside extends React.Component<ClickOutsideProps> {
+  public static defaultProps: Partial<ClickOutsideProps> = {
+    // eslint-disable-next-line no-restricted-globals
+    window,
+  };
+
   public domNode: Element | null = null;
-  private unlisten?: ClickFarAwayUnlistenCallback;
+
+  public handleRef = (e: Element | null) => {
+    this.domNode = e;
+  };
 
   public handleClick = (e: MouseEvent) => {
+    const path =
+      (e.composedPath && e.composedPath()) ||
+      // Supports older browsers.
+      (e as any).path;
     const { onClickOutside } = this.props;
-    if (!e || !this.domNode!.contains(e.target as HTMLInputElement)) {
+    if (this.domNode && !this.domNode.contains(path[0] as HTMLInputElement)) {
       // eslint-disable-next-line no-unused-expressions
       onClickOutside && onClickOutside(e);
     }
   };
 
-  public handleClickFarAway = () => {
-    const { onClickOutside } = this.props;
-    // eslint-disable-next-line no-unused-expressions
-    onClickOutside && onClickOutside();
-  };
-
   public componentDidMount() {
-    // TODO: find another solution to `findDOMNode`.
-    // eslint-disable-next-line react/no-find-dom-node
-    this.domNode = findDOMNode(this) as Element;
-    document.addEventListener("click", this.handleClick, true);
-
-    // Listen to far away clicks.
-    if (this.props.registerClickFarAway) {
-      this.unlisten = this.props.registerClickFarAway(this.handleClickFarAway);
-    }
+    this.props.window!.document.addEventListener(
+      "click",
+      this.handleClick,
+      true
+    );
   }
 
   public componentWillUnmount() {
-    document.removeEventListener("click", this.handleClick, true);
-
-    // Unlisten to far away clicks.
-    if (this.unlisten) {
-      this.unlisten();
-      this.unlisten = undefined;
-    }
+    this.props.window!.document.removeEventListener(
+      "click",
+      this.handleClick,
+      true
+    );
   }
 
   public render() {
-    return this.props.children;
+    return (
+      <div ref={(node) => (this.domNode = node)}>{this.props.children}</div>
+    );
   }
 }
 
@@ -71,9 +64,7 @@ const ClickOutsideWithContext: FunctionComponent<ClickOutsideProps> = (
   props
 ) => (
   <UIContext.Consumer>
-    {({ registerClickFarAway }) => (
-      <ClickOutside {...props} registerClickFarAway={registerClickFarAway} />
-    )}
+    {({ renderWindow }) => <ClickOutside {...props} window={renderWindow} />}
   </UIContext.Consumer>
 );
 

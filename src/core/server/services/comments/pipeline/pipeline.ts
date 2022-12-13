@@ -1,8 +1,7 @@
-import { Db } from "mongodb";
-
 import getHTMLPlainText from "coral-common/helpers/getHTMLPlainText";
 import { Promiseable, RequireProperty } from "coral-common/types";
 import { Config } from "coral-server/config";
+import { MongoContext } from "coral-server/data/context";
 import { Logger } from "coral-server/logger";
 import { CreateActionInput } from "coral-server/models/action/comment";
 import {
@@ -61,7 +60,7 @@ export interface PhaseResult {
 }
 
 export interface ModerationPhaseContextInput {
-  readonly mongo: Db;
+  readonly mongo: MongoContext;
   readonly redis: AugmentedRedis;
   readonly config: Config;
   readonly log: Logger;
@@ -115,54 +114,53 @@ export type IntermediateModerationPhase = (
  * compose will create a moderation pipeline for which is executable with the
  * passed actions.
  */
-export const compose = (
-  phases: IntermediateModerationPhase[]
-): RootModerationPhase => async (context) => {
-  const final: PhaseResult = {
-    status: GQLCOMMENT_STATUS.NONE,
-    body: context.comment.body,
-    actions: [],
-    metadata: {
-      // Merge in the passed comment metadata.
-      ...(context.comment.metadata || {}),
+export const compose =
+  (phases: IntermediateModerationPhase[]): RootModerationPhase =>
+  async (context) => {
+    const final: PhaseResult = {
+      status: GQLCOMMENT_STATUS.NONE,
+      body: context.comment.body,
+      actions: [],
+      metadata: {
+        // Merge in the passed comment metadata.
+        ...(context.comment.metadata || {}),
 
-      // Add the nudge to the comment metadata.
-      nudge: context.nudge,
-    },
-    tags: [],
-  };
-
-  // Get text representation of the comment body so that filters that can't process
-  // HTML can reuse it.
-  const bodyText = getHTMLPlainText(final.body);
-
-  // Loop over all the moderation phases and see if we've resolved the status.
-  for (const phase of phases) {
-    const result = await phase({
-      ...context,
-      comment: {
-        ...context.comment,
-        body: final.body,
+        // Add the nudge to the comment metadata.
+        nudge: context.nudge,
       },
-      tags: final.tags,
-      bodyText,
-      metadata: final.metadata,
-    });
-    if (result) {
-      // Merge the results in. If we're finished, break now!
-      const finished = mergePhaseResult(result, final);
-      if (finished) {
-        return final;
+      tags: [],
+    };
+
+    // Get text representation of the comment body so that filters that can't process
+    // HTML can reuse it.
+    const bodyText = getHTMLPlainText(final.body);
+
+    // Loop over all the moderation phases and see if we've resolved the status.
+    for (const phase of phases) {
+      const result = await phase({
+        ...context,
+        comment: {
+          ...context.comment,
+          body: final.body,
+        },
+        tags: final.tags,
+        bodyText,
+        metadata: final.metadata,
+      });
+      if (result) {
+        // Merge the results in. If we're finished, break now!
+        const finished = mergePhaseResult(result, final);
+        if (finished) {
+          return final;
+        }
       }
     }
-  }
 
-  return final;
-};
+    return final;
+  };
 
 /**
  * process the comment and return moderation details.
  */
-export const processForModeration: RootModerationPhase = compose(
-  moderationPhases
-);
+export const processForModeration: RootModerationPhase =
+  compose(moderationPhases);

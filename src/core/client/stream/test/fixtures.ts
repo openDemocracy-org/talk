@@ -3,6 +3,7 @@ import {
   GQLComment,
   GQLCOMMENT_STATUS,
   GQLDIGEST_FREQUENCY,
+  GQLFEATURE_FLAG,
   GQLMODERATION_MODE,
   GQLSettings,
   GQLSite,
@@ -94,11 +95,12 @@ export const settings = createFixture<GQLSettings>({
       },
     },
   },
-  staff: {
+  badges: {
     label: "Staff",
     adminLabel: "Staff",
     moderatorLabel: "Staff",
     staffLabel: "Staff",
+    memberLabel: "Member",
   },
   reaction: {
     icon: "thumb_up",
@@ -128,15 +130,25 @@ export const settings = createFixture<GQLSettings>({
     spoiler: false,
     sarcasm: false,
   },
+  flattenReplies: false,
 });
 
-export const site = createFixture<GQLSite>({
-  name: "Test Site",
-  id: "site-id",
-  createdAt: "2018-05-06T18:24:00.000Z",
-  allowedOrigins: ["http://test-site.com"],
-  canModerate: true,
-});
+export const site = createFixtures<GQLSite>([
+  {
+    name: "Test Site",
+    id: "site-id",
+    createdAt: "2018-05-06T18:24:00.000Z",
+    allowedOrigins: ["http://test-site.com"],
+    canModerate: true,
+  },
+  {
+    name: "Second Site",
+    id: "site-two",
+    createdAt: "2018-05-06T18:24:00.000Z",
+    allowedOrigins: ["http://second-site.com"],
+    canModerate: true,
+  },
+]);
 
 export const settingsWithoutLocalAuth = createFixture<GQLSettings>(
   {
@@ -147,6 +159,20 @@ export const settingsWithoutLocalAuth = createFixture<GQLSettings>(
         },
       },
     },
+  },
+  settings
+);
+
+export const settingsWithMultisite = createFixture<GQLSettings>(
+  {
+    multisite: true,
+  },
+  settings
+);
+
+export const settingsWithAlternateOldestFirstView = createFixture<GQLSettings>(
+  {
+    featureFlags: [GQLFEATURE_FLAG.ALTERNATE_OLDEST_FIRST_VIEW],
   },
   settings
 );
@@ -178,6 +204,10 @@ export const baseUser = createFixture<GQLUser>({
       active: false,
       history: [],
     },
+    modMessage: {
+      active: false,
+      history: [],
+    },
   },
   ignoredUsers: [],
   comments: {
@@ -204,6 +234,43 @@ export const baseUser = createFixture<GQLUser>({
   ],
   avatar: NULL_VALUE,
 });
+
+export const userWithModMessageHistory = createFixture<GQLUser>(
+  {
+    status: {
+      warning: {
+        active: true,
+        history: [
+          {
+            active: true,
+            createdBy: { id: "4d4e482f-24ce-44a7-8e2f-dbbb3c17cf52" },
+            createdAt: "2021-10-20T13:54:23.549Z",
+            message: "You have been warned",
+          },
+        ],
+      },
+      modMessage: {
+        active: true,
+        history: [
+          {
+            active: true,
+            createdBy: { id: "4d4e482f-24ce-44a7-8e2f-dbbb3c17cf52" },
+            createdAt: "2021-10-19T19:02:22.532Z",
+            message: "first message",
+          },
+          {
+            active: true,
+            createdBy: { id: "4d4e482f-24ce-44a7-8e2f-dbbb3c17cf52" },
+            createdAt: "2021-10-19T19:08:53.844Z",
+            message:
+              "This is a friendly reminder about our community guidelines.",
+          },
+        ],
+      },
+    },
+  },
+  baseUser
+);
 
 const yesterday = new Date();
 yesterday.setDate(yesterday.getDate() - 1);
@@ -265,6 +332,12 @@ export const userWithEmail = createFixture<GQLUser>(
   baseUser
 );
 
+export const member = createFixture<GQLUser>({
+  id: "member-user",
+  username: "member",
+  role: GQLUSER_ROLE.MEMBER,
+});
+
 export const commenters = createFixtures<GQLUser>(
   [
     {
@@ -296,7 +369,11 @@ export const baseStory = createFixture<GQLStory>({
   metadata: {
     title: "title",
   },
+  url: "https://www.test.com/story-0",
   isClosed: false,
+  isArchiving: false,
+  isArchived: false,
+  isUnarchiving: false,
   comments: {
     edges: [],
     pageInfo: {
@@ -326,7 +403,7 @@ export const baseStory = createFixture<GQLStory>({
     experts: [],
   },
   canModerate: true,
-  site,
+  site: site[0],
 });
 
 export const baseComment = createFixture<GQLComment>({
@@ -357,6 +434,12 @@ export const baseComment = createFixture<GQLComment>({
   tags: [],
   deleted: NULL_VALUE,
   reactions: { edges: [], pageInfo: { endCursor: null, hasNextPage: false } },
+  seen: false,
+  canReply: true,
+  allChildComments: {
+    edges: [],
+    pageInfo: { endCursor: null, hasNextPage: false },
+  },
 });
 
 export const comments = denormalizeComments(
@@ -467,7 +550,28 @@ export const comments = denormalizeComments(
         author: commenters[2],
         body: "Comment Body 5",
       },
+      {
+        id: "comment-21",
+        author: commenters[2],
+        body: "Comment Body 5",
+      },
     ],
+    baseComment
+  )
+);
+
+export const commentFromMember = denormalizeComment(
+  createFixture<GQLComment>(
+    {
+      id: "comment-from-member",
+      author: member,
+      body: "I like gogurt.",
+      tags: [
+        {
+          code: GQLTAG.MEMBER,
+        },
+      ],
+    },
     baseComment
   )
 );
@@ -554,7 +658,7 @@ export const commentWithDeepestReplies = denormalizeComment(
                             ...baseComment,
                             id: "comment-with-deepest-replies-3",
                             body: "body 3",
-                            replyCount: 1,
+                            replyCount: 0,
                             replies: {
                               ...baseComment.replies,
                               edges: [
@@ -563,11 +667,54 @@ export const commentWithDeepestReplies = denormalizeComment(
                                   node: {
                                     ...baseComment,
                                     id: "comment-with-deepest-replies-4",
-                                    body: "body 1",
+                                    body: "body 4",
                                     replyCount: 1,
                                     replies: {
                                       ...baseComment.replies,
-                                      edges: [],
+                                      edges: [
+                                        {
+                                          cursor: baseComment.createdAt,
+                                          node: {
+                                            ...baseComment,
+                                            id: "comment-with-deepest-replies-5",
+                                            body: "body 5",
+                                            replyCount: 1,
+                                            replies: {
+                                              ...baseComment.replies,
+                                              edges: [
+                                                {
+                                                  cursor: baseComment.createdAt,
+                                                  node: {
+                                                    ...baseComment,
+                                                    id: "comment-with-deepest-replies-6",
+                                                    body: "body 6",
+                                                    replyCount: 1,
+                                                    replies: {
+                                                      ...baseComment.replies,
+                                                      edges: [
+                                                        {
+                                                          cursor:
+                                                            baseComment.createdAt,
+                                                          node: {
+                                                            ...baseComment,
+                                                            id: "comment-with-deepest-replies-7",
+                                                            body: "body 7",
+                                                            replyCount: 1,
+                                                            replies: {
+                                                              ...baseComment.replies,
+                                                              edges: [],
+                                                            },
+                                                          },
+                                                        },
+                                                      ],
+                                                    },
+                                                  },
+                                                },
+                                              ],
+                                            },
+                                          },
+                                        },
+                                      ],
                                     },
                                   },
                                 },
@@ -596,8 +743,34 @@ export const moderators = createFixtures<GQLUser>(
       role: GQLUSER_ROLE.MODERATOR,
       ignoreable: false,
     },
+    {
+      id: "site-moderator",
+      username: "Site Moderator",
+      role: GQLUSER_ROLE.MODERATOR,
+      ignoreable: false,
+      moderationScopes: {
+        scoped: true,
+        sites: [site[0]],
+      },
+    },
   ],
   baseUser
+);
+
+export const commentFromModerator = denormalizeComment(
+  createFixture<GQLComment>(
+    {
+      id: "comment-from-moderator",
+      author: moderators[0],
+      body: "Stop all that cussing!",
+      tags: [
+        {
+          code: GQLTAG.MODERATOR,
+        },
+      ],
+    },
+    baseComment
+  )
 );
 
 export const commentsFromStaff = denormalizeComments(
@@ -696,6 +869,40 @@ export const storyWithFeaturedComments = denormalizeStory(
   )
 );
 
+export const storyQAMode = createFixture<GQLStory>(
+  {
+    settings: {
+      mode: GQLSTORY_MODE.QA,
+    },
+  },
+  baseStory
+);
+
+export const storyWithAnsweredComments = denormalizeStory(
+  createFixture<GQLStory>(
+    {
+      id: "story-with-answered-comments",
+      url: "http://localhost/stories/story-with-answered-comments",
+      comments: {
+        edges: [
+          {
+            node: { ...comments[0], tags: [featuredTag] },
+            cursor: comments[0].createdAt,
+          },
+          {
+            node: { ...comments[1], tags: [featuredTag] },
+            cursor: comments[1].createdAt,
+          },
+        ],
+        pageInfo: {
+          hasNextPage: false,
+        },
+      },
+    },
+    storyQAMode
+  )
+);
+
 export const storyWithReplies = denormalizeStory(
   createFixture<GQLStory>(
     {
@@ -756,6 +963,61 @@ export const storyWithDeepestReplies = denormalizeStory(
     },
     baseStory
   )
+);
+
+export const replyableComment: GQLComment = {
+  ...comments[0],
+  author: {
+    ...comments[0].author!,
+    username: "replyable comment author",
+  },
+  canReply: true,
+};
+
+export const rejectedComment: GQLComment = {
+  ...comments[1],
+  author: {
+    ...comments[1].author!,
+    username: "rejected comment author",
+  },
+  status: GQLCOMMENT_STATUS.REJECTED,
+};
+
+export const unrepliableComment: GQLComment = {
+  ...comments[2],
+  author: {
+    ...comments[2].author!,
+    username: "unrepliable comment author",
+  },
+  canReply: false,
+};
+
+export const commentWithRejectedReply: GQLComment = denormalizeComment(
+  createFixture<GQLComment>({
+    ...replyableComment,
+    replies: {
+      nodes: [rejectedComment],
+      pageInfo: { hasNextPage: false, hasPreviousPage: false },
+      edges: [
+        {
+          cursor: "cursor",
+          node: {
+            ...rejectedComment,
+            replies: {
+              edges: [
+                {
+                  cursor: "cursor",
+                  node: unrepliableComment,
+                },
+              ],
+              nodes: [rejectedComment],
+              pageInfo: { hasNextPage: false, hasPreviousPage: false },
+            },
+          },
+        },
+      ],
+    },
+  })
 );
 
 export const storyWithOnlyStaffComments = denormalizeStory(

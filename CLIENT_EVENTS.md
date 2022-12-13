@@ -78,12 +78,14 @@ createComment.error
 <!-- START docs:events -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN npm run docs:events -->
 ### Index
+- <a href="#addACommentButton">addACommentButton</a>
 - <a href="#approveComment">approveComment</a>
 - <a href="#banUser">banUser</a>
 - <a href="#cancelAccountDeletion">cancelAccountDeletion</a>
 - <a href="#changeEmail">changeEmail</a>
 - <a href="#changePassword">changePassword</a>
 - <a href="#changeUsername">changeUsername</a>
+- <a href="#closeMobileToolbar">closeMobileToolbar</a>
 - <a href="#closeStory">closeStory</a>
 - <a href="#copyPermalink">copyPermalink</a>
 - <a href="#createComment">createComment</a>
@@ -94,6 +96,10 @@ createComment.error
 - <a href="#featureComment">featureComment</a>
 - <a href="#gotoModeration">gotoModeration</a>
 - <a href="#ignoreUser">ignoreUser</a>
+- <a href="#jumpToNextComment">jumpToNextComment</a>
+- <a href="#jumpToNextUnseenComment">jumpToNextUnseenComment</a>
+- <a href="#jumpToPreviousComment">jumpToPreviousComment</a>
+- <a href="#jumpToPreviousUnseenComment">jumpToPreviousUnseenComment</a>
 - <a href="#loadMoreAllComments">loadMoreAllComments</a>
 - <a href="#loadMoreFeaturedComments">loadMoreFeaturedComments</a>
 - <a href="#loadMoreHistoryComments">loadMoreHistoryComments</a>
@@ -131,14 +137,18 @@ createComment.error
 - <a href="#signOut">signOut</a>
 - <a href="#signedIn">signedIn</a>
 - <a href="#unfeatureComment">unfeatureComment</a>
+- <a href="#unmarkAll">unmarkAll</a>
 - <a href="#updateNotificationSettings">updateNotificationSettings</a>
 - <a href="#updateStorySettings">updateStorySettings</a>
 - <a href="#updateUserMediaSettings">updateUserMediaSettings</a>
 - <a href="#viewConversation">viewConversation</a>
 - <a href="#viewFullDiscussion">viewFullDiscussion</a>
 - <a href="#viewNewComments">viewNewComments</a>
+- <a href="#viewNewCommentsNetwork">viewNewCommentsNetwork</a>
+- <a href="#viewNewRepliesNetwork">viewNewRepliesNetwork</a>
 
 ### Events
+- <a id="addACommentButton">**addACommentButton**</a>: This event is emitted when the viewer clicks the add a comment button in alternate oldest view.
 - <a id="approveComment">**approveComment.success**, **approveComment.error**</a>: This event is emitted when the viewer approves a comment.
   ```ts
   {
@@ -206,6 +216,7 @@ createComment.error
       };
   }
   ```
+- <a id="closeMobileToolbar">**closeMobileToolbar**</a>: This event is emitted when the viewer closes to mobile toolbar.
 - <a id="closeStory">**closeStory.success**, **closeStory.error**</a>: This event is emitted when the viewer closes the story.
   ```ts
   {
@@ -307,10 +318,39 @@ createComment.error
       };
   }
   ```
+- <a id="jumpToNextComment">**jumpToNextComment**</a>: This event is emitted when the viewer triggered the C Key (Next Comment Traversal) functionality.
+  ```ts
+  {
+      source: "keyboard" | "mobileToolbar";
+  }
+  ```
+- <a id="jumpToNextUnseenComment">**jumpToNextUnseenComment**</a>: This event is emitted when the viewer triggered the Z Key (Next Unseen Comment Traversal) functionality.
+  ```ts
+  {
+      source: "keyboard" | "mobileToolbar";
+  }
+  ```
+- <a id="jumpToPreviousComment">**jumpToPreviousComment**</a>: This event is emitted when the viewer triggered the Shift+C Key (Prev Comment Traversal) functionality.
+  ```ts
+  {
+      source: "keyboard" | "mobileToolbar";
+  }
+  ```
+- <a id="jumpToPreviousUnseenComment">**jumpToPreviousUnseenComment**</a>: This event is emitted when the viewer triggered the Shift+Z Key (Prev Unseen Comment Traversal) functionality.
+  ```ts
+  {
+      source: "keyboard" | "mobileToolbar";
+  }
+  ```
 - <a id="loadMoreAllComments">**loadMoreAllComments.success**, **loadMoreAllComments.error**</a>: This event is emitted when the viewer loads more top level comments into the comment stream.
   ```ts
   {
       storyID: string;
+      keyboardShortcutsConfig: {
+          source: string;
+          key: string;
+          reverse: boolean;
+      } | null;
       success: {};
       error: {
           message: string;
@@ -458,6 +498,11 @@ createComment.error
   ```ts
   {
       commentID: string;
+      keyboardShortcutsConfig: {
+          source: string;
+          key: string;
+          reverse: boolean;
+      } | null;
       success: {};
       error: {
           message: string;
@@ -552,6 +597,12 @@ createComment.error
       };
   }
   ```
+- <a id="unmarkAll">**unmarkAll**</a>: This event is emitted when the viewer triggeres the Unmark all functionality.
+  ```ts
+  {
+      source: "keyboard" | "mobileToolbar";
+  }
+  ```
 - <a id="updateNotificationSettings">**updateNotificationSettings.success**, **updateNotificationSettings.error**</a>: This event is emitted when the viewer updates its notification settings.
   ```ts
   {
@@ -574,7 +625,7 @@ createComment.error
       live?: {
           enabled?: boolean | null | undefined;
       } | null | undefined;
-      moderation?: "POST" | "PRE" | null | undefined;
+      moderation?: "POST" | "PRE" | "SPECIFIC_SITES_PRE" | null | undefined;
       premodLinksEnable?: boolean | null | undefined;
       messageBox?: {
           enabled?: boolean | null | undefined;
@@ -617,6 +668,38 @@ createComment.error
   {
       storyID: string;
       count: number;
+  }
+  ```
+- <a id="viewNewCommentsNetwork">**viewNewCommentsNetwork.success**, **viewNewCommentsNetwork.error**</a>: This event is emitted when the viewer reveals new live comments.
+  ```ts
+  {
+      storyID?: string | undefined;
+      keyboardShortcutsConfig: {
+          source: string;
+          key: string;
+          reverse: boolean;
+      } | null;
+      success: {};
+      error: {
+          message: string;
+          code?: string | undefined;
+      };
+  }
+  ```
+- <a id="viewNewRepliesNetwork">**viewNewRepliesNetwork.success**, **viewNewRepliesNetwork.error**</a>: This event is emitted when the viewer reveals new live replies to comments.
+  ```ts
+  {
+      storyID?: string | undefined;
+      keyboardShortcutsConfig: {
+          source: string;
+          key: string;
+          reverse: boolean;
+      } | null;
+      success: {};
+      error: {
+          message: string;
+          code?: string | undefined;
+      };
   }
   ```
 <!-- END docs:events -->

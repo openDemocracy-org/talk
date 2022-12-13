@@ -75,9 +75,10 @@ const ChangeUsernameContainer: FunctionComponent<Props> = ({
   }, [setShowEditForm, showEditForm]);
   const updateUsername = useMutation(UpdateUsernameMutation);
 
-  const closeSuccessMessage = useCallback(() => setShowSuccessMessage(false), [
-    setShowEditForm,
-  ]);
+  const closeSuccessMessage = useCallback(
+    () => setShowSuccessMessage(false),
+    [setShowEditForm]
+  );
 
   const canChangeLocalAuth = useMemo(() => {
     if (!settings.accountFeatures.changeUsername) {
@@ -157,10 +158,18 @@ const ChangeUsernameContainer: FunctionComponent<Props> = ({
   });
 
   return (
-    <HorizontalGutter spacing={3} data-testid="profile-changeUsername">
+    <HorizontalGutter
+      spacing={3}
+      data-testid="profile-changeUsername"
+      container="section"
+      aria-labelledby="profile-changeUsername-title"
+    >
       <div>
         <Localized id="profile-changeUsername-username">
-          <div className={cn(styles.title, CLASSES.myUsername.title)}>
+          <div
+            className={cn(styles.title, CLASSES.myUsername.title)}
+            id="profile-changeUsername-title"
+          >
             Username
           </div>
         </Localized>
@@ -211,19 +220,22 @@ const ChangeUsernameContainer: FunctionComponent<Props> = ({
                 <span>Your username has been successfully updated</span>
               </Localized>
             }
+            aria-live="polite"
           />
         </div>
       )}
       {!canChangeUsername && !showSuccessMessage && (
         <div data-testid="profile-changeUsername-cantChange">
           <Localized
-            date={canChangeUsernameDate}
             id="profile-changeUsername-youChangedYourUsernameWithin"
-            $value={FREQUENCYSCALED.scaled}
-            $unit={FREQUENCYSCALED.unit}
-            $nextUpdate={
-              canChangeUsernameDate ? formatter(canChangeUsernameDate) : null
-            }
+            vars={{
+              date: canChangeUsernameDate || "",
+              value: FREQUENCYSCALED.scaled,
+              unit: FREQUENCYSCALED.unit,
+              nextUpdate: canChangeUsernameDate
+                ? formatter(canChangeUsernameDate)
+                : "",
+            }}
           >
             <div className={cn(styles.tooSoon, CLASSES.myUsername.tooSoon)}>
               You changed your username within the last {FREQUENCYSCALED.scaled}{" "}
@@ -245,8 +257,10 @@ const ChangeUsernameContainer: FunctionComponent<Props> = ({
             </Localized>
             <Localized
               id="profile-changeUsername-desc-text"
-              $value={FREQUENCYSCALED.scaled}
-              $unit={FREQUENCYSCALED.unit}
+              vars={{
+                value: FREQUENCYSCALED.scaled,
+                unit: FREQUENCYSCALED.unit,
+              }}
             >
               <div
                 className={cn(
@@ -262,7 +276,13 @@ const ChangeUsernameContainer: FunctionComponent<Props> = ({
           </div>
           {canChangeUsername && (
             <Form onSubmit={onSubmit}>
-              {({ handleSubmit, submitError, pristine, invalid }) => (
+              {({
+                handleSubmit,
+                submitError,
+                pristine,
+                invalid,
+                dirtySinceLastSubmit,
+              }) => (
                 <form
                   onSubmit={handleSubmit}
                   data-testid="profile-changeUsername-form"
@@ -333,6 +353,7 @@ const ChangeUsernameContainer: FunctionComponent<Props> = ({
                         icon={<Icon size="sm">error</Icon>}
                         titleWeight="semiBold"
                         title={submitError}
+                        role="alert"
                       />
                     )}
                   </HorizontalGutter>
@@ -367,7 +388,9 @@ const ChangeUsernameContainer: FunctionComponent<Props> = ({
                         type="submit"
                         data-testid="profile-changeUsername-save"
                         color="primary"
-                        disabled={pristine || invalid}
+                        disabled={
+                          pristine || (invalid && !dirtySinceLastSubmit)
+                        }
                         upperCase
                       >
                         <span>Save Changes</span>

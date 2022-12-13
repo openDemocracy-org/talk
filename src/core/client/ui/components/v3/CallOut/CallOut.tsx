@@ -1,5 +1,6 @@
+import { Localized } from "@fluent/react/compat";
 import cn from "classnames";
-import React, { FunctionComponent, useCallback } from "react";
+import React, { FunctionComponent, HTMLAttributes, useCallback } from "react";
 
 import { BaseButton, Icon } from "coral-ui/components/v2";
 import { withStyles } from "coral-ui/hocs";
@@ -16,7 +17,7 @@ type CallOutColor =
 
 type IconColor = "inherit" | "none";
 
-interface Props {
+interface Props extends HTMLAttributes<any> {
   children?: any;
   color?: CallOutColor;
   borderPosition?: "leftSide" | "top";
@@ -30,6 +31,11 @@ interface Props {
   classes: typeof styles;
   visible?: boolean;
   onClose?: () => void;
+  /**
+   * The container used for the root node.
+   * Either a string to use a DOM element, a component, or an element.
+   */
+  container?: React.ReactElement<any> | React.ComponentType<any> | string;
 }
 
 const CallOut: FunctionComponent<Props> = ({
@@ -45,6 +51,10 @@ const CallOut: FunctionComponent<Props> = ({
   children,
   visible = true,
   onClose,
+  container,
+  "aria-live": ariaLive,
+  role,
+  ...rest
 }) => {
   const rootClasses = cn(
     classes.root,
@@ -86,29 +96,45 @@ const CallOut: FunctionComponent<Props> = ({
     return null;
   }
 
-  return (
-    <div className={rootClasses}>
-      <div className={classes.container}>
-        {iconPosition === "left" && icon !== null && (
-          <div className={iconClasses}>{icon}</div>
-        )}
-        <div className={classes.content}>
-          {title !== null && <div className={titleClasses}>{title}</div>}
-          <div className={classes.body}>{children}</div>
-        </div>
-        {onClose && (
-          <div className={classes.actions}>
+  const content = (
+    <div className={classes.container}>
+      {iconPosition === "left" && icon !== null && (
+        <div className={iconClasses}>{icon}</div>
+      )}
+      <div className={classes.content} role={role} aria-live={ariaLive}>
+        {title !== null && <div className={titleClasses}>{title}</div>}
+        <div className={classes.body}>{children}</div>
+      </div>
+      {onClose && (
+        <div className={classes.actions}>
+          <Localized id="ui-callout-closeButton" attrs={{ "aria-label": true }}>
             <BaseButton
               onClick={onCloseClicked}
               data-testid="callout-close-button"
+              aria-label="Close"
             >
               <Icon size="sm">close</Icon>
             </BaseButton>
-          </div>
-        )}
-      </div>
+          </Localized>
+        </div>
+      )}
     </div>
   );
+
+  const innerProps = {
+    className: rootClasses,
+    ...rest,
+  };
+  const Container = container!;
+  if (React.isValidElement<any>(Container)) {
+    return React.cloneElement(Container, { ...innerProps, content });
+  } else {
+    return <Container {...innerProps}>{content}</Container>;
+  }
+};
+
+CallOut.defaultProps = {
+  container: "div",
 };
 
 const enhanced = withStyles(styles)(CallOut);

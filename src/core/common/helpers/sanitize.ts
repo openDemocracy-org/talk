@@ -6,6 +6,33 @@ import { SARCASM_CLASSNAME, SPOILER_CLASSNAME } from "coral-common/constants";
 // types in coral-common instead? 🤔
 import { GQLRTEConfiguration } from "../../client/framework/schema/__generated__/types";
 
+/** Tags that we remove before looking for suspect/banned words */
+export const WORDLIST_FORBID_TAGS = [
+  "a",
+  "b",
+  "strong",
+  "i",
+  "em",
+  "s",
+  "del",
+  "ins",
+  "mark",
+  "cite",
+  "q",
+  "samp",
+  "small",
+  "sup",
+  "sub",
+  "span",
+  "u",
+  "code",
+  "time",
+  "var",
+  "wbr",
+  "kbd",
+  "abbr",
+];
+
 export interface RTEFeatures {
   bold?: boolean;
   italic?: boolean;
@@ -30,8 +57,6 @@ export const ALL_FEATURES: RTEFeatures = {
   sarcasm: true,
 };
 
-const MAILTO_PROTOCOL = "mailto:";
-
 /**
  * convertGQLRTEConfigToRTEFeatures turns the
  * RTE configuration from the GraphQL Schema to
@@ -51,27 +76,53 @@ export function convertGQLRTEConfigToRTEFeatures(
   };
 }
 
+const MAILTO_PROTOCOL = "mailto:";
+
 /**
- * Ensure that each anchor tag has a "target" and "rel" attributes set, and
- * strip the "href" attribute from all non-anchor tags.
+ * Ensure that each anchor tag is replaced with text that
+ * corresponds to its inner html. If the tag's href matches
+ * its inner html, it remains as is.
  */
 const sanitizeAnchor = (node: Element) => {
   if (node.nodeName === "A") {
-    // Ensure we wrap all the links with the target + rel set.
-    node.setAttribute("target", "_blank");
-    node.setAttribute("rel", "noopener noreferrer");
-
-    // Ensure that all the links have the same link as they do text.
     let href = node.getAttribute("href");
+    let textContent = node.textContent;
+
+    let mailToWithMatchingInnerHtml = false,
+      invalidURL = false;
     if (href) {
-      if (node.textContent !== href) {
-        // remove "mailto:" prefix from link text
-        const url = new URL(href);
-        if (url.protocol === MAILTO_PROTOCOL) {
-          href = href.replace(url.protocol, "");
+      let url;
+      try {
+        url = new URL(href);
+      } catch (error) {
+        invalidURL = true;
+      }
+
+      // Check for a mailto: link with corresponding inner html
+      if (url && url.protocol === MAILTO_PROTOCOL) {
+        if (href.replace(url.protocol, "") === textContent) {
+          mailToWithMatchingInnerHtml = true;
         }
       }
-      node.textContent = href;
+
+      // Account for whether trailing slashes are included or not
+      href = href?.endsWith("/") ? href : (href += "/");
+      textContent = textContent?.endsWith("/")
+        ? textContent
+        : (textContent += "/");
+    }
+    // When the url is valid and the anchor tag's inner html matches its href
+    if (
+      !invalidURL &&
+      ((href && href === textContent) || mailToWithMatchingInnerHtml)
+    ) {
+      // Ensure we wrap all the links with the target + rel set
+      node.setAttribute("target", "_blank");
+      node.setAttribute("rel", "noopener noreferrer ugc");
+    } else {
+      // Otherwise, turn the anchor link into text corresponding to its inner html
+      node.insertAdjacentText("beforebegin", node.innerHTML);
+      node.parentNode!.removeChild(node);
     }
   }
 };
@@ -154,6 +205,10 @@ export interface SanitizeOptions {
 
 export type Sanitize = (source: Node | string) => HTMLElement;
 
+// Source for constant: https://developer.mozilla.org/en-US/docs/Web/API/Node/nodeType
+// Using this instead of Node.TEXT_NODE because Node is not defined in Node.js
+const TEXT_NODE_TYPE = 3;
+
 export function createSanitize(
   window: Window,
   options?: SanitizeOptions
@@ -174,11 +229,18 @@ export function createSanitize(
     sanitizeAttributes.bind(null, features)
   );
   purify.addHook("afterSanitizeAttributes", sanitizeAnchor);
+  purify.addHook("afterSanitizeElements", (n) => {
+    // Replace nbsp, including those inserted when sanitizing
+    // anchor tags and replacing them with their text
+    if (n.nodeType === TEXT_NODE_TYPE && n.nodeValue) {
+      n.nodeValue = n.nodeValue.replace(/\xA0/g, " ");
+    }
+  });
   if (options?.normalize) {
     purify.addHook("afterSanitizeElements", (n) => {
       if (
-        n.nodeType === Node.TEXT_NODE &&
-        n.previousSibling?.nodeType === Node.TEXT_NODE
+        n.nodeType === TEXT_NODE_TYPE &&
+        n.previousSibling?.nodeType === TEXT_NODE_TYPE
       ) {
         // Merge text node sublings together.
         // eslint-disable-next-line no-unused-expressions

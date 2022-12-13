@@ -17,6 +17,7 @@ import { statusPreModerateNewCommenter } from "./statusPreModerateNewCommenter";
 import { statusPreModerateUser } from "./statusPreModerateUser";
 import { storyClosed } from "./storyClosed";
 import { tagExpertAnswers } from "./tagExpertAnswers";
+import { tagMember } from "./tagMember";
 import { tagQuestion } from "./tagQuestion";
 import { tagReview } from "./tagReview";
 import { tagStaff } from "./tagStaff";
@@ -45,6 +46,7 @@ export const moderationPhases: IntermediateModerationPhase[] = [
   tagQuestion,
   tagExpertAnswers,
   tagStaff,
+  tagMember,
   tagUnansweredQuestions,
 
   // Approve any comment here that should be approved before running through
@@ -61,9 +63,9 @@ export const moderationPhases: IntermediateModerationPhase[] = [
   detectLinks,
 
   // Apply any pre-existing conditions to these comments.
+  statusPreModerateNewCommenter,
   statusPreModerate,
   statusPreModerateUser,
-  statusPreModerateNewCommenter,
 
   // Run any external moderation phase that missed other filters.
   external,

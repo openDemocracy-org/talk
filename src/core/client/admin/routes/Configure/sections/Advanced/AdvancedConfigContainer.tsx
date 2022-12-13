@@ -10,8 +10,10 @@ import { HorizontalGutter } from "coral-ui/components/v2";
 
 import { AdvancedConfigContainer_settings } from "coral-admin/__generated__/AdvancedConfigContainer_settings.graphql";
 
+import AMPConfig from "./AMPConfig";
 import CommentStreamLiveUpdatesContainer from "./CommentStreamLiveUpdatesContainer";
 import CustomCSSConfig from "./CustomCSSConfig";
+import ForReviewQueueConfig from "./ForReviewQueueConfig";
 import StoryCreationConfig from "./StoryCreationConfig";
 
 interface Props {
@@ -33,6 +35,8 @@ const AdvancedConfigContainer: React.FunctionComponent<Props> = ({
         settings={settings}
       />
       <StoryCreationConfig disabled={submitting} />
+      <AMPConfig disabled={submitting} />
+      <ForReviewQueueConfig disabled={submitting} />
     </HorizontalGutter>
   );
 };
@@ -44,6 +48,8 @@ const enhanced = withFragmentContainer<Props>({
       ...CommentStreamLiveUpdates_formValues @relay(mask: false)
       ...StoryCreationConfig_formValues @relay(mask: false)
       ...CommentStreamLiveUpdatesContainer_settings
+      ...AMPConfig_formValues @relay(mask: false)
+      ...ForReviewQueueConfig_formValues @relay(mask: false)
     }
   `,
 })(AdvancedConfigContainer);

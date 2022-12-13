@@ -1,12 +1,10 @@
 import { GraphQLResolveInfo } from "graphql";
 
 import GraphContext from "coral-server/graph/context";
-import { hasFeatureFlag } from "coral-server/models/tenant";
 import * as user from "coral-server/models/user";
 import { roleIsStaff } from "coral-server/models/user/helpers";
 
 import {
-  GQLFEATURE_FLAG,
   GQLUser,
   GQLUSER_ROLE,
   GQLUserTypeResolver,
@@ -16,7 +14,7 @@ import { RecentCommentHistoryInput } from "./RecentCommentHistory";
 import { UserStatusInput } from "./UserStatus";
 import { getRequestedFields } from "./util";
 
-const maybeLoadOnlyIgnoredUserID = (
+const maybeLoadOnlyExistingIgnoredUsers = async (
   ctx: GraphContext,
   info: GraphQLResolveInfo,
   users?: user.IgnoredUser[]
@@ -34,7 +32,15 @@ const maybeLoadOnlyIgnoredUserID = (
   }
 
   // We want more than the ID! Get the user!
-  return Promise.all(users.map(({ id }) => ctx.loaders.Users.user.load(id)));
+  const ignoredUserResults = await ctx.loaders.Users.user.loadMany(
+    users.map((u) => u.id)
+  );
+
+  const existingIgnoredUsers = ignoredUserResults.filter(
+    (res): res is user.User => res !== null && !(res instanceof Error)
+  );
+
+  return existingIgnoredUsers;
 };
 
 export const User: GQLUserTypeResolver<user.User> = {
@@ -50,12 +56,6 @@ export const User: GQLUserTypeResolver<user.User> = {
     userID: id,
   }),
   moderationScopes: ({ role, moderationScopes }, input, ctx) => {
-    // If the feature flag for site moderators is not turned on return null
-    // always.
-    if (!hasFeatureFlag(ctx.tenant, GQLFEATURE_FLAG.SITE_MODERATOR)) {
-      return null;
-    }
-
     // Moderation scopes only apply to users that have the moderator role.
     if (role !== GQLUSER_ROLE.MODERATOR) {
       return null;
@@ -64,8 +64,15 @@ export const User: GQLUserTypeResolver<user.User> = {
     // For all other users return null for moderation scopes.
     return moderationScopes;
   },
+  membershipScopes: ({ role, membershipScopes }, input, ctx) => {
+    if (role !== GQLUSER_ROLE.MEMBER) {
+      return null;
+    }
+
+    return membershipScopes;
+  },
   ignoredUsers: ({ ignoredUsers }, input, ctx, info) =>
-    maybeLoadOnlyIgnoredUserID(ctx, info, ignoredUsers),
+    maybeLoadOnlyExistingIgnoredUsers(ctx, info, ignoredUsers),
   ignoreable: ({ role }) => !roleIsStaff(role),
   recentCommentHistory: ({ id }): RecentCommentHistoryInput => ({ userID: id }),
   profiles: ({ profiles = [] }) => profiles,

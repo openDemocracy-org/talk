@@ -10,8 +10,11 @@ import {
   GQLCOMMENT_STATUS,
   GQLCommentModerationAction,
   GQLCommentsConnection,
+  GQLFlag,
+  GQLFlagsConnection,
   GQLMODERATION_MODE,
   GQLModerationQueues,
+  GQLNEW_USER_MODERATION,
   GQLSettings,
   GQLSite,
   GQLSitesConnection,
@@ -32,6 +35,7 @@ import { NULL_VALUE } from "coral-test/helpers/fixture";
 export const settings = createFixture<GQLSettings>({
   id: "settings",
   moderation: GQLMODERATION_MODE.POST,
+  premoderateAllCommentsSites: [],
   premodLinksEnable: false,
   locale: "en-US",
   live: {
@@ -56,11 +60,12 @@ export const settings = createFixture<GQLSettings>({
     timeout: 604800,
     message: "Comments are closed on this story.",
   },
-  staff: {
+  badges: {
     label: "Staff",
     staffLabel: "Staff",
     moderatorLabel: "Staff",
     adminLabel: "Staff",
+    memberLabel: "Member",
   },
   memberBios: true,
   reaction: {
@@ -191,6 +196,10 @@ export const settings = createFixture<GQLSettings>({
   newCommenters: {
     premodEnabled: false,
     approvedCommentsThreshold: 2,
+    moderation: {
+      mode: GQLMODERATION_MODE.POST,
+      premodSites: [],
+    },
   },
   premoderateSuspectWords: false,
   media: {
@@ -209,7 +218,18 @@ export const settings = createFixture<GQLSettings>({
     strikethrough: false,
     spoiler: false,
   },
+  amp: false,
+  flattenReplies: false,
+  forReviewQueue: false,
+  emailDomainModeration: [],
 });
+
+export const settingsWithMultisite = createFixture<GQLSettings>(
+  {
+    multisite: true,
+  },
+  settings
+);
 
 export const settingsWithEmptyAuth = createFixture<GQLSettings>(
   {
@@ -314,15 +334,12 @@ export const sites = createFixtures<GQLSite>([
 export const moderationActions = createFixtures<GQLCommentModerationAction>([
   {
     id: "07e8f815-e165-4b5d-b438-7163415c8cf7",
-    revision: {
-      id: "4210dc8b-c212-4f74-9381-913e8c52e51a",
-      comment: {
-        author: {
-          username: "luke2",
-          id: "4383c3d3-bb9b-40b9-847a-240f3cf6c6af",
-        },
-        id: "1b41be9f-510f-41f3-a1df-5a431dc98bf3",
+    comment: {
+      author: {
+        username: "luke2",
+        id: "4383c3d3-bb9b-40b9-847a-240f3cf6c6af",
       },
+      id: "1b41be9f-510f-41f3-a1df-5a431dc98bf3",
     },
     createdAt: "2018-11-29T16:01:51.897Z",
     status: GQLCOMMENT_STATUS.APPROVED,
@@ -330,15 +347,12 @@ export const moderationActions = createFixtures<GQLCommentModerationAction>([
   },
   {
     id: "6869314b-47ef-4cf9-b8ce-42b12bca8231",
-    revision: {
-      id: "4210dc8b-c212-4f74-9381-913e8c52e51a",
-      comment: {
-        author: {
-          username: "addy",
-          id: "4383c3d3-bb9b-40b9-847a-240f3cf6c6af",
-        },
-        id: "1b41be9f-510f-41f3-a1df-5a431dc98bf3",
+    comment: {
+      author: {
+        username: "addy",
+        id: "4383c3d3-bb9b-40b9-847a-240f3cf6c6af",
       },
+      id: "1b41be9f-510f-41f3-a1df-5a431dc98bf3",
     },
     createdAt: "2018-11-29T16:01:45.644Z",
     status: GQLCOMMENT_STATUS.REJECTED,
@@ -346,15 +360,12 @@ export const moderationActions = createFixtures<GQLCommentModerationAction>([
   },
   {
     id: "caebbf7f-4813-42c0-ac3c-46b1be8199e0",
-    revision: {
-      id: "4210dc8b-c212-4f74-9381-913e8c52e51a",
-      comment: {
-        author: {
-          username: "dany",
-          id: "4383c3d3-bb9b-40b9-847a-240f3cf6c6af",
-        },
-        id: "1b41be9f-510f-41f3-a1df-5a431dc98bf3",
+    comment: {
+      author: {
+        username: "dany",
+        id: "4383c3d3-bb9b-40b9-847a-240f3cf6c6af",
       },
+      id: "1b41be9f-510f-41f3-a1df-5a431dc98bf3",
     },
     createdAt: "2018-11-29T16:01:42.060Z",
     status: GQLCOMMENT_STATUS.APPROVED,
@@ -362,15 +373,12 @@ export const moderationActions = createFixtures<GQLCommentModerationAction>([
   },
   {
     id: "b2f92717-e4a8-4075-a543-95f7c5eaefb2",
-    revision: {
-      id: "4210dc8b-c212-4f74-9381-913e8c52e51a",
-      comment: {
-        author: {
-          username: "admin",
-          id: "4383c3d3-bb9b-40b9-847a-240f3cf6c6af",
-        },
-        id: "1b41be9f-510f-41f3-a1df-5a431dc98bf3",
+    comment: {
+      author: {
+        username: "admin",
+        id: "4383c3d3-bb9b-40b9-847a-240f3cf6c6af",
       },
+      id: "1b41be9f-510f-41f3-a1df-5a431dc98bf3",
     },
     createdAt: "2018-11-29T16:01:34.539Z",
     status: GQLCOMMENT_STATUS.REJECTED,
@@ -378,15 +386,12 @@ export const moderationActions = createFixtures<GQLCommentModerationAction>([
   },
   {
     id: "9fb2ff3c-7105-4357-99e1-36cdeea49c75",
-    revision: {
-      id: "4210dc8b-c212-4f74-9381-913e8c52e51a",
-      comment: {
-        author: {
-          username: "mod245",
-          id: "4383c3d3-bb9b-40b9-847a-240f3cf6c6af",
-        },
-        id: "1b41be9f-510f-41f3-a1df-5a431dc98bf3",
+    comment: {
+      author: {
+        username: "mod245",
+        id: "4383c3d3-bb9b-40b9-847a-240f3cf6c6af",
       },
+      id: "1b41be9f-510f-41f3-a1df-5a431dc98bf3",
     },
     createdAt: "2018-11-29T16:01:30.648Z",
     status: GQLCOMMENT_STATUS.APPROVED,
@@ -412,6 +417,10 @@ export const baseUser = createFixture<GQLUser>({
       history: [],
     },
     warning: {
+      active: false,
+      history: [],
+    },
+    modMessage: {
       active: false,
       history: [],
     },
@@ -450,6 +459,28 @@ export const users = {
         role: GQLUSER_ROLE.MODERATOR,
         ignoreable: false,
       },
+      {
+        id: "site-moderator-1",
+        username: "Ginger",
+        email: "ginger@test.com",
+        role: GQLUSER_ROLE.MODERATOR,
+        ignoreable: false,
+        moderationScopes: {
+          scoped: true,
+          sites: [sites[0]],
+        },
+      },
+      {
+        id: "site-moderator-2",
+        username: "Audrey",
+        email: "audrey@test.com",
+        role: GQLUSER_ROLE.MODERATOR,
+        ignoreable: false,
+        moderationScopes: {
+          scoped: true,
+          sites: [sites[0], sites[1]],
+        },
+      },
     ],
     baseUser
   ),
@@ -474,6 +505,17 @@ export const users = {
         role: GQLUSER_ROLE.COMMENTER,
         ignoreable: true,
         recentCommentHistory,
+        moderatorNotes: [],
+        allComments: {
+          edges: [],
+          nodes: [],
+          pageInfo: {
+            hasPreviousPage: false,
+            hasNextPage: false,
+            startCursor: null,
+            endCursor: null,
+          },
+        },
       },
       {
         id: "user-commenter-1",
@@ -482,6 +524,17 @@ export const users = {
         role: GQLUSER_ROLE.COMMENTER,
         ignoreable: true,
         recentCommentHistory,
+        moderatorNotes: [],
+        allComments: {
+          edges: [],
+          nodes: [],
+          pageInfo: {
+            hasPreviousPage: false,
+            hasNextPage: false,
+            startCursor: null,
+            endCursor: null,
+          },
+        },
       },
       {
         id: "user-commenter-2",
@@ -527,6 +580,19 @@ export const users = {
     },
     baseUser
   ),
+  siteBannedCommenter: createFixture<GQLUser>(
+    {
+      id: "user-banned-1",
+      username: "Lulu",
+      email: "lulu@test.com",
+      role: GQLUSER_ROLE.COMMENTER,
+      ignoreable: true,
+      status: {
+        ban: { active: false, sites: [sites[0], sites[1]] },
+      },
+    },
+    baseUser
+  ),
 };
 
 export const stories = createFixtures<GQLStory>([
@@ -534,6 +600,9 @@ export const stories = createFixtures<GQLStory>([
     id: "story-1",
     closedAt: null,
     isClosed: false,
+    isArchived: false,
+    isArchiving: false,
+    isUnarchiving: false,
     status: GQLSTORY_STATUS.OPEN,
     createdAt: "2018-11-29T16:01:51.897Z",
     url: "",
@@ -565,6 +634,9 @@ export const stories = createFixtures<GQLStory>([
     id: "story-2",
     closedAt: null,
     isClosed: false,
+    isArchived: false,
+    isArchiving: false,
+    isUnarchiving: false,
     status: GQLSTORY_STATUS.OPEN,
     createdAt: "2018-11-29T16:01:51.897Z",
     url: "",
@@ -590,6 +662,9 @@ export const stories = createFixtures<GQLStory>([
     canModerate: true,
     settings: {
       mode: GQLSTORY_MODE.COMMENTS,
+      moderation: GQLMODERATION_MODE.POST,
+      premodLinksEnable: false,
+      experts: [],
     },
   },
   {
@@ -597,6 +672,9 @@ export const stories = createFixtures<GQLStory>([
     closedAt: "2018-11-29T16:01:51.897Z",
     createdAt: "2018-11-29T16:01:51.897Z",
     isClosed: true,
+    isArchived: false,
+    isArchiving: false,
+    isUnarchiving: false,
     status: GQLSTORY_STATUS.CLOSED,
     url: "",
     commentCounts: {
@@ -679,6 +757,9 @@ export const baseComment = createFixture<GQLComment>({
           COMMENT_DETECTED_BANNED_WORD: 0,
         },
       },
+      reaction: {
+        total: 0,
+      },
     },
     metadata: {
       perspective: NULL_VALUE,
@@ -686,6 +767,8 @@ export const baseComment = createFixture<GQLComment>({
     },
   },
   flags: {
+    edges: [],
+    pageInfo: { endCursor: null, hasNextPage: false },
     nodes: [],
   },
   story: stories[0],
@@ -741,8 +824,23 @@ export const reportedComments = createFixtures<GQLComment>(
         actionCounts: {
           flag: {
             reasons: {
-              COMMENT_REPORTED_SPAM: 2,
+              COMMENT_DETECTED_BANNED_WORD: 1,
+              COMMENT_DETECTED_LINKS: 1,
+              COMMENT_DETECTED_NEW_COMMENTER: 0,
+              COMMENT_DETECTED_RECENT_HISTORY: 1,
+              COMMENT_DETECTED_REPEAT_POST: 1,
+              COMMENT_DETECTED_SPAM: 1,
+              COMMENT_DETECTED_SUSPECT_WORD: 1,
+              COMMENT_DETECTED_TOXIC: 1,
+              COMMENT_REPORTED_ABUSIVE: 0,
+              COMMENT_REPORTED_BIO: 0,
+              COMMENT_REPORTED_OFFENSIVE: 2,
+              COMMENT_REPORTED_OTHER: 0,
+              COMMENT_REPORTED_SPAM: 3,
             },
+          },
+          reaction: {
+            total: 1,
           },
         },
         metadata: {
@@ -750,27 +848,72 @@ export const reportedComments = createFixtures<GQLComment>(
             score: 0.1,
           },
         },
+        body: "This is the last random sentence I will be writing and I am going to stop mid-sent",
       },
       permalink: "http://localhost/comment/0",
-      body:
-        "This is the last random sentence I will be writing and I am going to stop mid-sent",
+      body: "This is the last random sentence I will be writing and I am going to stop mid-sent",
       flags: {
+        edges: [
+          {
+            node: {
+              id: "comment-0-flag-0",
+              reason: GQLCOMMENT_FLAG_REASON.COMMENT_REPORTED_SPAM,
+              flagger: users.commenters[0],
+              additionalDetails: "This looks like an ad",
+            },
+            cursor: "2021-06-01T14:21:21.890Z",
+          },
+          {
+            node: {
+              id: "comment-0-flag-1",
+              reason: GQLCOMMENT_FLAG_REASON.COMMENT_REPORTED_SPAM,
+              flagger: users.commenters[1],
+              additionalDetails: "",
+            },
+            cursor: "2021-06-01T14:21:21.890Z",
+          },
+        ],
+        pageInfo: { endCursor: "2021-06-01T14:21:21.890Z", hasNextPage: true },
         nodes: [
           {
+            id: "comment-0-flag-0",
             reason: GQLCOMMENT_FLAG_REASON.COMMENT_REPORTED_SPAM,
             flagger: users.commenters[0],
             additionalDetails: "This looks like an ad",
           },
           {
+            id: "comment-0-flag-1",
             reason: GQLCOMMENT_FLAG_REASON.COMMENT_REPORTED_SPAM,
             flagger: users.commenters[1],
             additionalDetails: "",
           },
         ],
       },
+      reactions: {
+        edges: [
+          {
+            node: {
+              id: "comment-0-reaction-1",
+              reacter: {
+                userID: "user-commenter-1",
+                username: "Ngoc",
+              },
+            },
+            cursor: "2021-06-01T14:21:21.890Z",
+          },
+        ],
+        pageInfo: { endCursor: "2021-06-01T14:21:21.890Z", hasNextPage: true },
+      },
     },
     {
       id: "comment-1",
+      parent: {
+        id: "comment-2",
+        author: {
+          username: "luke2",
+          id: "4383c3d3-bb9b-40b9-847a-240f3cf6c6af",
+        },
+      },
       revision: {
         id: "comment-1-revision-1",
         actionCounts: {
@@ -779,29 +922,66 @@ export const reportedComments = createFixtures<GQLComment>(
               COMMENT_REPORTED_OFFENSIVE: 3,
             },
           },
+          reaction: {
+            total: 0,
+          },
         },
         metadata: {
           perspective: {
             score: 0.1,
           },
         },
+        body: "Don't fool with me",
       },
       permalink: "http://localhost/comment/1",
       author: users.commenters[1],
       body: "Don't fool with me",
       flags: {
+        edges: [
+          {
+            node: {
+              id: "comment-1-flag-0",
+              reason: GQLCOMMENT_FLAG_REASON.COMMENT_REPORTED_OFFENSIVE,
+              flagger: users.commenters[0],
+              additionalDetails: "I find this offensive",
+            },
+            cursor: "2021-06-01T14:21:21.890Z",
+          },
+          {
+            node: {
+              id: "comment-1-flag-1",
+              reason: GQLCOMMENT_FLAG_REASON.COMMENT_REPORTED_OFFENSIVE,
+              flagger: users.commenters[1],
+              additionalDetails: "Not like that",
+            },
+            cursor: "2021-06-01T14:21:21.890Z",
+          },
+          {
+            node: {
+              id: "comment-1-flag-2",
+              reason: GQLCOMMENT_FLAG_REASON.COMMENT_REPORTED_OFFENSIVE,
+              flagger: users.commenters[2],
+              additionalDetails: "",
+            },
+            cursor: "2021-06-01T14:21:21.890Z",
+          },
+        ],
+        pageInfo: { endCursor: null, hasNextPage: false },
         nodes: [
           {
+            id: "comment-1-flag-0",
             reason: GQLCOMMENT_FLAG_REASON.COMMENT_REPORTED_OFFENSIVE,
             flagger: users.commenters[0],
             additionalDetails: "I find this offensive",
           },
           {
+            id: "comment-1-flag-1",
             reason: GQLCOMMENT_FLAG_REASON.COMMENT_REPORTED_OFFENSIVE,
             flagger: users.commenters[1],
             additionalDetails: "Not like that",
           },
           {
+            id: "comment-1-flag-2",
             reason: GQLCOMMENT_FLAG_REASON.COMMENT_REPORTED_OFFENSIVE,
             flagger: users.commenters[2],
             additionalDetails: "",
@@ -820,25 +1000,52 @@ export const reportedComments = createFixtures<GQLComment>(
               COMMENT_REPORTED_OFFENSIVE: 1,
             },
           },
+          reaction: {
+            total: 0,
+          },
         },
         metadata: {
           perspective: {
             score: 0.1,
           },
         },
+        body: "I think I deserve better",
       },
       permalink: "http://localhost/comment/2",
       status: GQLCOMMENT_STATUS.PREMOD,
       author: users.commenters[2],
       body: "I think I deserve better",
       flags: {
+        edges: [
+          {
+            node: {
+              id: "comment-2-flag-0",
+              reason: GQLCOMMENT_FLAG_REASON.COMMENT_REPORTED_OFFENSIVE,
+              flagger: users.commenters[0],
+              additionalDetails: "I find this offensive",
+            },
+            cursor: "2021-06-01T14:21:21.890Z",
+          },
+          {
+            node: {
+              id: "comment-2-flag-1",
+              reason: GQLCOMMENT_FLAG_REASON.COMMENT_REPORTED_SPAM,
+              flagger: users.commenters[2],
+              additionalDetails: "",
+            },
+            cursor: "2021-06-01T14:21:21.890Z",
+          },
+        ],
+        pageInfo: { endCursor: null, hasNextPage: false },
         nodes: [
           {
+            id: "comment-2-flag-0",
             reason: GQLCOMMENT_FLAG_REASON.COMMENT_REPORTED_OFFENSIVE,
             flagger: users.commenters[0],
             additionalDetails: "I find this offensive",
           },
           {
+            id: "comment-2-flag-1",
             reason: GQLCOMMENT_FLAG_REASON.COMMENT_REPORTED_SPAM,
             flagger: users.commenters[2],
             additionalDetails: "",
@@ -856,20 +1063,95 @@ export const reportedComments = createFixtures<GQLComment>(
               COMMENT_REPORTED_SPAM: 1,
             },
           },
+          reaction: {
+            total: 0,
+          },
         },
         metadata: {
           perspective: {
             score: 0.1,
           },
         },
+        body: "World peace at last",
       },
       permalink: "http://localhost/comment/3",
       status: GQLCOMMENT_STATUS.PREMOD,
       author: users.commenters[3],
       body: "World peace at last",
       flags: {
+        edges: [
+          {
+            node: {
+              id: "comment-3-flag-0",
+              reason: GQLCOMMENT_FLAG_REASON.COMMENT_REPORTED_SPAM,
+              flagger: users.commenters[2],
+              additionalDetails: "",
+            },
+            cursor: "2021-06-01T14:21:21.890Z",
+          },
+        ],
+        pageInfo: { endCursor: null, hasNextPage: false },
         nodes: [
           {
+            id: "comment-3-flag-0",
+            reason: GQLCOMMENT_FLAG_REASON.COMMENT_REPORTED_SPAM,
+            flagger: users.commenters[2],
+            additionalDetails: "",
+          },
+        ],
+      },
+    },
+    {
+      id: "comment-4",
+      revision: {
+        id: "comment-4-revision-4",
+        actionCounts: {
+          flag: {
+            reasons: {
+              COMMENT_REPORTED_SPAM: 1,
+            },
+          },
+          reaction: {
+            total: 0,
+          },
+        },
+        metadata: {
+          perspective: {
+            score: 0.1,
+          },
+          wordList: {
+            bannedWords: [
+              { value: "bad", index: 33, length: 3 },
+              { value: "bad", index: 54, length: 3 },
+              { value: "bad", index: 62, length: 3 },
+              { value: "bad", index: 71, length: 3 },
+              { value: "bad", index: 75, length: 3 },
+              { value: "bad", index: 88, length: 3 },
+            ],
+          },
+        },
+        body: "This is a very long comment with bad words. Let's try bad and bad. Now bad bad.\nBad BAD bad.\n",
+      },
+      permalink: "http://localhost/comment/4",
+      status: GQLCOMMENT_STATUS.PREMOD,
+      author: users.commenters[3],
+      body: "This is a very long comment with bad words. Let's try bad and bad. Now bad bad.\nBad BAD bad.\n",
+      flags: {
+        edges: [
+          {
+            node: {
+              id: "comment-4-flag-0",
+              reason: GQLCOMMENT_FLAG_REASON.COMMENT_REPORTED_SPAM,
+              flagger: users.commenters[2],
+              additionalDetails: "",
+            },
+            cursor: "2021-06-01T14:21:21.890Z",
+          },
+        ],
+        pageInfo: { endCursor: null, hasNextPage: false },
+        nodes: [
+          {
+            id: "comment-4-flag-0",
             reason: GQLCOMMENT_FLAG_REASON.COMMENT_REPORTED_SPAM,
             flagger: users.commenters[2],
             additionalDetails: "",
@@ -909,10 +1191,89 @@ export const emptyRejectedComments = createFixture<GQLCommentsConnection>({
   pageInfo: { endCursor: null, hasNextPage: false },
 });
 
+export const emptyFlags = createFixture<GQLFlagsConnection>({
+  edges: [],
+  pageInfo: { endCursor: null, hasNextPage: false },
+});
+
+export const commentFlags = createFixtures<GQLFlag>([
+  {
+    id: "comment-flag-1",
+    createdAt: "2021-06-01T14:21:21.890Z",
+    reason: GQLCOMMENT_FLAG_REASON.COMMENT_REPORTED_ABUSIVE,
+    additionalDetails: "this is why",
+    flagger: users.commenters[0],
+    comment: reportedComments[0],
+    revision: reportedComments[0].revision,
+    reviewed: false,
+  },
+  {
+    id: "comment-flag-2",
+    createdAt: "2021-06-01T13:21:21.890Z",
+    reason: GQLCOMMENT_FLAG_REASON.COMMENT_REPORTED_OFFENSIVE,
+    additionalDetails: "I felt bad after reading this",
+    flagger: users.commenters[1],
+    comment: reportedComments[1],
+    revision: reportedComments[1].revision,
+    reviewed: false,
+  },
+  {
+    id: "comment-flag-3",
+    createdAt: "2021-06-01T11:21:21.890Z",
+    reason: GQLCOMMENT_FLAG_REASON.COMMENT_REPORTED_SPAM,
+    additionalDetails: "Looks like ads",
+    flagger: users.commenters[2],
+    comment: reportedComments[2],
+    revision: reportedComments[2].revision,
+    reviewed: false,
+  },
+]);
+
+export const commentFlagsDeleted = createFixtures<GQLFlag>([
+  {
+    id: "comment-flag-deleted-1",
+    createdAt: "2021-06-01T14:21:21.890Z",
+    reason: GQLCOMMENT_FLAG_REASON.COMMENT_REPORTED_ABUSIVE,
+    additionalDetails: "Looks abusive",
+    flagger: users.commenters[0],
+    comment: reportedComments[0],
+    revision: undefined,
+    reviewed: false,
+  },
+]);
+
+export const commentFlagsReviewed = createFixtures<GQLFlag>([
+  {
+    id: "comment-flag-reviewed-1",
+    createdAt: "2021-06-01T14:21:21.890Z",
+    reason: GQLCOMMENT_FLAG_REASON.COMMENT_REPORTED_ABUSIVE,
+    additionalDetails: "Looks abusive",
+    flagger: users.commenters[0],
+    comment: reportedComments[0],
+    revision: reportedComments[1].revision,
+    reviewed: true,
+  },
+]);
+
+export const commentFlagsNoDetails = createFixtures<GQLFlag>([
+  {
+    id: "comment-flag-no-details-1",
+    createdAt: "2021-06-01T14:21:21.890Z",
+    reason: GQLCOMMENT_FLAG_REASON.COMMENT_REPORTED_ABUSIVE,
+    additionalDetails: undefined,
+    flagger: users.commenters[0],
+    comment: reportedComments[0],
+    revision: reportedComments[1].revision,
+    reviewed: false,
+  },
+]);
+
 export const communityUsers = createFixture<GQLUsersConnection>({
   edges: [
     { node: users.admins[0], cursor: users.admins[0].createdAt },
     { node: users.moderators[0], cursor: users.moderators[0].createdAt },
+    { node: users.moderators[1], cursor: users.moderators[1].createdAt },
+    { node: users.moderators[2], cursor: users.moderators[2].createdAt },
     { node: users.staff[0], cursor: users.staff[0].createdAt },
     { node: users.commenters[0], cursor: users.commenters[0].createdAt },
   ],
@@ -976,4 +1337,10 @@ export const siteConnection = createFixture<GQLSitesConnection>({
     { node: sites[1], cursor: sites[1].createdAt },
   ],
   pageInfo: { endCursor: null, hasNextPage: false },
+});
+
+export const emailDomain = createFixture({
+  id: "1a60424a-c116-483a-b315-837a7fd5b496",
+  domain: "email.com",
+  newUserModeration: GQLNEW_USER_MODERATION.BAN,
 });

@@ -9,12 +9,18 @@ import styles from "./UserRoleText.css";
 
 type Props = Omit<PropTypesOf<typeof TranslatedRole>, "container">;
 
-const UserRoleText: FunctionComponent<Props> = (props) => (
+interface UserRoleTextProps {
+  children?: React.ReactNode;
+}
+
+const UserRoleText: FunctionComponent<Props & UserRoleTextProps> = (props) => (
   <TranslatedRole
     container={
       <span
         className={cn(styles.root, {
-          [styles.commenter]: props.children === GQLUSER_ROLE.COMMENTER,
+          [styles.commenter]:
+            props.children === GQLUSER_ROLE.COMMENTER ||
+            props.children === GQLUSER_ROLE.MEMBER,
         })}
       />
     }
