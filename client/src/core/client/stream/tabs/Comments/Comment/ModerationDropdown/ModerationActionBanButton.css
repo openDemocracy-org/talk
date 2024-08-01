@@ -1,0 +1,32 @@
+$commentsModerationBannedColor: var(--palette-error-500);
+
+.label {
+  color: var(--palette-text-500);
+  font-family: var(--font-family-primary);
+  font-weight: var(--font-weight-primary-regular);
+  font-size: var(--font-size-3);
+  line-height: 1;
+
+  text-align: left;
+}
+
+.banned {
+  &:disabled {
+    opacity: 1;
+  }
+  color: $commentsModerationBannedColor;
+  font-weight: var(--font-weight-primary-bold);
+}
+
+.banIcon {
+  text-align: center;
+  display: flex;
+}
+
+.spinner {
+  height: 14px;
+}
+
+.mouseHover {
+  background-color: var(--palette-primary-100);
+}

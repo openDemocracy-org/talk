@@ -1,0 +1,16 @@
+#!/bin/sh
+
+# created by `scripts/install-git-hooks.sh` and copied from `scripts/hooks/` into `.git/hooks`.
+# To update the git commit hooks, modify this file and then run `sh install-git-hooks.sh` from
+# within the `scripts` folder.
+
+FAST_LINT=true
+
+export PATH=$PATH:~/.nvm/versions/node/v18.16.0/bin
+
+cd server
+pnpm run precommit
+
+cd ../client
+
+pnpm run precommit

@@ -1,0 +1,69 @@
+$ban-modal-text: var(--palette-text-500);
+
+.bodyText {
+  font-size: var(--font-size-3);
+  font-family: var(--font-family-primary);
+  font-weight: var(--font-weight-primary-regular);
+  line-height: 1.3;
+  color: $ban-modal-text;
+}
+
+.textArea {
+  height: calc(12 * var(--mini-unit));
+}
+
+.domainBanHeader {
+  margin-bottom: var(--spacing-2);
+}
+
+.form {
+  margin-bottom: var(--spacing-3);
+}
+
+.banFromHeader {
+  margin-bottom: var(--spacing-2);
+}
+
+.sitesOptions {
+  margin-bottom: var(--spacing-1);
+}
+
+.banDomainOption {
+  margin: var(--spacing-1) 0;
+}
+
+.customizeMessage {
+  align-self: flex-start;
+}
+
+.customizeMessageArrowsIcon {
+  padding-left: var(--spacing-1);
+}
+
+.rejectionReasonLink {
+  width: fit-content;
+  color: var(--palette-primary-600) !important;
+}
+
+.rejectExistingReason {
+  background-color: var(--palette-grey-100);
+}
+
+.domainBanCallOut {
+  padding: var(--spacing-1);
+  margin-bottom: var(--spacing-2);
+}
+
+.alertIcon {
+  margin-right: var(--spacing-1);
+}
+
+.domainBanConfirmationInput {
+  font-family: var(--font-family-primary);
+  line-height: 2.25;
+  padding-left: var(--spacing-2);
+}
+
+.domainBanConfirmationLabel {
+  margin-bottom: var(--spacing-1);
+}

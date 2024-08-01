@@ -1,0 +1,53 @@
+# This extends ./src/core/client/framework/lib/relay/local.graphql
+# with additional local types.
+
+enum View {
+  SIGN_IN
+  CREATE_USERNAME
+  CREATE_PASSWORD
+  ADD_EMAIL_ADDRESS
+  LINK_ACCOUNT
+}
+
+extend type Comment {
+  # If true then Comment status was live updated.
+  statusLiveUpdated: Boolean
+
+  # If true then Comment came in live.
+  enteredLive: Boolean
+
+  # If true then the Comment status was updated by the viewer.
+  viewerDidModerate: Boolean
+}
+
+extend type CommentsConnection {
+  # Contains comment that came in live and is still behind the `View New` button.
+  viewNewEdges: [CommentEdge!]
+}
+
+extend type User {
+  # Set to true when this user has had all of their comments
+  # rejected as part of the ban process, since it may take
+  # some time to take effect on the backend
+  allCommentsRejected: Boolean
+  # Contains ids of sites on which a user has had all of their
+  # comments rejected in the course of being banned on specific
+  # sites
+  commentsRejectedOnSites: [ID!]
+}
+
+extend type Local {
+  redirectPath: String
+  authView: View
+  authError: String
+  # Duplicate email found when adding email during auth.
+  authDuplicateEmail: String
+  siteID: String
+  moderationQueueSort: COMMENT_SORT
+  forceAdminLocalAuth: Boolean!
+
+  archivingEnabled: Boolean!
+  autoArchiveOlderThanMs: Int!
+
+  dsaFeaturesEnabled: Boolean
+}
