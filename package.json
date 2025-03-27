@@ -179,7 +179,7 @@
     "@graphql-codegen/cli": "^1.20.0",
     "@graphql-codegen/introspection": "^1.18.1",
     "@intervolga/optimize-cssnano-plugin": "^1.0.6",
-    "@sentry/react": "^6.19.7",
+    "@sentry/react": "^7.25.0",
     "@testing-library/jest-dom": "^5.16.2",
     "@testing-library/react": "^13.0.0",
     "@testing-library/user-event": "^13.5.0",
