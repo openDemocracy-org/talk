@@ -56,7 +56,7 @@ const SignUp: FunctionComponent<Props> = ({
           <div className={cn(CLASSES.login.bar, styles.bar)}>
             <div className={cn(CLASSES.login.title, styles.title)}>Sign Up</div>
             <div className={cn(CLASSES.login.header, styles.header)}>
-              to join the conversation and receive our weekly email
+              to join the conversation
             </div>
           </div>
         </Localized>
