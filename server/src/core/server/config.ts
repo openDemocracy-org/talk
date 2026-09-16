@@ -186,6 +186,12 @@ const config = convict({
     env: "MONGODB_ARCHIVE_URI",
     sensitive: true,
   },
+  mongodb_max_pool_size: {
+    doc: "Max pool size for the MongoDB driver.",
+    format: Number,
+    default: 50,
+    env: "MONGODB_MAX_POOL_SIZE",
+  },
   redis: {
     doc: "The Redis database to connect to.",
     format: "redis-uri",
@@ -493,11 +499,35 @@ const config = convict({
     default: ms("86400s"),
     env: "REDIS_CACHE_EXPIRY",
   },
+  internal_notifications: {
+    doc: "When true, will enable the in-page (internal) notifications systems",
+    format: Boolean,
+    default: true,
+    env: "INTERNAL_NOTIFICATIONS",
+  },
   notifications_poll_rate: {
     doc: "rate at which live notification updates should poll client side.",
     format: "ms",
     default: ms("3000s"),
     env: "NOTIFICATIONS_POLL_RATE",
+  },
+  external_notifications: {
+    doc: "When true, will enable the external, forwarded notifications systems",
+    format: Boolean,
+    default: false,
+    env: "EXTERNAL_NOTIFICATIONS",
+  },
+  external_notifications_api_url: {
+    doc: "URL to forward notifications information to an external url.",
+    format: "url",
+    default: "http://localhost:7003/api",
+    env: "EXTERNAL_NOTIFICATIONS_API_URL",
+  },
+  external_notifications_api_key: {
+    doc: "API key to use when forwarding notifications to an external url",
+    format: String,
+    default: "",
+    env: "EXTERNAL_NOTIFICATIONS_API_KEY",
   },
 });
 

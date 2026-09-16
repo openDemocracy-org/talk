@@ -1,5 +1,6 @@
 import Joi from "joi";
 import { isNumber } from "lodash";
+import { v4 as uuid } from "uuid";
 
 import { ERROR_TYPES } from "coral-common/common/lib/errors";
 import { Config } from "coral-server/config";
@@ -40,10 +41,18 @@ import {
   Story,
   updateStoryLastCommentedAt,
 } from "coral-server/models/story";
-import { ensureFeatureFlag, Tenant } from "coral-server/models/tenant";
-import { User } from "coral-server/models/user";
+import {
+  ensureFeatureFlag,
+  hasFeatureFlag,
+  Tenant,
+} from "coral-server/models/tenant";
+import { retrieveUser, User } from "coral-server/models/user";
 import { isSiteBanned, roleIsStaff } from "coral-server/models/user/helpers";
-import { moderate, removeTag } from "coral-server/services/comments";
+import {
+  moderate,
+  removeTag,
+  retrieveComment,
+} from "coral-server/services/comments";
 import {
   addCommentActions,
   CreateAction,
@@ -71,6 +80,9 @@ import {
   GQLTAG,
 } from "coral-server/graph/schema/__generated__/types";
 
+import { PUBLISHED_STATUSES } from "coral-server/models/comment/constants";
+import { ExternalNotificationsQueue } from "coral-server/queue/tasks/externalNotifications";
+import { ExternalNotificationsService } from "coral-server/services/notifications/externalService";
 import approveComment from "./approveComment";
 import {
   publishChanges,
@@ -78,6 +90,7 @@ import {
   updateAllCommentCounts,
 } from "./helpers";
 import { updateTagCommentCounts } from "./helpers/updateAllCommentCounts";
+import { sendExternalRejectNotification } from "./rejectComment";
 
 export type CreateComment = Omit<
   CreateCommentInput,
@@ -94,6 +107,89 @@ export type CreateComment = Omit<
   media?: CreateCommentMediaInput;
 };
 
+export const buildExternalReplyNotification = async (
+  mongo: MongoContext,
+  externalNotifications: ExternalNotificationsService,
+  tenant: Tenant,
+  reply: Comment
+) => {
+  const externalNotificationsDisabledOnTenant = hasFeatureFlag(
+    tenant,
+    GQLFEATURE_FLAG.DISABLE_EXTERNAL_NOTIFICATIONS
+  );
+  if (
+    !externalNotifications.active() ||
+    externalNotificationsDisabledOnTenant ||
+    !reply.authorID ||
+    !reply.siteID ||
+    !reply.parentID
+  ) {
+    return null;
+  }
+
+  if (!PUBLISHED_STATUSES.includes(reply.status)) {
+    return null;
+  }
+
+  const parent = await retrieveComment(mongo, tenant.id, reply.parentID);
+  if (!parent || !parent.authorID) {
+    return null;
+  }
+
+  const repliedToUser = await retrieveUser(
+    mongo,
+    parent.tenantID,
+    parent.authorID
+  );
+  if (!repliedToUser) {
+    return null;
+  }
+
+  const replyingUser = await retrieveUser(mongo, tenant.id, reply.authorID);
+  if (!replyingUser) {
+    return null;
+  }
+
+  const site = await retrieveSite(mongo, tenant.id, reply.siteID);
+  if (!site) {
+    return null;
+  }
+
+  const story = await retrieveStory(mongo, tenant.id, reply.storyID);
+  if (!story) {
+    return null;
+  }
+
+  const data = externalNotifications.buildReply({
+    from: replyingUser,
+    to: repliedToUser,
+    parent,
+    reply,
+    story,
+    site,
+  });
+
+  return data;
+};
+
+export const sendExternalReplyNotification = async (
+  mongo: MongoContext,
+  externalNotifications: ExternalNotificationsService,
+  tenant: Tenant,
+  reply: Comment
+) => {
+  const notification = buildExternalReplyNotification(
+    mongo,
+    externalNotifications,
+    tenant,
+    reply
+  );
+
+  if (notification) {
+    await externalNotifications.send(notification, tenant.id);
+  }
+};
+
 const markCommentAsAnswered = async (
   mongo: MongoContext,
   redis: AugmentedRedis,
@@ -102,6 +198,8 @@ const markCommentAsAnswered = async (
   i18n: I18n,
   broker: CoralEventPublisherBroker,
   notifications: InternalNotificationContext,
+  externalNotifications: ExternalNotificationsService,
+  externalNotificationsQueue: ExternalNotificationsQueue,
   tenant: Tenant,
   comment: Readonly<Comment>,
   story: Story,
@@ -153,6 +251,8 @@ const markCommentAsAnswered = async (
       i18n,
       broker,
       notifications,
+      externalNotifications,
+      externalNotificationsQueue,
       tenant,
       comment.parentID,
       comment.parentRevisionID,
@@ -166,7 +266,7 @@ const markCommentAsAnswered = async (
   await updateTagCommentCounts(
     tenant.id,
     comment.storyID,
-    comment.siteID,
+    comment.siteID!,
     mongo,
     redis,
     // Since we removed the UNANSWERED tag, we need to recreate the
@@ -214,6 +314,8 @@ export default async function create(
   i18n: I18n,
   broker: CoralEventPublisherBroker,
   notifications: InternalNotificationContext,
+  externalNotifications: ExternalNotificationsService,
+  externalNotificationsQueue: ExternalNotificationsQueue,
   tenant: Tenant,
   author: User,
   input: CreateComment,
@@ -247,9 +349,9 @@ export default async function create(
   // Check if the user is banned on this site, if they are, throw an error right
   // now.
   // NOTE: this should be removed with attribute based auth checks.
-  if (isSiteBanned(author, story.siteID)) {
+  if (isSiteBanned(author, story.siteID!)) {
     // Get the site in question.
-    const site = await retrieveSite(mongo, tenant.id, story.siteID);
+    const site = await retrieveSite(mongo, tenant.id, story.siteID!);
     if (!site) {
       throw new Error(`referenced site not found: ${story.siteID}`);
     }
@@ -402,6 +504,8 @@ export default async function create(
       i18n,
       broker,
       notifications,
+      externalNotifications,
+      externalNotificationsQueue,
       tenant,
       comment,
       story,
@@ -443,6 +547,23 @@ export default async function create(
         reply: comment,
         type,
       });
+
+      // if we have an external notifications service hooked up
+      // send the reply notification out to that
+      const notification = await buildExternalReplyNotification(
+        mongo,
+        externalNotifications,
+        tenant,
+        comment
+      );
+
+      if (notification) {
+        await externalNotificationsQueue.add({
+          tenantID: tenant.id,
+          taskID: uuid(),
+          notifications: [notification],
+        });
+      }
     }
   }
 
@@ -496,6 +617,13 @@ export default async function create(
       rejectionReason: result.moderationAction.rejectionReason,
       type: GQLNOTIFICATION_TYPE.COMMENT_REJECTED,
     });
+
+    await sendExternalRejectNotification(
+      mongo,
+      externalNotifications,
+      tenant,
+      comment
+    );
   }
 
   // Update all the comment counts on stories and users.

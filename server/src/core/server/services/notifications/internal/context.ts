@@ -12,9 +12,7 @@ import {
 import {
   defaultInPageNotificationSettings,
   retrieveUser,
-  User,
 } from "coral-server/models/user";
-import { I18n } from "coral-server/services/i18n";
 
 import {
   GQLCOMMENT_STATUS,
@@ -24,6 +22,7 @@ import {
   GQLREJECTION_REASON_CODE,
 } from "coral-server/graph/schema/__generated__/types";
 import { AugmentedRedis } from "coral-server/services/redis";
+import { shouldSendNotification } from "../filters";
 
 export interface DSALegality {
   legality: GQLDSAReportDecisionLegality;
@@ -56,38 +55,22 @@ interface CreationResult {
   attempted: boolean;
 }
 
-const shouldSendReplyNotification = (
-  replyAuthorID: string | null,
-  targetUser: Readonly<User>
-) => {
-  if (replyAuthorID) {
-    // don't notify on replies to own comments
-    if (replyAuthorID === targetUser.id) {
-      return false;
-    }
-    // don't notify when ignored users reply
-    return !targetUser.ignoredUsers.some((user) => user.id === replyAuthorID);
-  }
-
-  return false;
-};
-
 export class InternalNotificationContext {
   private mongo: MongoContext;
   private redis: AugmentedRedis;
   private log: Logger;
-  // private i18n: I18n;
+  private active: boolean;
 
   constructor(
     mongo: MongoContext,
     redis: AugmentedRedis,
-    i18n: I18n,
-    log: Logger
+    log: Logger,
+    active = true
   ) {
     this.mongo = mongo;
     this.redis = redis;
-    // this.i18n = i18n;
     this.log = log;
+    this.active = active;
   }
 
   public async create(
@@ -95,6 +78,10 @@ export class InternalNotificationContext {
     lang: LanguageCode,
     input: CreateNotificationInput
   ) {
+    if (!this.active) {
+      return;
+    }
+
     const {
       type,
       targetUserID,
@@ -140,6 +127,19 @@ export class InternalNotificationContext {
         now
       );
       result.attempted = true;
+    } else if (
+      type === GQLNOTIFICATION_TYPE.PREVIOUSLY_REJECTED_COMMENT_APPROVED &&
+      comment
+    ) {
+      result.notification =
+        await this.createPreviouslyRejectedCommentApprovedNotification(
+          tenantID,
+          type,
+          targetUserID,
+          comment,
+          now
+        );
+      result.attempted = true;
     } else if (type === GQLNOTIFICATION_TYPE.COMMENT_REJECTED && comment) {
       result.notification = await this.createRejectCommentNotification(
         tenantID,
@@ -177,7 +177,7 @@ export class InternalNotificationContext {
       );
       result.attempted = true;
     } else if (type === GQLNOTIFICATION_TYPE.REPLY && comment && reply) {
-      const shouldNotifyReply = shouldSendReplyNotification(
+      const shouldNotifyReply = shouldSendNotification(
         reply.authorID,
         targetUser
       );
@@ -195,7 +195,7 @@ export class InternalNotificationContext {
       );
       result.attempted = true;
     } else if (type === GQLNOTIFICATION_TYPE.REPLY_STAFF && comment && reply) {
-      const shouldNotifyReply = shouldSendReplyNotification(
+      const shouldNotifyReply = shouldSendNotification(
         reply.authorID,
         targetUser
       );
@@ -225,7 +225,8 @@ export class InternalNotificationContext {
       // Determine whether to increment notificationCount based on user's in-page notification settings
       let shouldIncrementCount = true;
       if (
-        type === GQLNOTIFICATION_TYPE.COMMENT_APPROVED &&
+        (type === GQLNOTIFICATION_TYPE.COMMENT_APPROVED ||
+          type === GQLNOTIFICATION_TYPE.PREVIOUSLY_REJECTED_COMMENT_APPROVED) &&
         !preferences?.onModeration
       ) {
         shouldIncrementCount = false;
@@ -311,6 +312,26 @@ export class InternalNotificationContext {
   }
 
   private async createApproveCommentNotification(
+    tenantID: string,
+    type: GQLNOTIFICATION_TYPE,
+    targetUserID: string,
+    comment: Readonly<Comment>,
+    now = new Date()
+  ) {
+    const notification = await createNotification(this.mongo, {
+      id: uuid(),
+      tenantID,
+      type,
+      createdAt: now,
+      ownerID: targetUserID,
+      commentID: comment.id,
+      commentStatus: comment.status,
+    });
+
+    return notification;
+  }
+
+  private async createPreviouslyRejectedCommentApprovedNotification(
     tenantID: string,
     type: GQLNOTIFICATION_TYPE,
     targetUserID: string,

@@ -17,6 +17,7 @@ export class WebhookCoralEventListener
     CoralEventType.STORY_CREATED,
     CoralEventType.COMMENT_CREATED,
     CoralEventType.COMMENT_REPLY_CREATED,
+    CoralEventType.COMMENT_ENTERED_MODERATION_QUEUE,
     CoralEventType.COMMENT_LEFT_MODERATION_QUEUE,
   ];
 
@@ -40,7 +41,7 @@ export class WebhookCoralEventListener
         );
 
         // Based on the incoming event, determine which endpoints we should send.
-        const endpoints = tenant.webhooks.endpoints.filter((endpoint) => {
+        const endpoints = tenant.webhooks?.endpoints.filter((endpoint) => {
           // If the endpoint is disabled, don't include it.
           if (!endpoint.enabled) {
             return false;
@@ -66,7 +67,7 @@ export class WebhookCoralEventListener
         });
 
         // Log some important details.
-        if (endpoints.length === 0) {
+        if (!endpoints || endpoints.length === 0) {
           log.debug("no endpoints matched for event");
           return;
         }

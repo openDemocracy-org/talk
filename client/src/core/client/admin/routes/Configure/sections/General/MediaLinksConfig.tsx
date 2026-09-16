@@ -41,6 +41,9 @@ graphql`
       twitter {
         enabled
       }
+      bluesky {
+        enabled
+      }
       youtube {
         enabled
       }
@@ -64,10 +67,10 @@ const MediaLinksConfig: FunctionComponent<Props> = ({ disabled }) => {
       }
       container={<FieldSet />}
     >
-      <Localized id="configure-general-embedLinks-description">
+      <Localized id="configure-general-embedLinks-description-addASinglePiece">
         <FormFieldDescription>
-          Allow commenters to add a YouTube video, X post or GIF's to the end of
-          their comment
+          Allow commenters to add a single piece of embedded media to the end of
+          a comment
         </FormFieldDescription>
       </Localized>
       <FormField>
@@ -76,6 +79,26 @@ const MediaLinksConfig: FunctionComponent<Props> = ({ disabled }) => {
         </Localized>
         <OnOffField
           name="media.twitter.enabled"
+          disabled={disabled}
+          onLabel={
+            <Localized id="configure-general-embedLinks-On">
+              <span>Yes</span>
+            </Localized>
+          }
+          offLabel={
+            <Localized id="configure-general-embedLinks-Off">
+              <span>No</span>
+            </Localized>
+          }
+        />
+      </FormField>
+
+      <FormField>
+        <Localized id="configure-general-embedLinks-enableBlueskyEmbeds">
+          <Label component="legend">Allow Bluesky post embeds</Label>
+        </Localized>
+        <OnOffField
+          name="media.bluesky.enabled"
           disabled={disabled}
           onLabel={
             <Localized id="configure-general-embedLinks-On">
@@ -173,6 +196,21 @@ const MediaLinksConfig: FunctionComponent<Props> = ({ disabled }) => {
                           disabled={gifsDisabled || disabled}
                         >
                           Tenor
+                        </RadioButton>
+                      </Localized>
+                    </>
+                  )}
+                </Field>
+                <Field name="media.gifs.provider" type="radio" value="KLIPY">
+                  {({ input }) => (
+                    <>
+                      <Localized id="configure-general-embedLinks-gifs-provider-Klipy">
+                        <RadioButton
+                          {...input}
+                          id="KLIPY"
+                          disabled={gifsDisabled || disabled}
+                        >
+                          Klipy
                         </RadioButton>
                       </Localized>
                     </>
@@ -319,6 +357,24 @@ const MediaLinksConfig: FunctionComponent<Props> = ({ disabled }) => {
                 </Localized>
               )}
 
+              {provider === GQLGIF_MEDIA_SOURCE.KLIPY && (
+                <Localized
+                  id="configure-general-embedLinks-configuration-klipy-desc"
+                  elems={{
+                    externalLink: (
+                      <ExternalLink
+                        href={"https://klipy.com/api-overview#overview"}
+                      />
+                    ),
+                  }}
+                >
+                  <HelperText>
+                    For additional information on KLIPY’s API please visit:
+                    https://klipy.com/api-overview#overview
+                  </HelperText>
+                </Localized>
+              )}
+
               <FormField>
                 {provider === GQLGIF_MEDIA_SOURCE.GIPHY && (
                   <Localized id="configure-general-embedLinks-giphyAPIKey">
@@ -328,6 +384,11 @@ const MediaLinksConfig: FunctionComponent<Props> = ({ disabled }) => {
                 {provider === GQLGIF_MEDIA_SOURCE.TENOR && (
                   <Localized id="configure-general-embedLinks-tenorAPIKey">
                     <Label>TENOR API Key</Label>
+                  </Localized>
+                )}
+                {provider === GQLGIF_MEDIA_SOURCE.KLIPY && (
+                  <Localized id="configure-general-embedLinks-klipyAPIKey">
+                    <Label>KLIPY API Key</Label>
                   </Localized>
                 )}
 

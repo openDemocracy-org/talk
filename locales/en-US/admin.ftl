@@ -433,8 +433,10 @@ configure-general-sitewideCommenting-messageExplanation =
 configure-general-embedLinks-title = Embedded media
 configure-general-embedLinks-desc =
 configure-general-embedLinks-description = 
-  Allow commenters to add a YouTube video, X post or GIF's to the end of their comment
+configure-general-embedLinks-description-addASinglePiece =
+  Allow commenters to add a single piece of embedded media to the end of a comment
 configure-general-embedLinks-enableTwitterEmbeds = Allow X post embeds
+configure-general-embedLinks-enableBlueskyEmbeds = Allow Bluesky post embeds
 configure-general-embedLinks-enableYouTubeEmbeds = Allow YouTube embeds
 configure-general-embedLinks-enableGifs = Allow GIFs
 configure-general-embedLinks-enableExternalEmbeds = Enable external media
@@ -462,6 +464,7 @@ configure-general-embedLinks-gifProvider-desc =
 
 configure-general-embedLinks-gifs-provider-Giphy = Giphy
 configure-general-embedLinks-gifs-provider-Tenor = Tenor
+configure-general-embedLinks-gifs-provider-Klipy = Klipy
 
 configure-general-embedLinks-configuration-desc =
 configure-general-embedLinks-configuration-giphy-desc =
@@ -472,6 +475,9 @@ configure-general-embedLinks-configuration-tenor-desc =
   For additional information on TENOR’s API please visit: <externalLink>https://developers.google.com/tenor/guides/endpoints</externalLink>
 configure-general-embedLinks-tenorAPIKey = TENOR API key
 
+configure-general-embedLinks-configuration-klipy-desc =
+  For additional information on KLIPY’s API please visit: <externalLink>https://klipy.com/api-overview#overview</externalLink>
+configure-general-embedLinks-klipyAPIKey = KLIPY API key
 
 #### Configure Announcements
 
@@ -522,6 +528,11 @@ configure-general-flattenReplies-enabled = Flatten replies enabled
 configure-general-flattenReplies-explanation =
   Change how levels of replies display. When enabled, replies to comments can go up to seven levels deep before they are no longer indented on the page. When disabled, after a depth of seven replies, the rest of the conversation is displayed in a dedicated view away from the other comments.
 
+#### Collapse Replies
+configure-general-collapseReplies-title = Collapse replies
+configure-general-collapseReplies-enabled = Collapse replies enabled
+configure-general-collapseReplies-explanation =
+  When enabled, top-level replies to comments will be collapsed by default.
 configure-general-featuredBy-title = Featured by
 configure-general-featuredBy-enabled = Featured by enabled
 configure-general-featuredBy-explanation = Add moderator name to featured comment display
@@ -911,6 +922,7 @@ configure-moderation-emailDomains-form-description-add = Add a domain and select
 configure-moderation-emailDomains-form-description-edit = Update the domain or action that should be taken when on every new account using the specified domain.
 configure-moderation-emailDomains-exceptions-header = Exceptions
 configure-moderation-emailDomains-exceptions-helperText = These domains cannot be banned. Domains should be written without www, for example "gmail.com". Separate domains with a comma and a space.
+configure-moderation-emailDomains-exceptions-ban-premod-helperText = These domains cannot be banned or pre-moderated. Domains should be written without www, for example "gmail.com". Separate domains with a comma and a space.
 
 configure-moderation-emailDomains-showCurrent = Show current domain list
 configure-moderation-emailDomains-hideCurrent = Hide current domain list
@@ -922,6 +934,13 @@ configure-moderation-emailDomains-allDomains = All domains
 configure-moderation-emailDomains-preMod = Pre-mod
 configure-moderation-emailDomains-banned = Banned
 
+configure-moderation-emailDomains-disposableEmailDomains-enabled = Disposable email domains
+configure-moderation-emailDomains-disposableEmailDomains-helper-text = If a new user registers using a disposable email address, set their status to 'always pre-moderate comments.' Accounts with disposable email addresses can have a high spam / troll correlation.
+configure-moderation-emailDomains-disposableEmailDomains-updating = Updating
+configure-moderation-emailDomains-disposableEmailDomains-update-button = Update disposable domains
+configure-moderation-emailDomains-disposableEmailDomains-list-linkText = disposable-email-domains
+configure-moderation-emailDomains-disposableEmailDomains-update-button-helper-text = The email domains come from the <link></link> list, which is regularly updated. Use the button below to import their latest list.
+
 #### Pre-moderate  Email Address Configuration
 
 configure-moderation-premoderateEmailAddress-title = Email address
@@ -932,6 +951,15 @@ configure-moderation-premoderateEmailAddress-enabled-description =
   email address (before the @), set their status to pre-moderate
   comments. Emails with 3 or more periods can have a very high spam
   correlation. It can be useful to pro-actively pre-moderate them.
+configure-moderation-premoderateEmailAliases-enabled =
+  Pre-moderate email aliases
+configure-moderation-premoderateEmailAliases-enabled-description =
+configure-moderation-premoderateEmailAliases-enabled-description-ifThePreviousAccountWas =
+  If a user signs up for a new account with an email address that is
+  an alias (using a + sign) of an existing account, set their status
+  to pre-moderate comments. If the previous account was banned, the
+  new account will be banned as well. Email aliases are commonly
+  used by spammers and trolls to evade bans.
 
 #### Banned Words Configuration
 configure-wordList-banned-bannedWordsAndPhrases = Banned words and phrases
@@ -1224,7 +1252,9 @@ moderate-user-drawer-account-history-system = <icon></icon> System
 moderate-user-drawer-account-history-suspension-ended = Suspension ended
 moderate-user-drawer-account-history-suspension-removed = Suspension removed
 moderate-user-drawer-account-history-banned = Banned
-moderate-user-drawer-account-history-account-domain-banned = Account domain banned
+moderate-user-drawer-account-history-account-domain-banned =
+moderate-user-drawer-account-history-account-domain-or-alias-banned =
+  Account domain or alias banned
 moderate-user-drawer-account-history-ban-removed = Ban removed
 moderate-user-drawer-account-history-site-banned = Site banned
 moderate-user-drawer-account-history-site-ban-removed = Site ban removed

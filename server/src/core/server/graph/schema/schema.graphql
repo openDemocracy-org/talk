@@ -590,6 +590,16 @@ enum FEATURE_FLAG {
   users, and commentActions more quickly. It is disabled by default.
   """
   DATA_CACHE
+
+  """
+  COUNTS_V2 will allow the use of the new /counts/v2 api endpoint to retrieve story comment counts.
+  """
+  COUNTS_V2
+
+  """
+  DISABLE_EXTERNAL_NOTIFICATIONS will disable the external notifications feature at the tenant level.
+  """
+  DISABLE_EXTERNAL_NOTIFICATIONS
 }
 
 # The moderation mode of the site.
@@ -1511,6 +1521,7 @@ type StoryMessageBox {
 enum GIF_MEDIA_SOURCE {
   GIPHY
   TENOR
+  KLIPY
 }
 
 type GifMediaConfiguration {
@@ -1534,9 +1545,17 @@ type GifMediaConfiguration {
   """
   key: String
 }
+
 type TwitterMediaConfiguration {
   """
   enabled is true when twitter media objects are enabled.
+  """
+  enabled: Boolean!
+}
+
+type BlueskyMediaConfiguration {
+  """
+  enabled is true when Bluesky media objects are enabled.
   """
   enabled: Boolean!
 }
@@ -1560,6 +1579,11 @@ type MediaConfiguration {
   twitter is the configuration for Twitter support.
   """
   twitter: TwitterMediaConfiguration!
+
+  """
+  bluesky is the configuration for Bluesky support.
+  """
+  bluesky: BlueskyMediaConfiguration!
 
   """
   youtube is the configuration for YouTube support.
@@ -1785,6 +1809,7 @@ enum WEBHOOK_EVENT_NAME {
   STORY_CREATED
   COMMENT_CREATED
   COMMENT_REPLY_CREATED
+  COMMENT_ENTERED_MODERATION_QUEUE
   COMMENT_LEFT_MODERATION_QUEUE
 }
 
@@ -1987,23 +2012,56 @@ type TooManyPeriodsConfig {
   enabled: Boolean!
 }
 
+type EmailAliasesConfig {
+  """
+  enabled decides whether the email aliases config is enabled or not.
+  """
+  enabled: Boolean!
+}
+
 type PremoderateEmailAddressConfiguration {
   """
   tooManyPeriods is the configuration for premoderating emails
   that have too many periods.
   """
   tooManyPeriods: TooManyPeriodsConfig
+
+  """
+  emailAliases is the configuration for premoderating email aliases that
+  already exist
+  """
+  emailAliases: EmailAliasesConfig
+}
+
+type DisposableEmailDomainConfiguration {
+  """
+  enabled decides whether disposable email domains should be pre-moderated
+  """
+  enabled: Boolean!
 }
 
 type InPageNotificationsConfiguration {
   enabled: Boolean
 
   floatingBellIndicator: Boolean
+
+  active: Boolean
+}
+
+type ExternalNotificationsConfiguration {
+  active: Boolean
 }
 
 input TooManyPeriodsConfigInput {
   """
   enabled decides whether the too many periods config is enabled or not.
+  """
+  enabled: Boolean
+}
+
+input EmailAliasesConfigInput {
+  """
+  enabled decides whether the email aliases config is enabled or not.
   """
   enabled: Boolean
 }
@@ -2014,6 +2072,12 @@ input PremoderateEmailAddressConfigurationInput {
   that have too many periods.
   """
   tooManyPeriods: TooManyPeriodsConfigInput
+
+  """
+  emailAliases is the configuration for premoderating email aliases that
+  already exist
+  """
+  emailAliases: EmailAliasesConfigInput
 }
 
 enum DSA_METHOD_OF_REDRESS {
@@ -2137,6 +2201,12 @@ type Settings @cacheControl(maxAge: 30) {
   sorted by date.
   """
   flattenReplies: Boolean!
+
+  """
+  collapseReplies when enabled, will cause first-level replies to be collapsed
+  by default in the comment stream.
+  """
+  collapseReplies: Boolean!
 
   """
   customCSSURL is the URL of the custom CSS used to display on the frontend.
@@ -2351,6 +2421,12 @@ type Settings @cacheControl(maxAge: 30) {
   protectedEmailDomains: [String!]!
 
   """
+  disposableEmailDomains is the configuration for whether or not new users registering with
+  a disposable email address should be pre-moderated.
+  """
+  disposableEmailDomains: DisposableEmailDomainConfiguration
+
+  """
   externalProfileURL is a string template for a link to a user's
   external profile.
   """
@@ -2384,6 +2460,12 @@ type Settings @cacheControl(maxAge: 30) {
   whether it's enabled as an option for commenters.
   """
   inPageNotifications: InPageNotificationsConfiguration
+
+  """
+  externalNotifications is the configuration for external notifications, including
+  whether it's enabled as an option for commenters.
+  """
+  externalNotifications: ExternalNotificationsConfiguration
 
   """
   showUnmoderatedCounts is whether to show the unmoderated comment count in the
@@ -3122,6 +3204,13 @@ type UserMembershipScopes {
   siteIDs: [String!]
 }
 
+type UserCommentCounts {
+  """
+  statuses stores the counts of all the statuses against the parent user.
+  """
+  statuses: CommentStatusCounts! @auth(roles: [ADMIN, MODERATOR])
+}
+
 """
 User is someone that leaves Comments, and logs in.
 """
@@ -3462,6 +3551,11 @@ type User {
   newCommenter is whether a user has joined within the last seven days.
   """
   newCommenter: Boolean
+
+  """
+  commentCounts are the tallies for various comment status for this user.
+  """
+  commentCounts: UserCommentCounts
 }
 
 """
@@ -4008,6 +4102,61 @@ type TenorMedia {
   title is the title of the GIF.
   """
   title: String
+
+  """
+  still is a thumbnail preview of the GIF.
+  """
+  still: String
+
+  """
+  video is a URL to the mp4 video of the GIF.
+  """
+  video: String
+
+  """
+  width is the width of the GIF in pixels.
+  """
+  width: Int
+
+  """
+  height is the height of the GIF in pixels.
+  """
+  height: Int
+}
+
+"""
+KlipyMedia is a particular GIF that is provided by the Klipy platform.
+"""
+type KlipyMedia {
+  """
+  url is the URL to a image of the GIF.
+  """
+  url: String!
+
+  """
+  title is the title of the GIF.
+  """
+  title: String
+
+  """
+  width is the width of the GIF in pixels.
+  """
+  width: Int
+
+  """
+  height is the height of the GIF in pixels.
+  """
+  height: Int
+
+  """
+  still is a thumbnail preview of the GIF.
+  """
+  still: String
+
+  """
+  video is a URL to the mp4 video of the GIF.
+  """
+  video: String
 }
 
 """
@@ -4061,6 +4210,21 @@ type TwitterMedia {
 
   """
   width is the width of the Twitter tweet in pixels.
+  """
+  width: Int
+}
+
+"""
+BlueskyMedia is a specific Bluesky Tweet.
+"""
+type BlueskyMedia {
+  """
+  url is the URL of a Bluesky tweet.
+  """
+  url: String!
+
+  """
+  width is the width of the Bluesky tweet in pixels.
   """
   width: Int
 }
@@ -4120,7 +4284,14 @@ type ExternalMedia {
 """
 CommentMedia is the various media types that can be attached to a Comment.
 """
-union CommentMedia = GiphyMedia | TwitterMedia | YouTubeMedia | ExternalMedia | TenorMedia
+union CommentMedia =
+    GiphyMedia
+  | TwitterMedia
+  | YouTubeMedia
+  | ExternalMedia
+  | TenorMedia
+  | KlipyMedia
+  | BlueskyMedia
 
 type CommentRevision {
   """
@@ -4293,29 +4464,29 @@ type CommentTagCounts {
 }
 
 """
-Comment is a comment left by a [User](/api/objects/User) on an
-[Story](/api/objects/Story) or another [Comment](/api/objects/Comment)
+Comment is a comment left by a [User](/api/types/objects/User) on an
+[Story](/api/types/objects/Story) or another [Comment](/api/types/objects/Comment)
 as a reply.
 """
 type Comment @cacheControl(maxAge: 5) {
   """
-  id is the identifier of the [Comment](/api/objects/Comment).
+  id is the identifier of the [Comment](/api/types/objects/Comment).
   """
   id: ID!
 
   """
-  body is the content of the [Comment](/api/objects/Comment), and is an alias to the body of the
+  body is the content of the [Comment](/api/types/objects/Comment), and is an alias to the body of the
   `revision.body`.
   """
   body: String
 
   """
-  revision is the current revision of the [Comment](/api/objects/Comment)'s body.
+  revision is the current revision of the [Comment](/api/types/objects/Comment)'s body.
   """
   revision: CommentRevision
 
   """
-  revisionHistory stores the previous [CommentRevision](/api/objects/comment-revision)'s, with the most recent
+  revisionHistory stores the previous [CommentRevision](/api/types/objects/comment-revision)'s, with the most recent
   edit last.
   """
   revisionHistory: [CommentRevision!]!
@@ -5023,6 +5194,7 @@ enum NOTIFICATION_TYPE {
   DSA_REPORT_DECISION_MADE
   REPLY
   REPLY_STAFF
+  PREVIOUSLY_REJECTED_COMMENT_APPROVED
 }
 
 type Notification {
@@ -5187,6 +5359,15 @@ type NotificationDecisionDetails {
   explanation gives further context to the reasons for rejection.
   """
   explanation: String
+}
+
+type PersistedQuery {
+  id: String!
+  operation: String!
+  operationName: String!
+  query: String!
+  bundle: String!
+  version: String!
 }
 
 ################################################################################
@@ -5382,6 +5563,11 @@ type Query {
   ): NotificationsConnection!
 
   notificationCount(userID: ID!): Int
+
+  """
+  persistedQueries returns all the persisted query records in the database
+  """
+  persistedQueries: [PersistedQuery!] @auth(roles: [ADMIN])
 }
 
 ################################################################################
@@ -6396,6 +6582,13 @@ input TwitterMediaConfigurationInput {
   enabled: Boolean
 }
 
+input BlueskyMediaConfigurationInput {
+  """
+  enabled is true when Bluesky media objects are enabled.
+  """
+  enabled: Boolean
+}
+
 input YouTubeMediaConfigurationInput {
   """
   enabled is true when youtube media objects are enabled.
@@ -6430,6 +6623,11 @@ input MediaConfigurationInput {
   twitter is the configuration for Twitter support.
   """
   twitter: TwitterMediaConfigurationInput
+
+  """
+  bluesky is the configuration for Bluesky support.
+  """
+  bluesky: BlueskyMediaConfigurationInput
 
   """
   youtube is the configuration for YouTube support.
@@ -6483,6 +6681,14 @@ input NewCommentersConfigurationInput {
   specific sites.
   """
   moderation: NewCommentersModerationConfigInput
+}
+
+"""
+DisposableEmailDomainsConfigurationInput specifies the configuration for disposable emails and whether
+users who sign up with them should be pre-moderated.
+"""
+input DisposableEmailDomainsConfigurationInput {
+  enabled: Boolean!
 }
 
 """
@@ -6772,6 +6978,11 @@ input SettingsInput {
   flattenReplies: Boolean
 
   """
+  collapseReplies is whether or not to collapse first-level replies by default
+  """
+  collapseReplies: Boolean
+
+  """
   forReviewQueue is whether or not to show the For Review queue in
   the Moderate tab of the admin. This queue allows moderators to
   review every flag that has been put on a comment by a user. This
@@ -6814,6 +7025,12 @@ input SettingsInput {
   domain moderation rules such as all accounts banned
   """
   protectedEmailDomains: [String!]
+
+  """
+  disposableEmailDomains is the configuration for whether or not new users registering with
+  a disposable email address should be pre-moderated.
+  """
+  disposableEmailDomains: DisposableEmailDomainsConfigurationInput
 
   """
   inPageNotifications specifies the configuration for in-page notifications
@@ -10390,6 +10607,17 @@ type FlushRedisPayload {
   clientMutationId: String!
 }
 
+input RefreshDisposableEmailDomainsInput {
+  """
+  clientMutationId is required for Relay support.
+  """
+  clientMutationId: String!
+}
+
+type RefreshDisposableEmailDomainsPayload {
+  clientMutationId: String!
+}
+
 ##################
 ## Mutation
 ##################
@@ -11138,6 +11366,13 @@ type Mutation {
   flushRedis flushes the redis instance.
   """
   flushRedis(input: FlushRedisInput!): FlushRedisPayload! @auth(roles: [ADMIN])
+
+  """
+  refreshDisposableEmailDomains will refresh disposable email domains in Redis
+  """
+  refreshDisposableEmailDomains(
+    input: RefreshDisposableEmailDomainsInput!
+  ): RefreshDisposableEmailDomainsPayload! @auth(roles: [ADMIN])
 
   """
   createDSAReport creates a DSAReport for the provided comment

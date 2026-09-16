@@ -1,3 +1,4 @@
+import { Redis } from "ioredis";
 import { intersection } from "lodash";
 import { DateTime } from "luxon";
 
@@ -46,6 +47,7 @@ import { linkUsersAvailable, Tenant } from "coral-server/models/tenant";
 import {
   acknowledgeOwnModMessage,
   acknowledgeOwnWarning,
+  addProfileToUser as addProfileToUserModel,
   banUser,
   clearDeletionDate,
   consolidateUserBanStatus,
@@ -61,6 +63,7 @@ import {
   EmailNotificationSettingsInput,
   findOrCreateUser,
   FindOrCreateUserInput,
+  findUserByEmail as findUserByEmailModel,
   ignoreUser,
   InPageNotificationSettingsInput,
   linkUsers,
@@ -68,6 +71,7 @@ import {
   mergeUserSiteModerationScopes,
   premodUser,
   PremodUserReason,
+  Profile,
   pullUserMembershipScopes,
   pullUserSiteModerationScopes,
   removeActiveUserSuspensions,
@@ -106,6 +110,7 @@ import {
   warnUser,
 } from "coral-server/models/user";
 import {
+  authorIsIgnored,
   getLocalProfile,
   hasLocalProfile,
   hasStaffRole,
@@ -127,6 +132,7 @@ import {
   generateAdminDownloadLink,
   generateDownloadLink,
 } from "./download/token";
+import { shouldBanEmailBecauseOtherAliasesAreBanned } from "./emailAliasBanFilter";
 import { shouldPremodDueToLikelySpamEmail } from "./emailPremodFilter";
 import {
   checkForNewUserEmailDomainModeration,
@@ -168,6 +174,7 @@ export interface FindOrCreateUserOptions {
 export async function findOrCreate(
   config: Config,
   mongo: MongoContext,
+  redis: Redis,
   tenant: Tenant,
   input: FindOrCreateUser,
   options: FindOrCreateUserOptions,
@@ -180,7 +187,7 @@ export async function findOrCreate(
     // Try to find or create the user.
     let { user } = await findOrCreateUser(mongo, tenant.id, input, now);
 
-    if (shouldPremodDueToLikelySpamEmail(tenant, user)) {
+    if (await shouldPremodDueToLikelySpamEmail(mongo, tenant, redis, user)) {
       user = await premodUser(
         mongo,
         tenant.id,
@@ -189,6 +196,16 @@ export async function findOrCreate(
         now,
         PremodUserReason.EmailPremodFilter
       );
+    }
+
+    if (
+      await shouldBanEmailBecauseOtherAliasesAreBanned(
+        mongo,
+        tenant,
+        user.email
+      )
+    ) {
+      user = await banUser(mongo, tenant.id, user.id);
     }
 
     return user;
@@ -201,7 +218,7 @@ export async function findOrCreate(
       // exit this function.
       let { user } = await findOrCreateUser(mongo, tenant.id, input, now);
 
-      if (shouldPremodDueToLikelySpamEmail(tenant, user)) {
+      if (await shouldPremodDueToLikelySpamEmail(mongo, tenant, redis, user)) {
         user = await premodUser(
           mongo,
           tenant.id,
@@ -210,6 +227,16 @@ export async function findOrCreate(
           now,
           PremodUserReason.EmailPremodFilter
         );
+      }
+
+      if (
+        await shouldBanEmailBecauseOtherAliasesAreBanned(
+          mongo,
+          tenant,
+          user.email
+        )
+      ) {
+        user = await banUser(mongo, tenant.id, user.id);
       }
 
       return user;
@@ -236,7 +263,7 @@ export async function findOrCreate(
         now
       );
 
-      if (shouldPremodDueToLikelySpamEmail(tenant, user)) {
+      if (await shouldPremodDueToLikelySpamEmail(mongo, tenant, redis, user)) {
         user = await premodUser(
           mongo,
           tenant.id,
@@ -245,6 +272,16 @@ export async function findOrCreate(
           now,
           PremodUserReason.EmailPremodFilter
         );
+      }
+
+      if (
+        await shouldBanEmailBecauseOtherAliasesAreBanned(
+          mongo,
+          tenant,
+          user.email
+        )
+      ) {
+        user = await banUser(mongo, tenant.id, user.id);
       }
 
       return user;
@@ -273,20 +310,22 @@ export async function processAutomaticBanForUser(
   tenant: Tenant,
   user: User
 ) {
-  if (!tenant.emailDomainModeration) {
-    return;
-  }
+  const newUserEmailDomainModeration = tenant.emailDomainModeration
+    ? checkForNewUserEmailDomainModeration(user, tenant.emailDomainModeration)
+    : undefined;
 
-  const newUserEmailDomainModeration = checkForNewUserEmailDomainModeration(
-    user,
-    tenant.emailDomainModeration
-  );
-  if (!newUserEmailDomainModeration) {
-    return;
-  }
+  const shouldBanDueToAotherAlaisesBeingBanned = tenant.premoderateEmailAddress
+    ?.emailAliases
+    ? await shouldBanEmailBecauseOtherAliasesAreBanned(
+        mongo,
+        tenant,
+        user.email
+      )
+    : false;
 
   if (
-    newUserEmailDomainModeration === GQLNEW_USER_MODERATION.BAN &&
+    (newUserEmailDomainModeration === GQLNEW_USER_MODERATION.BAN ||
+      shouldBanDueToAotherAlaisesBeingBanned) &&
     !user.status.ban.active
   ) {
     await banUser(mongo, tenant.id, user.id);
@@ -2299,8 +2338,7 @@ export async function ignore(
     throw new UserCannotBeIgnoredError(userID);
   }
 
-  // TODO: extract function
-  if (user.ignoredUsers && user.ignoredUsers.some((u) => u.id === userID)) {
+  if (authorIsIgnored(userID, user)) {
     // TODO: improve error
     throw new Error("user already ignored");
   }
@@ -2597,3 +2635,19 @@ export async function link(
 
   return linked;
 }
+
+export const addProfileToUser = async (
+  mongo: MongoContext,
+  user: Readonly<User>,
+  profile: Profile
+) => {
+  return await addProfileToUserModel(mongo, user, profile);
+};
+
+export const findUserByEmail = async (
+  mongo: MongoContext,
+  tenantID: string,
+  email: string
+) => {
+  return await findUserByEmailModel(mongo, tenantID, email);
+};

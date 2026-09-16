@@ -4,13 +4,17 @@ import { v4 as uuid } from "uuid";
 import { AppOptions } from "coral-server/app";
 import { handleSuccessfulLogin } from "coral-server/app/middleware/passport";
 import { validate } from "coral-server/app/request/body";
-import { RequestLimiter } from "coral-server/app/request/limiter";
+import {
+  RequestLimiter,
+  RequestLimiterOptions,
+} from "coral-server/app/request/limiter";
 import {
   IntegrationDisabled,
   UsernameAlreadyExists,
 } from "coral-server/errors";
 import { hasEnabledAuthIntegration } from "coral-server/models/tenant";
 import {
+  banUser,
   LocalProfile,
   premodUser,
   PremodUserReason,
@@ -19,9 +23,13 @@ import {
 import { create, usernameAlreadyExists } from "coral-server/services/users";
 import { sendConfirmationEmail } from "coral-server/services/users/auth";
 import { shouldPremodDueToLikelySpamEmail } from "coral-server/services/users/emailPremodFilter";
-import { RequestHandler, TenantCoralRequest } from "coral-server/types/express";
+import {
+  AsyncRequestHandler,
+  TenantCoralRequest,
+} from "coral-server/types/express";
 
 import { GQLUSER_ROLE } from "coral-server/graph/schema/__generated__/types";
+import { shouldBanEmailBecauseOtherAliasesAreBanned } from "coral-server/services/users/emailAliasBanFilter";
 
 export interface SignupBody {
   username: string;
@@ -38,7 +46,7 @@ export const SignupBodySchema = Joi.object().keys({
 export type SignupOptions = Pick<
   AppOptions,
   "mongo" | "signingConfig" | "mailerQueue" | "redis" | "config"
->;
+> & { limiterOptions?: RequestLimiterOptions };
 
 export const signupHandler = ({
   config,
@@ -46,14 +54,17 @@ export const signupHandler = ({
   mongo,
   signingConfig,
   mailerQueue,
-}: SignupOptions): RequestHandler<TenantCoralRequest> => {
-  const ipLimiter = new RequestLimiter({
-    redis,
-    ttl: "10m",
-    max: 10,
-    prefix: "ip",
-    config,
-  });
+  limiterOptions,
+}: SignupOptions): AsyncRequestHandler<TenantCoralRequest> => {
+  const ipLimiter = new RequestLimiter(
+    limiterOptions ?? {
+      redis,
+      ttl: "10m",
+      max: 10,
+      prefix: "ip",
+      config,
+    }
+  );
 
   return async (req, res, next) => {
     try {
@@ -123,7 +134,7 @@ export const signupHandler = ({
         now
       );
 
-      if (shouldPremodDueToLikelySpamEmail(tenant, user)) {
+      if (await shouldPremodDueToLikelySpamEmail(mongo, tenant, redis, user)) {
         await premodUser(
           mongo,
           tenant.id,
@@ -132,6 +143,16 @@ export const signupHandler = ({
           now,
           PremodUserReason.EmailPremodFilter
         );
+      }
+
+      if (
+        await shouldBanEmailBecauseOtherAliasesAreBanned(
+          mongo,
+          tenant,
+          user.email
+        )
+      ) {
+        await banUser(mongo, tenant.id, user.id);
       }
 
       // Send off to the passport handler.

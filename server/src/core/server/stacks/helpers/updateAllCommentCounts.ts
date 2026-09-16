@@ -11,10 +11,11 @@ import {
   CommentTagCounts,
   updateSharedCommentCounts,
 } from "coral-server/models/comment";
+import { PUBLISHED_STATUSES } from "coral-server/models/comment/constants";
 import { CommentTag } from "coral-server/models/comment/tag";
 import { updateSiteCounts } from "coral-server/models/site";
-import { updateStoryCounts } from "coral-server/models/story";
-import { Tenant } from "coral-server/models/tenant";
+import { Story, updateStoryCounts } from "coral-server/models/story";
+import { hasFeatureFlag, Tenant } from "coral-server/models/tenant";
 import { updateUserCommentCounts } from "coral-server/models/user";
 import {
   calculateCounts,
@@ -23,8 +24,10 @@ import {
 import { I18n } from "coral-server/services/i18n";
 import { AugmentedRedis } from "coral-server/services/redis";
 
+import { COUNTS_V2_CACHE_DURATION } from "coral-common/common/lib/constants";
 import {
   GQLCommentTagCounts,
+  GQLFEATURE_FLAG,
   GQLTAG,
 } from "coral-server/graph/schema/__generated__/types";
 
@@ -168,12 +171,12 @@ export default async function updateAllCommentCounts(
 
   if (options.updateStory) {
     // Update the story, site, and user comment counts.
-    const updatedStory = await updateStoryCounts(mongo, tenant.id, storyID, {
+    const updatedStory = (await updateStoryCounts(mongo, tenant.id, storyID, {
       action,
       status,
       moderationQueue,
       tags,
-    });
+    })) as Readonly<Story> | null;
 
     // only update Redis cache for comment counts if jsonp_response_cache set to true
     if (config.get("jsonp_response_cache")) {
@@ -217,10 +220,24 @@ export default async function updateAllCommentCounts(
         }
       }
     }
+
+    if (hasFeatureFlag(tenant, GQLFEATURE_FLAG.COUNTS_V2)) {
+      if (updatedStory) {
+        const totalCount = calculateTotalPublishedCommentCount(
+          updatedStory.commentCounts.status
+        );
+        if (PUBLISHED_STATUSES.includes(input.after.status)) {
+          const key = `${tenant.id}:${storyID}:count`;
+
+          // set/update the count
+          await redis.set(key, totalCount, "EX", COUNTS_V2_CACHE_DURATION);
+        }
+      }
+    }
   }
 
   if (options.updateSite) {
-    await updateSiteCounts(mongo, tenant.id, siteID, {
+    await updateSiteCounts(mongo, tenant.id, siteID!, {
       action,
       status,
       moderationQueue,

@@ -9,7 +9,7 @@ import {
   UpdateCommentStatus,
 } from "coral-server/models/comment";
 import { retrieveNotificationByCommentReply } from "coral-server/models/notifications/notification";
-import { Tenant } from "coral-server/models/tenant";
+import { hasFeatureFlag, Tenant } from "coral-server/models/tenant";
 import { retrieveUser } from "coral-server/models/user";
 import { removeTag } from "coral-server/services/comments";
 import { moderate } from "coral-server/services/comments/moderation";
@@ -18,14 +18,20 @@ import { InternalNotificationContext } from "coral-server/services/notifications
 import { AugmentedRedis } from "coral-server/services/redis";
 import { submitCommentAsSpam } from "coral-server/services/spam";
 import { Request } from "coral-server/types/express";
+import { v4 as uuid } from "uuid";
 
 import {
   GQLCOMMENT_STATUS,
+  GQLFEATURE_FLAG,
   GQLNOTIFICATION_TYPE,
   GQLREJECTION_REASON_CODE,
   GQLTAG,
 } from "coral-server/graph/schema/__generated__/types";
 
+import { retrieveSite } from "coral-server/models/site";
+import { retrieveStory } from "coral-server/models/story";
+import { ExternalNotificationsQueue } from "coral-server/queue/tasks/externalNotifications";
+import { ExternalNotificationsService } from "coral-server/services/notifications/externalService";
 import { publishChanges } from "./helpers";
 import { updateTagCommentCounts } from "./helpers/updateAllCommentCounts";
 
@@ -61,7 +67,7 @@ const stripTag = async (
   await updateTagCommentCounts(
     tenant.id,
     comment.storyID,
-    comment.siteID,
+    comment.siteID!,
     mongo,
     redis,
     // Create a diff where "before" tags have the target tag and
@@ -74,6 +80,66 @@ const stripTag = async (
   return tagResult;
 };
 
+export const buildExternalRejectNotification = async (
+  mongo: MongoContext,
+  externalNotifications: ExternalNotificationsService,
+  tenant: Tenant,
+  comment: Comment
+) => {
+  const externalNotificationsDisabledOnTenant = hasFeatureFlag(
+    tenant,
+    GQLFEATURE_FLAG.DISABLE_EXTERNAL_NOTIFICATIONS
+  );
+  if (
+    !externalNotifications.active() ||
+    externalNotificationsDisabledOnTenant ||
+    !comment.authorID ||
+    !comment.siteID
+  ) {
+    return null;
+  }
+
+  const author = await retrieveUser(mongo, tenant.id, comment.authorID);
+  if (!author) {
+    return null;
+  }
+
+  const site = await retrieveSite(mongo, tenant.id, comment.siteID);
+  if (!site) {
+    return null;
+  }
+
+  const story = await retrieveStory(mongo, tenant.id, comment.storyID);
+  if (!story) {
+    return null;
+  }
+
+  return externalNotifications.buildReject({
+    to: author,
+    comment,
+    story,
+    site,
+  });
+};
+
+export const sendExternalRejectNotification = async (
+  mongo: MongoContext,
+  externalNotifications: ExternalNotificationsService,
+  tenant: Tenant,
+  comment: Comment
+) => {
+  const notification = await buildExternalRejectNotification(
+    mongo,
+    externalNotifications,
+    tenant,
+    comment
+  );
+
+  if (notification) {
+    await externalNotifications.send(notification, tenant.id);
+  }
+};
+
 const rejectComment = async (
   mongo: MongoContext,
   redis: AugmentedRedis,
@@ -82,6 +148,8 @@ const rejectComment = async (
   i18n: I18n,
   broker: CoralEventPublisherBroker | null,
   notifications: InternalNotificationContext,
+  externalNotifications: ExternalNotificationsService,
+  externalNotificationsQueue: ExternalNotificationsQueue,
   tenant: Tenant,
   commentID: string,
   commentRevisionID: string,
@@ -176,18 +244,31 @@ const rejectComment = async (
 
   if (
     sendNotification &&
-    !(reason?.code === GQLREJECTION_REASON_CODE.BANNED_WORD) &&
-    tenant.dsa?.enabled
+    !(reason?.code === GQLREJECTION_REASON_CODE.BANNED_WORD)
   ) {
-    await notifications.create(tenant.id, tenant.locale, {
-      targetUserID: result.after.authorID!,
-      comment: result.after,
-      rejectionReason: reason,
-      type: GQLNOTIFICATION_TYPE.COMMENT_REJECTED,
-      previousStatus: result.before.status,
+    if (tenant.dsa?.enabled) {
+      await notifications.create(tenant.id, tenant.locale, {
+        targetUserID: result.after.authorID!,
+        comment: result.after,
+        rejectionReason: reason,
+        type: GQLNOTIFICATION_TYPE.COMMENT_REJECTED,
+        previousStatus: result.before.status,
+      });
+    }
+
+    const notification = await buildExternalRejectNotification(
+      mongo,
+      externalNotifications,
+      tenant,
+      result.after
+    );
+
+    await externalNotificationsQueue.add({
+      tenantID: tenant.id,
+      taskID: uuid(),
+      notifications: [notification],
     });
   }
-
   // check for a reply notification for the comment being rejected
   // if exists, check that notification user's lastSeenNotificationDate to see if less than reply createdAt
   // decrement notificationCount if so

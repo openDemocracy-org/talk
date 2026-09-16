@@ -23,7 +23,6 @@ import { WebhookEndpointsConfigContainer_settings } from "coral-admin/__generate
 import ConfigBox from "../../ConfigBox";
 import Header from "../../Header";
 import Subheader from "../../Subheader";
-import ExperimentalWebhooksCallOut from "./ExperimentalWebhooksCallOut";
 import WebhookEndpointRow from "./WebhookEndpointRow";
 
 interface Props {
@@ -35,7 +34,6 @@ const WebhookEndpointsConfigContainer: FunctionComponent<Props> = ({
 }) => {
   return (
     <HorizontalGutter size="double" data-testid="webhooks-container">
-      <ExperimentalWebhooksCallOut />
       <ConfigBox
         title={
           <Localized id="configure-webhooks-header-title">
@@ -47,7 +45,7 @@ const WebhookEndpointsConfigContainer: FunctionComponent<Props> = ({
           id="configure-webhooks-description"
           elems={{
             externalLink: (
-              <ExternalLink href="https://github.com/coralproject/talk/blob/main/WEBHOOKS.md" />
+              <ExternalLink href="https://github.com/coralproject/talk/blob/main/server/WEBHOOKS.md" />
             ),
           }}
         >
@@ -55,7 +53,7 @@ const WebhookEndpointsConfigContainer: FunctionComponent<Props> = ({
             Configure an endpoint to send events to when events occur within
             Coral. These events will be JSON encoded and signed. To learn more
             about webhook signing, visit our{" "}
-            <ExternalLink href="https://github.com/coralproject/talk/blob/main/WEBHOOKS.md">
+            <ExternalLink href="https://github.com/coralproject/talk/blob/main/server/WEBHOOKS.md">
               our docs
             </ExternalLink>
             .

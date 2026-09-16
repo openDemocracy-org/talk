@@ -99,10 +99,31 @@ export interface TenorMedia {
   type: "tenor";
   id: string;
   url: string;
+  title?: string;
+  still?: string;
+  width?: number;
+  height?: number;
+  video?: string;
 }
 
+export interface KlipyMedia {
+  type: "klipy";
+  id: string;
+  url: string;
+  title?: string;
+  still?: string;
+  width?: number;
+  height?: number;
+  video?: string;
+}
 export interface TwitterMedia {
   type: "twitter";
+  url: string;
+  width?: number;
+}
+
+export interface BlueskyMedia {
+  type: "bluesky";
   url: string;
   width?: number;
 }
@@ -127,6 +148,8 @@ export type CommentMedia =
   | GiphyMedia
   | TenorMedia
   | TwitterMedia
+  | KlipyMedia
+  | BlueskyMedia
   | YouTubeMedia
   | ExternalMedia;
 

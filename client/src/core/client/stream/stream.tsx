@@ -2,7 +2,9 @@ import { EventEmitter2 } from "eventemitter2";
 /* eslint-disable no-restricted-globals */
 import React, {
   FunctionComponent,
+  ReactEventHandler,
   useCallback,
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -28,7 +30,6 @@ import AppContainer from "./App";
 import CSSLoadError from "./CSSLoadError";
 import { createInitLocalState } from "./local";
 import localesData from "./locales";
-import { EmotionShadowRoot } from "./shadow";
 
 // Import css variables.
 import { ACCESS_TOKEN_KEY } from "coral-framework/lib/auth";
@@ -80,6 +81,13 @@ const hideStyle: React.CSSProperties = {
   border: "0",
 };
 
+interface LoadedCssResult {
+  id: string;
+  url: string;
+  succeed?: boolean;
+  error?: Error | string;
+}
+
 /**
  * Insert link tag is called by css loaders like style-loader or mini-css-extract plugin.
  * See webpack config.
@@ -125,47 +133,80 @@ export async function attach(options: AttachOptions) {
     onAuthError: onContextAuthError,
   });
 
-  // Amount of initial css files to be loaded.
-  let initialCSSFileNumber = options.cssAssets.length;
+  const internalCssUrls = options.cssAssets;
+  const customCssUrls: string[] = [];
 
   if (options.customCSSURL) {
-    initialCSSFileNumber++;
-  }
-  if (options.customFontsCSSURL) {
-    initialCSSFileNumber++;
+    customCssUrls.push(options.customCSSURL);
   }
   if (!options.disableDefaultFonts && options.defaultFontsCSSURL) {
-    initialCSSFileNumber++;
+    customCssUrls.push(options.defaultFontsCSSURL);
+  }
+  if (options.customFontsCSSURL) {
+    customCssUrls.push(options.customFontsCSSURL);
   }
 
-  // Current amount of loaded css files.
-  let cssLoaded = 0;
+  const expectedCssFiles = internalCssUrls.length + customCssUrls.length;
+  const processCssResults: LoadedCssResult[] = [];
 
   const Index: FunctionComponent = () => {
     // Determine whether css has finished loading, before rendering the stream to prevent
     // flash of unstyled content.
     const [isCSSLoaded, setIsCSSLoaded] = useState(false);
-    const [loadError, setLoadError] = useState(false);
+    const [hasCssLoadErrors, setHasCssLoadErrors] = useState(false);
 
     const handleLoadError = useCallback((href: string) => {
+      const message = `Failed to load CSS ${encodeURIComponent(href)}`;
+
       globalErrorReporter.report(
         // encode href, otherwise sentry will not send it.
-        `Failed to load CSS ${encodeURIComponent(href)}`
+        message
       );
-      setLoadError(true);
-      cssLoaded++;
-      // When amount of css loaded equals initial css file number, mark as ready.
-      if (cssLoaded === initialCSSFileNumber) {
+
+      // eslint-disable-next-line no-console
+      console.warn(message);
+
+      processCssResults.push({
+        id: href,
+        url: href,
+        succeed: false,
+        error: message,
+      });
+
+      setHasCssLoadErrors(true);
+
+      if (processCssResults.length >= expectedCssFiles) {
         setIsCSSLoaded(true);
       }
     }, []);
-    const handleCSSLoad = useCallback(() => {
-      cssLoaded++;
-      // When amount of css loaded equals initial css file number, mark as ready.
-      if (cssLoaded === initialCSSFileNumber) {
-        setIsCSSLoaded(true);
-      }
-    }, []);
+
+    // Add timeout fallback for if CSS load events don't fire
+    useEffect(() => {
+      const timeout = setTimeout(() => {
+        if (!isCSSLoaded) {
+          setIsCSSLoaded(true);
+        }
+      }, 3000); // 3 second timeout
+
+      return () => clearTimeout(timeout);
+    }, [isCSSLoaded]);
+
+    const handleCSSLoad: ReactEventHandler<HTMLLinkElement> = useCallback(
+      (event) => {
+        const el = event.target as HTMLLinkElement;
+
+        processCssResults.push({
+          id: el.href,
+          url: el.href,
+          succeed: true,
+        });
+
+        if (processCssResults.length >= expectedCssFiles) {
+          setIsCSSLoaded(true);
+        }
+      },
+      []
+    );
 
     // CSS assets to be loaded inside of the shadow dom.
     const [shadowCSSAssets, setShadowCSSAssets] = useState<CSSAsset[]>(
@@ -223,7 +264,7 @@ export async function attach(options: AttachOptions) {
             if (linkTag.onload) {
               linkTag.onload(event.nativeEvent);
             }
-            handleCSSLoad();
+            handleCSSLoad(event);
           },
           handleLoadError
         ),
@@ -232,7 +273,6 @@ export async function attach(options: AttachOptions) {
 
     const encapsulationContext = useMemo(
       () => ({
-        ReactShadowRoot: EmotionShadowRoot,
         containerClassName: options.containerClassName,
         cssAssets: shadowCSSAssets,
         customCSSAssets: customShadowCSSAssets,
@@ -245,7 +285,7 @@ export async function attach(options: AttachOptions) {
       <EncapsulationContext.Provider value={encapsulationContext}>
         <ReactShadowRoot loadFonts>
           <ManagedCoralContextProvider>
-            {loadError && (
+            {hasCssLoadErrors && (
               // TODO: (cvle) localization?
               <CSSLoadError>
                 <div>Apologies, we weren't able to load some styles</div>

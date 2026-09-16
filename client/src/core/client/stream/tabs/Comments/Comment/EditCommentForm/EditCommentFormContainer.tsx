@@ -55,9 +55,19 @@ function getMediaFromComment(comment: CommentData) {
         type: "tenor",
         url: comment.revision.media.url,
       };
+    case "KlipyMedia":
+      return {
+        type: "klipy",
+        url: comment.revision.media.url,
+      };
     case "TwitterMedia":
       return {
         type: "twitter",
+        url: comment.revision.media.url,
+      };
+    case "BlueskyMedia":
+      return {
+        type: "bluesky",
         url: comment.revision.media.url,
       };
     case "ExternalMedia":
@@ -207,7 +217,15 @@ const enhanced = withEditCommentMutation(
               url
               title
             }
+            ... on KlipyMedia {
+              url
+              title
+            }
             ... on TwitterMedia {
+              url
+              width
+            }
+            ... on BlueskyMedia {
               url
               width
             }
@@ -246,6 +264,9 @@ const enhanced = withEditCommentMutation(
         }
         media {
           twitter {
+            enabled
+          }
+          bluesky {
             enabled
           }
           youtube {

@@ -197,10 +197,10 @@ export const AllCommentsTabContainer: FunctionComponent<Props> = ({
   }, [visible, isNotFirstLoad]);
 
   useEffect(() => {
-    if (visible && isNotFirstLoad) {
+    if (visible && isNotFirstLoad && live) {
       setShowCommentRefreshButton(true);
     }
-  }, [visible, setShowCommentRefreshButton]);
+  }, [visible, setShowCommentRefreshButton, live]);
 
   useEffect(() => {
     if (!topOfCommentsInView && allCommentsInView) {
@@ -441,6 +441,7 @@ export const AllCommentsTabContainer: FunctionComponent<Props> = ({
           viewNewCount={viewNewCount}
           hasMore={hasMore}
           userNotificationsEnabled={!!viewer?.inPageNotifications?.enabled}
+          inPageNotificationsActive={!!settings?.inPageNotifications?.active}
         />
       )}
       {tag === GQLTAG.REVIEW && (
@@ -741,6 +742,9 @@ const enhanced = withPaginationContainer<
       fragment AllCommentsTabContainer_settings on Settings {
         reaction {
           sortLabel
+        }
+        inPageNotifications {
+          active
         }
         disableCommenting {
           enabled

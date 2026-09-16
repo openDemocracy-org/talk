@@ -326,6 +326,13 @@ export interface PremoderateEmailAddressConfig {
   tooManyPeriods?: {
     enabled?: boolean;
   };
+  emailAliases?: {
+    enabled?: boolean;
+  };
+}
+
+export interface DisposableEmailDomainsConfig {
+  enabled?: boolean;
 }
 
 export type Settings = GlobalModerationSettings &
@@ -429,6 +436,11 @@ export type Settings = GlobalModerationSettings &
     flattenReplies: boolean;
 
     /**
+     * collapseReplies is whether or not to collapse first-level replies by default
+     */
+    collapseReplies: boolean;
+
+    /**
      * forReviewQueue is whether the tenant wants to enable the For Review
      * moderation queue in the admin to review every flag that has been
      * put on a comment by a user.
@@ -452,6 +464,12 @@ export type Settings = GlobalModerationSettings &
      * domain moderation rules such as all accounts banned
      */
     protectedEmailDomains: string[];
+
+    /**
+     * disposableEmailDomains is the configuration for disposable email domains and whether they
+     * should be pre-moderated
+     */
+    disposableEmailDomains?: DisposableEmailDomainsConfig;
 
     /**
      * inPageNotifications specifies whether or not in-page notifications are enabled

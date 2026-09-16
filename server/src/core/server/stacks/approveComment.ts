@@ -3,8 +3,9 @@ import { DataCache } from "coral-server/data/cache/dataCache";
 import { MongoContext } from "coral-server/data/context";
 import { CoralEventPublisherBroker } from "coral-server/events/publisher";
 import { getLatestRevision } from "coral-server/models/comment";
+import { Comment } from "coral-server/models/comment";
 import { retrieveNotificationByCommentReply } from "coral-server/models/notifications/notification";
-import { Tenant } from "coral-server/models/tenant";
+import { hasFeatureFlag, Tenant } from "coral-server/models/tenant";
 import { retrieveUser } from "coral-server/models/user";
 import { retrieveComment } from "coral-server/services/comments";
 import {
@@ -16,13 +17,62 @@ import { InternalNotificationContext } from "coral-server/services/notifications
 import { AugmentedRedis } from "coral-server/services/redis";
 import { submitCommentAsNotSpam } from "coral-server/services/spam";
 import { Request } from "coral-server/types/express";
+import { v4 as uuid } from "uuid";
 
 import {
   GQLCOMMENT_STATUS,
+  GQLFEATURE_FLAG,
   GQLNOTIFICATION_TYPE,
 } from "coral-server/graph/schema/__generated__/types";
 
+import { retrieveSite } from "coral-server/models/site";
+import { retrieveStory } from "coral-server/models/story";
+import { ExternalNotificationsQueue } from "coral-server/queue/tasks/externalNotifications";
+import { ExternalNotificationsService } from "coral-server/services/notifications/externalService";
+import { buildExternalReplyNotification } from "./createComment";
 import { publishChanges } from "./helpers";
+
+const buildApproveNotification = async (
+  mongo: MongoContext,
+  externalNotifications: ExternalNotificationsService,
+  tenant: Tenant,
+  comment: Comment
+) => {
+  const externalNotificationsDisabledOnTenant = hasFeatureFlag(
+    tenant,
+    GQLFEATURE_FLAG.DISABLE_EXTERNAL_NOTIFICATIONS
+  );
+  if (
+    !externalNotifications.active() ||
+    externalNotificationsDisabledOnTenant ||
+    !comment.authorID ||
+    !comment.siteID
+  ) {
+    return null;
+  }
+
+  const author = await retrieveUser(mongo, tenant.id, comment.authorID);
+  if (!author) {
+    return null;
+  }
+
+  const site = await retrieveSite(mongo, tenant.id, comment.siteID);
+  if (!site) {
+    return null;
+  }
+
+  const story = await retrieveStory(mongo, tenant.id, comment.storyID);
+  if (!story) {
+    return null;
+  }
+
+  return externalNotifications.buildApprove({
+    to: author,
+    comment,
+    story,
+    site,
+  });
+};
 
 const approveComment = async (
   mongo: MongoContext,
@@ -32,6 +82,8 @@ const approveComment = async (
   i18n: I18n,
   broker: CoralEventPublisherBroker,
   notifications: InternalNotificationContext,
+  externalNotifications: ExternalNotificationsService,
+  externalNotificationsQueue: ExternalNotificationsQueue,
   tenant: Tenant,
   commentID: string,
   commentRevisionID: string,
@@ -103,6 +155,45 @@ const approveComment = async (
       comment: result.after,
       previousStatus: result.before.status,
       type: GQLNOTIFICATION_TYPE.COMMENT_APPROVED,
+    });
+
+    const extToSend: any[] = [
+      await buildApproveNotification(
+        mongo,
+        externalNotifications,
+        tenant,
+        result.after
+      ),
+    ];
+
+    if (result.after.parentID) {
+      extToSend.push(
+        await buildExternalReplyNotification(
+          mongo,
+          externalNotifications,
+          tenant,
+          result.after
+        )
+      );
+    }
+
+    await externalNotificationsQueue.add({
+      tenantID: tenant.id,
+      taskID: uuid(),
+      notifications: extToSend,
+    });
+  }
+
+  // create notification if dsa enabled upon approval of previously rejected comment
+  if (
+    tenant.dsa?.enabled &&
+    previousComment?.status === GQLCOMMENT_STATUS.REJECTED
+  ) {
+    await notifications.create(tenant.id, tenant.locale, {
+      targetUserID: result.after.authorID!,
+      comment: result.after,
+      previousStatus: result.before.status,
+      type: GQLNOTIFICATION_TYPE.PREVIOUSLY_REJECTED_COMMENT_APPROVED,
     });
   }
 

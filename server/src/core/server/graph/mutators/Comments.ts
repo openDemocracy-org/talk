@@ -6,7 +6,7 @@ import {
   hasTag,
   retrieveLatestFeaturedCommentForAuthor,
 } from "coral-server/models/comment";
-import { updateLastFeaturedDate } from "coral-server/models/user";
+import { retrieveUser, updateLastFeaturedDate } from "coral-server/models/user";
 import { addTag, removeTag } from "coral-server/services/comments";
 import {
   createDontAgree,
@@ -35,6 +35,7 @@ import {
   GQLCreateCommentReplyInput,
   GQLCreateIllegalContentInput,
   GQLEditCommentInput,
+  GQLFEATURE_FLAG,
   GQLFeatureCommentInput,
   GQLMarkCommentsAsSeenInput,
   GQLNOTIFICATION_TYPE,
@@ -44,8 +45,56 @@ import {
   GQLUnfeatureCommentInput,
 } from "coral-server/graph/schema/__generated__/types";
 
+import { MongoContext } from "coral-server/data/context";
+import { Comment } from "coral-server/models/comment";
+import { retrieveSite } from "coral-server/models/site";
+import { retrieveStory } from "coral-server/models/story";
+import { hasFeatureFlag, Tenant } from "coral-server/models/tenant";
+import { ExternalNotificationsService } from "coral-server/services/notifications/externalService";
 import { validateUserModerationScopes } from "./helpers";
 import { validateMaximumLength, WithoutMutationID } from "./util";
+
+const sendExternalFeatureNotification = async (
+  mongo: MongoContext,
+  externalNotifications: ExternalNotificationsService,
+  tenant: Tenant,
+  comment: Comment
+) => {
+  const externalNotificationsDisabledOnTenant = hasFeatureFlag(
+    tenant,
+    GQLFEATURE_FLAG.DISABLE_EXTERNAL_NOTIFICATIONS
+  );
+  if (
+    !externalNotifications.active() ||
+    externalNotificationsDisabledOnTenant ||
+    !comment.authorID ||
+    !comment.siteID
+  ) {
+    return;
+  }
+
+  const author = await retrieveUser(mongo, tenant.id, comment.authorID);
+  if (!author) {
+    return;
+  }
+
+  const site = await retrieveSite(mongo, tenant.id, comment.siteID);
+  if (!site) {
+    return;
+  }
+
+  const story = await retrieveStory(mongo, tenant.id, comment.storyID);
+  if (!story) {
+    return;
+  }
+
+  await externalNotifications.createFeature({
+    to: author,
+    comment,
+    story,
+    site,
+  });
+};
 
 export const Comments = (ctx: GraphContext) => ({
   create: ({
@@ -64,6 +113,8 @@ export const Comments = (ctx: GraphContext) => ({
         ctx.i18n,
         ctx.broker,
         ctx.notifications,
+        ctx.externalNotifications,
+        ctx.externalNotificationsQueue,
         ctx.tenant,
         ctx.user!,
         {
@@ -118,13 +169,7 @@ export const Comments = (ctx: GraphContext) => ({
     commentRevisionID,
   }: GQLCreateCommentReactionInput) =>
     createReaction(
-      ctx.mongo,
-      ctx.redis,
-      ctx.config,
-      ctx.i18n,
-      ctx.cache,
-      ctx.broker,
-      ctx.tenant,
+      ctx,
       ctx.user!,
       {
         commentID,
@@ -136,20 +181,10 @@ export const Comments = (ctx: GraphContext) => ({
     commentID,
     commentRevisionID,
   }: GQLRemoveCommentReactionInput) =>
-    removeReaction(
-      ctx.mongo,
-      ctx.redis,
-      ctx.config,
-      ctx.i18n,
-      ctx.cache,
-      ctx.broker,
-      ctx.tenant,
-      ctx.user!,
-      {
-        commentID,
-        commentRevisionID,
-      }
-    ),
+    removeReaction(ctx, ctx.user!, {
+      commentID,
+      commentRevisionID,
+    }),
   createIllegalContent: async ({
     commentID,
     commentRevisionID,
@@ -272,6 +307,8 @@ export const Comments = (ctx: GraphContext) => ({
         ctx.i18n,
         ctx.broker,
         ctx.notifications,
+        ctx.externalNotifications,
+        ctx.externalNotificationsQueue,
         ctx.tenant,
         commentID,
         commentRevisionID,
@@ -285,7 +322,7 @@ export const Comments = (ctx: GraphContext) => ({
     await updateTagCommentCounts(
       ctx.tenant.id,
       comment.storyID,
-      comment.siteID,
+      comment.siteID!,
       ctx.mongo,
       ctx.redis,
       // Create a diff where "before" tags does not have a
@@ -317,6 +354,13 @@ export const Comments = (ctx: GraphContext) => ({
       type: GQLNOTIFICATION_TYPE.COMMENT_FEATURED,
     });
 
+    await sendExternalFeatureNotification(
+      ctx.mongo,
+      ctx.externalNotifications,
+      ctx.tenant,
+      comment
+    );
+
     // Return it to the next step.
     return comment;
   },
@@ -346,7 +390,7 @@ export const Comments = (ctx: GraphContext) => ({
       await updateTagCommentCounts(
         ctx.tenant.id,
         comment.storyID,
-        comment.siteID,
+        comment.siteID!,
         ctx.mongo,
         ctx.redis,
         // Create a diff where "before" has the featured tag,

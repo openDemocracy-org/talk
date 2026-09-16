@@ -8,6 +8,7 @@ import {
   oembedHandler,
   oembedProviderHandler,
 } from "coral-server/app/handlers";
+import { createTokenTestRouter } from "coral-server/app/handlers/api/auth/tokenTest";
 import {
   apolloGraphQLMiddleware,
   authenticate,
@@ -34,6 +35,7 @@ import { createCommentRouter } from "./comment";
 import { createDashboardRouter } from "./dashboard";
 import { createDSAReportRouter } from "./dsaReport";
 import { createNewInstallRouter } from "./install";
+import { createKlipyRouter } from "./klipy";
 import { createRemoteMediaRouter } from "./remoteMedia";
 import { createStoryRouter } from "./story";
 import { createTenorRouter } from "./tenor";
@@ -58,8 +60,6 @@ export function createAPIRouter(app: AppOptions, options: RouterOptions) {
   // only proceed if there is a valid Tenant for the hostname.
   router.use(tenantMiddleware({ mongo: app.mongo, cache: app.tenantCache }));
 
-  // We don't need auth for the story router, so mount it earlier.
-  router.use("/story", createStoryRouter(app));
   router.use("/comment", createCommentRouter(app));
 
   // Setup Passport middleware.
@@ -73,6 +73,7 @@ export function createAPIRouter(app: AppOptions, options: RouterOptions) {
   );
   router.use("/account", createNewAccountRouter(app, options));
   router.use("/user", createNewUserRouter(app));
+  router.use("/story", createStoryRouter(app, options));
 
   // Configure the GraphQL route middleware.
   router.use(
@@ -125,6 +126,19 @@ export function createAPIRouter(app: AppOptions, options: RouterOptions) {
     corsWhitelisted(app.mongo),
     authenticate(options.passport),
     createTenorRouter(app)
+  );
+
+  router.use(
+    "/klipy",
+    corsWhitelisted(app.mongo),
+    authenticate(options.passport),
+    createKlipyRouter(app)
+  );
+
+  router.use(
+    "/tokenTest",
+    authenticate(options.passport),
+    createTokenTestRouter(app)
   );
 
   // General API error handler.

@@ -2,8 +2,10 @@ import { findMediaLinks } from "coral-common/common/lib/helpers/findMediaLinks";
 import validateImagePathname from "coral-common/common/lib/helpers/validateImagePathname";
 import { WrappedInternalError } from "coral-server/errors";
 import {
+  BlueskyMedia,
   ExternalMedia,
   GiphyMedia,
+  KlipyMedia,
   TenorMedia,
   TwitterMedia,
   YouTubeMedia,
@@ -13,7 +15,9 @@ import {
   ratingIsAllowed,
   retrieveFromGiphy,
 } from "coral-server/services/giphy";
+import { retrieveFromKlipy } from "coral-server/services/klipy";
 import { fetchOEmbedResponse } from "coral-server/services/oembed";
+import { retrieveFromTenor } from "coral-server/services/tenor";
 
 async function attachGiphyMedia(
   tenant: Tenant,
@@ -58,15 +62,58 @@ async function attachTenorMedia(
   id: string,
   url: string
 ): Promise<TenorMedia | undefined> {
+  const { results } = await retrieveFromTenor(tenant, id);
+  if (!results || !(results.length === 1)) {
+    return;
+  }
+  const data = results[0];
   try {
     // Return the formed Tenor Media.
     return {
       type: "tenor",
       id,
       url,
+      title: data.title,
+      still: data.media_formats.gifpreview.url,
+      width: data.media_formats.gifpreview.dims[0],
+      height: data.media_formats.gifpreview.dims[1],
+      video: data.media_formats.mp4.url,
     };
   } catch (err) {
-    throw new WrappedInternalError(err as Error, "cannot attach Tenor Media");
+    if (!(err instanceof Error)) {
+      throw new Error("cannot attach Tenor Media");
+    }
+    throw new WrappedInternalError(err, "cannot attach Tenor Media");
+  }
+}
+
+async function attachKlipyMedia(
+  tenant: Tenant,
+  id: string,
+  url: string
+): Promise<KlipyMedia | undefined> {
+  const { results } = await retrieveFromKlipy(tenant, id);
+  if (!results || !(results.length === 1)) {
+    return;
+  }
+  const data = results[0];
+  try {
+    // Return the formed Klipy Media.
+    return {
+      type: "klipy",
+      id,
+      url,
+      title: data.title,
+      still: data.media_formats.preview.url,
+      width: data.media_formats.preview.dims[0],
+      height: data.media_formats.preview.dims[1],
+      video: data.media_formats.mp4.url,
+    };
+  } catch (err) {
+    if (!(err instanceof Error)) {
+      throw new Error("cannot attach Klipy Media");
+    }
+    throw new WrappedInternalError(err, "cannot attach Klipy Media");
   }
 }
 
@@ -99,10 +146,10 @@ async function attachExternalMedia(
 }
 
 async function attachOEmbedMedia(
-  type: "twitter" | "youtube",
+  type: "twitter" | "youtube" | "bluesky",
   url: string,
   body: string
-): Promise<YouTubeMedia | TwitterMedia | undefined> {
+): Promise<YouTubeMedia | TwitterMedia | BlueskyMedia | undefined> {
   // Find all the media links in the body.
   const links = findMediaLinks(body);
   if (!links) {
@@ -143,19 +190,38 @@ async function attachOEmbedMedia(
       };
     }
 
-    // Return the formed TwitterMedia.
-    return {
-      type: "twitter",
-      url,
-      width,
-    };
+    if (type === "twitter") {
+      // Return the formed TwitterMedia.
+      return {
+        type: "twitter",
+        url,
+        width,
+      };
+    }
+
+    if (type === "bluesky") {
+      return {
+        type: "bluesky",
+        url,
+        width,
+      };
+    }
+
+    return undefined;
   } catch (err) {
     throw new WrappedInternalError(err as Error, "cannot attach oEmbed Media");
   }
 }
 
 export interface CreateCommentMediaInput {
-  type: "giphy" | "tenor" | "twitter" | "youtube" | "external";
+  type:
+    | "giphy"
+    | "tenor"
+    | "klipy"
+    | "twitter"
+    | "bluesky"
+    | "youtube"
+    | "external";
   url: string;
   id?: string;
   width?: string;
@@ -188,10 +254,18 @@ export async function attachMedia(
       }
 
       return attachTenorMedia(tenant, input.id, input.url);
+    case "klipy":
+      if (!input.id) {
+        throw new Error(
+          "id is required when attaching a KlipyMedia object to a comment"
+        );
+      }
+      return attachKlipyMedia(tenant, input.id, input.url);
     case "external":
       return attachExternalMedia(input.url, input.width, input.height);
     case "twitter":
     case "youtube":
+    case "bluesky":
       return attachOEmbedMedia(input.type, input.url, body);
     default:
       throw new Error("invalid media type");

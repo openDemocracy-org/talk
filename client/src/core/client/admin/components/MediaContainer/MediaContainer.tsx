@@ -2,12 +2,12 @@ import React, { FunctionComponent } from "react";
 import { graphql } from "react-relay";
 
 import { withFragmentContainer } from "coral-framework/lib/relay";
+import BlueskyMedia from "coral-stream/common/Media/BlueskyMedia";
 
 import { MediaContainer_comment } from "coral-admin/__generated__/MediaContainer_comment.graphql";
 
 import ExternalMedia from "./ExternalMedia";
-import GiphyMedia from "./GiphyMedia";
-import TenorMedia from "./TenorMedia";
+import GifMedia from "./GifMedia";
 import TwitterMedia from "./TwitterMedia";
 import YouTubeMedia from "./YouTubeMedia";
 
@@ -24,12 +24,13 @@ const MediaContainer: FunctionComponent<Props> = ({ comment }) => {
   switch (media.__typename) {
     case "GiphyMedia":
       return (
-        <GiphyMedia
+        <GifMedia
           still={media.still}
           video={media.video}
           title={media.title}
           width={media.width}
           height={media.height}
+          url={media.url}
         />
       );
     case "ExternalMedia":
@@ -48,6 +49,14 @@ const MediaContainer: FunctionComponent<Props> = ({ comment }) => {
           siteID={comment.site.id}
         />
       );
+    case "BlueskyMedia":
+      return (
+        <BlueskyMedia
+          id={comment.id}
+          url={media.url}
+          siteID={comment.site.id}
+        />
+      );
     case "YouTubeMedia":
       return (
         <YouTubeMedia
@@ -59,7 +68,27 @@ const MediaContainer: FunctionComponent<Props> = ({ comment }) => {
         />
       );
     case "TenorMedia":
-      return <TenorMedia url={media.url} title={media.title} />;
+      return (
+        <GifMedia
+          still={media.tenorStill}
+          video={media.tenorVideo}
+          title={media.title}
+          width={media.width}
+          height={media.height}
+          url={media.url}
+        />
+      );
+    case "KlipyMedia":
+      return (
+        <GifMedia
+          still={media.klipyStill}
+          video={media.klipyVideo}
+          title={media.title}
+          width={media.width}
+          height={media.height}
+          url={media.url}
+        />
+      );
     case "%other":
       return null;
   }
@@ -86,8 +115,23 @@ const enhanced = withFragmentContainer<Props>({
           ... on TenorMedia {
             url
             title
+            width
+            height
+            tenorStill: still
+            tenorVideo: video
+          }
+          ... on KlipyMedia {
+            url
+            title
+            width
+            height
+            klipyStill: still
+            klipyVideo: video
           }
           ... on TwitterMedia {
+            url
+          }
+          ... on BlueskyMedia {
             url
           }
           ... on YouTubeMedia {

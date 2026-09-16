@@ -185,6 +185,7 @@ export const createTenantFixture = (
     },
     amp: false,
     flattenReplies: false,
+    collapseReplies: false,
     disableDefaultFonts: false,
     emailDomainModeration: [],
     dsa: {
@@ -198,6 +199,9 @@ export const createTenantFixture = (
       oEmbedAllowedOrigins: [],
     },
     protectedEmailDomains: Array.from(PROTECTED_EMAIL_DOMAINS),
+    disposableEmailDomains: {
+      enabled: false,
+    },
     inPageNotifications: {
       enabled: true,
       floatingBellIndicator: true,

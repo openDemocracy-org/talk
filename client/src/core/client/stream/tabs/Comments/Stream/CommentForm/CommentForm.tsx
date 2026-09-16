@@ -56,7 +56,7 @@ export interface PasteEvent {
 }
 
 interface MediaProps {
-  type: "giphy" | "tenor" | "twitter" | "youtube" | "external";
+  type: "giphy" | "tenor" | "klipy" | "twitter" | "youtube" | "external";
   url: string;
   id: string | null;
   width?: string;
@@ -71,6 +71,9 @@ interface MediaConfig {
     provider?: GIF_MEDIA_SOURCE | null;
   };
   twitter: {
+    enabled: boolean;
+  };
+  bluesky: {
     enabled: boolean;
   };
   youtube: {
@@ -199,7 +202,9 @@ const CommentForm: FunctionComponent<Props> = ({
         // if there is a pending or selected twitter or youtube url
         if (
           existingLink &&
-          (existingLink.type === "twitter" || existingLink.type === "youtube")
+          (existingLink.type === "twitter" ||
+            existingLink.type === "youtube" ||
+            existingLink.type === "bluesky")
         ) {
           const links = findMediaLinks(html);
           // ensure the text still contains the link
@@ -241,7 +246,8 @@ const CommentForm: FunctionComponent<Props> = ({
         link &&
         mediaConfig &&
         ((link.type === "twitter" && mediaConfig.twitter.enabled) ||
-          (link.type === "youtube" && mediaConfig.youtube.enabled))
+          (link.type === "youtube" && mediaConfig.youtube.enabled) ||
+          (link.type === "bluesky" && mediaConfig.bluesky.enabled))
       ) {
         setPastedMedia({ ...link });
       }

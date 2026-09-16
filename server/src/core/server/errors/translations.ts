@@ -1,6 +1,7 @@
 import { ERROR_CODES } from "coral-common/common/lib/errors";
 
 export const ERROR_TRANSLATIONS: Record<ERROR_CODES, string> = {
+  USERNAME_NOT_PROVIDED: "error-usernameNotProvided",
   COMMENT_BODY_EXCEEDS_MAX_LENGTH: "error-commentBodyExceedsMaxLength",
   COMMENT_BODY_TOO_SHORT: "error-commentBodyTooShort",
   COMMENT_NOT_FOUND: "error-commentNotFound",
@@ -86,4 +87,5 @@ export const ERROR_TRANSLATIONS: Record<ERROR_CODES, string> = {
   DSA_REPORT_ADDITIONAL_INFO_TOO_LONG: "error-dsaReportAdditionalInfoTooLong",
   UNABLE_TO_PRIME_CACHED_COMMENTS_FOR_STORY:
     "error-unableToPrimeCachedCommentsForStory",
+  SITE_NOT_FOUND: "error-siteNotFound",
 };

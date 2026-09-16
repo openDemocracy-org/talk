@@ -29,6 +29,8 @@ import { AugmentedRedis } from "coral-server/services/redis";
 import { TenantCache } from "coral-server/services/tenant/cache";
 import { Request } from "coral-server/types/express";
 
+import { ExternalNotificationsQueue } from "coral-server/queue/tasks/externalNotifications";
+import { ExternalNotificationsService } from "coral-server/services/notifications/externalService";
 import loaders from "./loaders";
 import mutators from "./mutators";
 import SeenCommentsCollection from "./seenCommentsCollection";
@@ -55,6 +57,8 @@ export interface GraphContextOptions {
   notifierQueue: NotifierQueue;
   loadCacheQueue: LoadCacheQueue;
   unarchiverQueue: UnarchiverQueue;
+  externalNotificationsQueue: ExternalNotificationsQueue;
+
   mongo: MongoContext;
   pubsub: RedisPubSub;
   redis: AugmentedRedis;
@@ -83,6 +87,7 @@ export default class GraphContext {
   public readonly notifierQueue: NotifierQueue;
   public readonly loadCacheQueue: LoadCacheQueue;
   public readonly unarchiverQueue: UnarchiverQueue;
+  public readonly externalNotificationsQueue: ExternalNotificationsQueue;
   public readonly mongo: MongoContext;
   public readonly mutators: ReturnType<typeof mutators>;
   public readonly now: Date;
@@ -105,6 +110,7 @@ export default class GraphContext {
   public readonly wordList: WordListService;
 
   public readonly notifications: InternalNotificationContext;
+  public readonly externalNotifications: ExternalNotificationsService;
 
   constructor(options: GraphContextOptions) {
     this.id = options.id || uuid();
@@ -135,6 +141,7 @@ export default class GraphContext {
     this.webhookQueue = options.webhookQueue;
     this.loadCacheQueue = options.loadCacheQueue;
     this.unarchiverQueue = options.unarchiverQueue;
+    this.externalNotificationsQueue = options.externalNotificationsQueue;
     this.signingConfig = options.signingConfig;
     this.clientID = options.clientID;
     this.reporter = options.reporter;
@@ -155,11 +162,17 @@ export default class GraphContext {
       this.config.get("redis_cache_expiry") / 1000
     );
 
+    this.externalNotifications = new ExternalNotificationsService(
+      this.config,
+      this.logger
+    );
+
     this.notifications = new InternalNotificationContext(
       this.mongo,
       this.redis,
-      this.i18n,
-      this.logger
+      this.logger,
+      !!this.config.get("internal_notifications") ||
+        !this.externalNotifications.active()
     );
   }
 }

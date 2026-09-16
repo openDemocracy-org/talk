@@ -210,7 +210,7 @@ async function processPhase(
       url: story.url,
     },
     site: {
-      id: story.siteID,
+      id: story.siteID!,
     },
     tenantID: tenant.id,
     tenantDomain: tenant.domain,
@@ -328,7 +328,7 @@ export const external: IntermediateModerationPhase = async (ctx) => {
 
       let missingReason: boolean | undefined;
       if (
-        ctx.tenant.dsa.enabled &&
+        ctx.tenant.dsa?.enabled &&
         response.moderationAction &&
         (!response.moderationAction.rejectionReason ||
           !response.moderationAction.rejectionReason.code)

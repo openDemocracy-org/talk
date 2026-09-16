@@ -49,8 +49,12 @@ import { retrieveAllTenants, retrieveTenant, Tenant } from "./models/tenant";
 import { WordListCategory } from "./services/comments/pipeline/phases/wordList/message";
 import { WordListService } from "./services/comments/pipeline/phases/wordList/service";
 import { ErrorReporter, SentryErrorReporter } from "./services/errors";
+import { ExternalNotificationsService } from "./services/notifications/externalService";
 import { InternalNotificationContext } from "./services/notifications/internal/context";
-import { isInstalled } from "./services/tenant";
+import {
+  isInstalled,
+  readDisposableEmailDomainsAndAddToRedis,
+} from "./services/tenant";
 
 export interface ServerOptions {
   /**
@@ -256,6 +260,11 @@ class Server {
     // Prime the tenant cache so it'll be ready to serve now.
     await this.tenantCache.primeAll();
 
+    const externalNotifications = new ExternalNotificationsService(
+      this.config,
+      logger
+    );
+
     // Create the Job Queue.
     this.tasks = createQueue({
       config: this.config,
@@ -264,11 +273,13 @@ class Server {
       tenantCache: this.tenantCache,
       i18n: this.i18n,
       signingConfig: this.signingConfig,
+      externalNotifications,
       notifications: new InternalNotificationContext(
         this.mongo,
         this.redis,
-        this.i18n,
-        logger
+        logger,
+        !!this.config.get("internal_notifications") ||
+          !externalNotifications.active()
       ),
     });
 
@@ -371,6 +382,9 @@ class Server {
     // Prime the queries in the database.
     await this.persistedQueryCache.prime();
 
+    // Get updated disposable email domains and add to Redis
+    await readDisposableEmailDomainsAndAddToRedis(this.redis, logger);
+
     // Launch all of the job processors.
     if (!this.config.get("disable_job_processors")) {
       logger.info("job processing is enabled, starting job processors");
@@ -383,6 +397,7 @@ class Server {
       this.tasks.archiver.process();
       this.tasks.loadCache.process();
       this.tasks.unarchiver.process();
+      this.tasks.externalNotifications.process();
 
       // Start up the cron job processors.
       this.scheduledTasks = startScheduledTasks({
@@ -446,6 +461,7 @@ class Server {
       webhookQueue: this.tasks.webhook,
       loadCacheQueue: this.tasks.loadCache,
       unarchiverQueue: this.tasks.unarchiver,
+      externalNotificationsQueue: this.tasks.externalNotifications,
       wordList: this.wordList,
     };
 

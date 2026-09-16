@@ -34,7 +34,9 @@ import {
   GQLREJECTION_REASON_CODE,
 } from "coral-server/graph/schema/__generated__/types";
 
+import { ExternalNotificationsQueue } from "coral-server/queue/tasks/externalNotifications";
 import { I18n } from "../i18n";
+import { ExternalNotificationsService } from "../notifications/externalService";
 import { InternalNotificationContext } from "../notifications/internal/context";
 import { AugmentedRedis } from "../redis";
 
@@ -196,6 +198,8 @@ export async function makeDSAReportDecision(
   i18n: I18n,
   broker: CoralEventPublisherBroker,
   notifications: InternalNotificationContext,
+  externalNotifications: ExternalNotificationsService,
+  externalNotificationsQueue: ExternalNotificationsQueue,
   tenant: Tenant,
   comment: Readonly<Comment> | null,
   input: MakeDSAReportDecisionInput,
@@ -233,6 +237,8 @@ export async function makeDSAReportDecision(
       i18n,
       broker,
       notifications,
+      externalNotifications,
+      externalNotificationsQueue,
       tenant,
       commentID,
       commentRevisionID,

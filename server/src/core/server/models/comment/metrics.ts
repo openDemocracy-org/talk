@@ -58,8 +58,10 @@ export async function retrieveTodayCommentMetrics(
   timezone: string,
   now: Date
 ) {
-  const start = DateTime.fromJSDate(now).setZone(timezone).startOf("day");
-  const end = DateTime.fromJSDate(now);
+  const start = new Date(
+    DateTime.fromJSDate(now).setZone(timezone).startOf("day").toISO()
+  );
+  const end = new Date(DateTime.fromJSDate(now).toISO());
 
   const allCommentsInRange = mongo.comments().find({
     tenantID,
@@ -116,10 +118,12 @@ export async function retrieveTodayCommentMetrics(
       continue;
     }
 
+    const mod = moderator;
+
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     const isSiteMod = isSiteModerator(moderator);
-    if (isSiteMod && !moderator.moderationScopes.siteIDs?.includes(siteID)) {
-      const count = moderatorComments.get(moderator.id)?.size ?? 0;
+    if (isSiteMod && !mod.moderationScopes?.siteIDs?.includes(siteID)) {
+      const count = moderatorComments.get(mod.id)?.size ?? 0;
       siteModsNotResponsibleForSiteCommentCount += count;
     }
   }
@@ -180,10 +184,12 @@ export async function retrieveAllTimeStaffCommentMetrics(
       continue;
     }
 
+    const mod = moderator;
+
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     const isSiteMod = isSiteModerator(moderator);
-    if (isSiteMod && !moderator.moderationScopes.siteIDs?.includes(siteID)) {
-      const count = moderatorComments.get(moderator.id)?.size ?? 0;
+    if (isSiteMod && mod.moderationScopes?.siteIDs?.includes(siteID)) {
+      const count = moderatorComments.get(mod.id)?.size ?? 0;
       siteModsNotResponsibleForSiteCommentCount += count;
     }
   }
@@ -217,15 +223,13 @@ export async function retrieveAverageCommentsMetric(
 export async function retrieveTopStoryMetrics(
   mongo: MongoContext,
   tenantID: string,
-  siteID: string,
+  siteID: string | undefined | null,
   limit: number,
   start: Date,
   now: Date
 ) {
-  const results = await mongo
-    .comments()
-    .aggregate<Result>([
-      {
+  const filter = siteID
+    ? {
         $match: {
           tenantID,
           siteID,
@@ -234,7 +238,21 @@ export async function retrieveTopStoryMetrics(
             $in: PUBLISHED_STATUSES,
           },
         },
-      },
+      }
+    : {
+        $match: {
+          tenantID,
+          createdAt: { $gte: start, $lte: now },
+          status: {
+            $in: PUBLISHED_STATUSES,
+          },
+        },
+      };
+
+  const results = await mongo
+    .comments()
+    .aggregate<Result>([
+      filter,
       {
         $group: {
           _id: "$storyID",

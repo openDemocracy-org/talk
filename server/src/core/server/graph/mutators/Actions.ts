@@ -24,6 +24,8 @@ export const Actions = (ctx: GraphContext) => ({
       ctx.i18n,
       ctx.broker,
       ctx.notifications,
+      ctx.externalNotifications,
+      ctx.externalNotificationsQueue,
       ctx.tenant,
       input.commentID,
       input.commentRevisionID,
@@ -54,6 +56,8 @@ export const Actions = (ctx: GraphContext) => ({
       ctx.i18n,
       ctx.broker,
       ctx.notifications,
+      ctx.externalNotifications,
+      ctx.externalNotificationsQueue,
       ctx.tenant,
       input.commentID,
       input.commentRevisionID,
@@ -63,7 +67,7 @@ export const Actions = (ctx: GraphContext) => ({
       undefined,
       ctx.req,
       true,
-      story.isArchived || story.isArchiving
+      !!(story.isArchived || story.isArchiving)
     );
   },
   reviewCommentFlag: async (input: GQLReviewCommentFlagInput) => {

@@ -1,4 +1,3 @@
-import { Localized } from "@fluent/react/compat";
 import React, {
   ChangeEventHandler,
   FunctionComponent,
@@ -14,9 +13,10 @@ import useResizeObserver from "use-resize-observer";
 import { useDebounce } from "coral-framework/hooks";
 import { useCoralContext } from "coral-framework/lib/bootstrap";
 import useFetchWithAuth from "coral-stream/common/useFetchWithAuth";
-import { ButtonSvgIcon, SearchIcon } from "coral-ui/components/icons";
-import { Button, HorizontalGutter, TextField } from "coral-ui/components/v2";
+import { HorizontalGutter } from "coral-ui/components/v2";
 
+import { GifGrid, GifResult } from "../GifGrid";
+import { GifSearchInput } from "../GifSearchInput/GifSearchInput";
 import TenorAttribution from "./TenorAttribution";
 
 import styles from "./TenorInput.css";
@@ -26,13 +26,6 @@ const DEBOUNCE_DELAY_MS = 1250;
 interface Props {
   onSelect: (gif: GifResult) => void;
   forwardRef?: Ref<HTMLInputElement>;
-}
-
-export interface GifResult {
-  id: string;
-  url: string;
-  preview: string;
-  title?: string;
 }
 
 export interface SearchPayload {
@@ -156,59 +149,21 @@ const TenorInput: FunctionComponent<Props> = ({ onSelect }) => {
   return (
     <div className={styles.root} ref={ref}>
       <HorizontalGutter>
-        <TextField
-          value={query}
+        <GifSearchInput
+          debouncedQuery={query}
           onChange={onChange}
+          onClickSearch={onClickSearch}
           onKeyPress={onKeyPress}
-          fullWidth
-          variant="seamlessAdornment"
-          color="streamBlue"
-          id="coral-comments-postComment-gifSearch"
-          adornment={
-            <Localized
-              id="comments-postComment-gifSearch-search"
-              attrs={{ "aria-label": true }}
-            >
-              <Button
-                color="stream"
-                className={styles.searchButton}
-                aria-label="Search"
-                onClick={onClickSearch}
-              >
-                <ButtonSvgIcon Icon={SearchIcon} />
-              </Button>
-            </Localized>
-          }
-          ref={inputRef}
+          inputRef={inputRef}
         />
-        <div className={styles.grid}>
-          {query &&
-            gifs &&
-            gifs.map((gif, index) => {
-              return (
-                <button
-                  className={styles.gridItem}
-                  key={`${gif.id}-${index}`}
-                  onClick={() => onGifClick(gif)}
-                >
-                  <img
-                    className={styles.gridImage}
-                    alt={gif.title}
-                    src={gif.preview}
-                  ></img>
-                </button>
-              );
-            })}
-          {next && gifs && gifs.length > 0 && query?.length > 0 && (
-            <div className={styles.gridControls}>
-              <Localized id="comments-postComment-gifSearch-search-loadMore">
-                <Button color="stream" onClick={onLoadMore}>
-                  Load More
-                </Button>
-              </Localized>
-            </div>
-          )}
-        </div>
+        <GifGrid
+          gifs={query ? gifs : []}
+          showLoadMore={
+            !!(next && gifs && gifs.length > 0 && query?.length > 0)
+          }
+          onSelectGif={onGifClick}
+          onLoadMore={onLoadMore}
+        />
         <TenorAttribution />
       </HorizontalGutter>
     </div>

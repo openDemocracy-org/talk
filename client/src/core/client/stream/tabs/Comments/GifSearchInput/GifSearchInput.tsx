@@ -16,6 +16,8 @@ interface GifSearchInputProps {
   onChange: React.ChangeEventHandler<HTMLInputElement>;
   onKeyPress: (e: KeyboardEvent<HTMLInputElement>) => void;
   inputRef: React.RefObject<HTMLInputElement>;
+  onClickSearch?: () => Promise<void>;
+  placeholder?: string;
 }
 
 export const GifSearchInput: FunctionComponent<GifSearchInputProps> = ({
@@ -23,6 +25,8 @@ export const GifSearchInput: FunctionComponent<GifSearchInputProps> = ({
   onChange,
   onKeyPress,
   inputRef,
+  onClickSearch,
+  placeholder,
 }) => {
   return (
     <HorizontalGutter>
@@ -36,6 +40,7 @@ export const GifSearchInput: FunctionComponent<GifSearchInputProps> = ({
         value={debouncedQuery}
         onChange={onChange}
         onKeyPress={onKeyPress}
+        placeholder={placeholder}
         fullWidth
         variant="seamlessAdornment"
         color="streamBlue"
@@ -49,6 +54,7 @@ export const GifSearchInput: FunctionComponent<GifSearchInputProps> = ({
               color="stream"
               className={styles.searchButton}
               aria-label="Search"
+              onClick={onClickSearch}
             >
               <ButtonSvgIcon Icon={SearchIcon} />
             </Button>

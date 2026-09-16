@@ -19,6 +19,7 @@ import {
   BadgeConfiguration,
   defaultRTEConfiguration,
   generateSigningSecret,
+  NewUserModeration,
   Settings,
   SigningSecretResource,
 } from "coral-server/models/settings";
@@ -30,6 +31,7 @@ import {
   GQLDSA_METHOD_OF_REDRESS,
   GQLFEATURE_FLAG,
   GQLMODERATION_MODE,
+  GQLNEW_USER_MODERATION,
   GQLReactionConfiguration,
   GQLSettings,
   GQLWEBHOOK_EVENT_NAME,
@@ -122,7 +124,7 @@ export interface TenantSettings
      * endpoints is all the configured endpoints that should receive events.
      */
     endpoints: Endpoint[];
-  };
+  } | null;
 }
 
 /**
@@ -287,6 +289,7 @@ export const combineTenantDefaultsAndInput = (
     rte: defaultRTEConfiguration,
     amp: false,
     flattenReplies: false,
+    collapseReplies: false,
     disableDefaultFonts: false,
     emailDomainModeration: [],
     embeddedComments: {
@@ -425,14 +428,14 @@ export async function updateTenant(
     {
       // False to return the updated document instead of the original
       // document.
-      returnOriginal: false,
+      returnDocument: "after",
     }
   );
-  if (!result.value) {
+  if (!result) {
     throw new Error("tenant not found with id");
   }
 
-  return result.value;
+  return result;
 }
 
 export async function enableTenantFeatureFlag(
@@ -452,14 +455,14 @@ export async function enableTenantFeatureFlag(
     {
       // False to return the updated document instead of the original
       // document.
-      returnOriginal: false,
+      returnDocument: "after",
     }
   );
-  if (!result.value) {
+  if (!result) {
     throw new Error("tenant not found with id");
   }
 
-  return result.value;
+  return result;
 }
 
 export async function disableTenantFeatureFlag(
@@ -479,14 +482,14 @@ export async function disableTenantFeatureFlag(
     {
       // False to return the updated document instead of the original
       // document.
-      returnOriginal: false,
+      returnDocument: "after",
     }
   );
-  if (!result.value) {
+  if (!result) {
     throw new Error("tenant not found with id");
   }
 
-  return result.value;
+  return result;
 }
 
 export interface CreateAnnouncementInput {
@@ -500,10 +503,11 @@ export async function createTenantAnnouncement(
   input: CreateAnnouncementInput,
   now = new Date()
 ) {
-  const announcement = {
+  const announcement: GQLAnnouncement = {
     id: uuid(),
     ...input,
     createdAt: now,
+    disableAt: new Date(now.getTime() + input.duration),
   };
 
   const result = await mongo.tenants().findOneAndUpdate(
@@ -514,10 +518,10 @@ export async function createTenantAnnouncement(
       },
     },
     {
-      returnOriginal: false,
+      returnDocument: "after",
     }
   );
-  return result.value;
+  return result;
 }
 
 export interface CreateFlairBadgeInput {
@@ -545,10 +549,10 @@ export async function createTenantFlairBadge(
       $push: { "flairBadges.badges": { name: input.name, url: input.url } },
     },
     {
-      returnOriginal: false,
+      returnDocument: "after",
     }
   );
-  return result.value;
+  return result;
 }
 
 export interface DeleteFlairBadgeInput {
@@ -568,16 +572,23 @@ export async function deleteTenantFlairBadge(
       },
     },
     {
-      returnOriginal: false,
+      returnDocument: "after",
     }
   );
-  return result.value;
+  return result;
 }
 
 export interface CreateEmailDomainInput {
   domain: string;
-  newUserModeration: "BAN" | "PREMOD";
+  newUserModeration: GQLNEW_USER_MODERATION;
 }
+
+const convertUserModerationEnum = (
+  value: GQLNEW_USER_MODERATION
+): NewUserModeration => {
+  // these enums are equivalent, just do it
+  return value as unknown as NewUserModeration;
+};
 
 export async function createTenantEmailDomain(
   mongo: MongoContext,
@@ -598,7 +609,7 @@ export async function createTenantEmailDomain(
   const emailDomain = {
     id: uuid(),
     domain: input.domain,
-    newUserModeration: input.newUserModeration,
+    newUserModeration: convertUserModerationEnum(input.newUserModeration),
   };
 
   const result = await mongo.tenants().findOneAndUpdate(
@@ -607,10 +618,10 @@ export async function createTenantEmailDomain(
       $push: { emailDomainModeration: emailDomain },
     },
     {
-      returnOriginal: false,
+      returnDocument: "after",
     }
   );
-  return result.value;
+  return result;
 }
 
 export interface UpdateEmailDomainInput {
@@ -650,10 +661,10 @@ export async function updateTenantEmailDomain(
       },
     },
     {
-      returnOriginal: false,
+      returnDocument: "after",
     }
   );
-  return result.value;
+  return result;
 }
 
 export interface DeleteEmailDomainInput {
@@ -673,10 +684,10 @@ export async function deleteTenantEmailDomain(
       },
     },
     {
-      returnOriginal: false,
+      returnDocument: "after",
     }
   );
-  return result.value;
+  return result;
 }
 
 export async function deleteTenantAnnouncement(
@@ -691,10 +702,10 @@ export async function deleteTenantAnnouncement(
       },
     },
     {
-      returnOriginal: false,
+      returnDocument: "after",
     }
   );
-  return result.value;
+  return result;
 }
 
 export function retrieveAnnouncementIfEnabled(
