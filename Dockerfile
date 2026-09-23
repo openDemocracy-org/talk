@@ -2,6 +2,10 @@ FROM node:18-alpine
 
 ENV NODE_OPTIONS="--max-old-space-size=8192 --openssl-legacy-provider --no-experimental-fetch"
 
+# redis-memory-server is a test-only dependency whose postinstall compiles the
+# latest Redis from source, which needs bash and breaks on alpine. Skip it.
+ENV REDISMS_DISABLE_POSTINSTALL=1
+
 # Install build dependancies.
 RUN apk --no-cache --update add g++ make git python3 py3-pip py3-setuptools linux-headers \
   && rm -rf /var/cache/apk/*
