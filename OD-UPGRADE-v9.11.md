@@ -1,6 +1,7 @@
 # Coral Talk upgrade to v9.11.8 — runbook
 
-Status as of 2026-09-23. Tracks PR #14 (`upgrade/coral-v9.11-merge-2024` → `main`).
+**Status: DONE 2026-09-29.** Production runs `opendemocracy/coral-talk:v9.11.8-6f5eba7`; PR #14 merged
+(`621216cd5`). See "Deploy results" below. The setup section describes the system as found before the upgrade.
 
 ## Production setup (as found)
 
@@ -64,7 +65,8 @@ Also run the worker's contract test whenever Coral changes version:
 |---|---|---|
 | Code | git tag `pre-v9.11-upgrade-backup` (148ddc57b) | `git checkout pre-v9.11-upgrade-backup` |
 | Image | `opendemocracy/coral-talk:pre-v9.11` (same digest as `:production`, verified on Docker Hub) | CapRover → `comment-talk` → Deployment → Deploy via ImageName |
-| Data | `~/Backups/coral-talk/talk-pre-v9.11-2026-09-23.archive.gz` (6.1 MB, gzip-verified; contains `coral` and `gfw-service` DBs) | see below |
+| Data | `~/Backups/coral-talk/talk-pre-deploy-2026-09-29.archive.gz` (6.1 MB, taken just before the production deploy; gzip-verified) | see below |
+| Data (older) | `~/Backups/coral-talk/talk-pre-v9.11-2026-09-23.archive.gz` (6.1 MB, gzip-verified; contains `coral` and `gfw-service` DBs) | see below |
 
 Restoring the data (only needed if data is damaged — v9.11 runs no schema migrations on this DB):
 
@@ -89,7 +91,7 @@ Tested against `mongo:4.2.24` + `redis:6` with the production dump restored:
 - v9 removed the `/embed/stream` iframe page. The site uses `embed.js` +
   `Coral.createStreamEmbed({...})`, which still works.
 
-Not yet tested: login and posting in a real browser (do this on staging).
+Login, posting and moderation were then tested in a browser on staging and production (2026-09-29).
 
 Pre-upgrade counts, for comparison after deploy: comments 4057, users 2479, stories 14939,
 commentActions 1647, commentModerationActions 3145.
@@ -103,16 +105,22 @@ commentActions 1647, commentModerationActions 3145.
 
 The build takes ~25 min natively and needs several GB of RAM, so it **cannot be built on the droplet** (no swap, ~2 GB free).
 
-## Remaining steps
+## Deploy results (2026-09-29)
 
-1. ~~Check droplet memory headroom~~ Done: ~2.1 GB available; v9.11 idles at ~196 MB, the same as the current app.
-2. **← NEXT.** Build an **amd64** image and push as `opendemocracy/coral-talk:v9.11.8`.
-   Use a GitHub Actions workflow (native amd64; needs Docker Hub credentials as repo secrets).
-   An emulated amd64 build on an Apple Silicon Mac hung for 3 hours at `apk add` on 2026-09-23,
-   so don't rely on that.
-3. Deploy to `staging-talk-talk`, test login / comment / moderation in a browser.
-4. Take a fresh Mongo dump, then deploy to `comment-talk`. Run the post-upgrade checks (automated and manual) after each deploy.
-5. Merge PR #14.
+Image `opendemocracy/coral-talk:v9.11.8-6f5eba7` (amd64), built by `.github/workflows/od-build-image.yml`
+on the upgrade branch, deployed via CapRover → Deploy via ImageName.
+
+1. **Staging** (`staging-talk-talk`): `/api/version` 8.0.2 → 9.11.8, ~10 s of CapRover 502 during the swap.
+   Automated checks passed; browser test on https://staging-fake-site.comment.opendemocracy.net/ passed.
+2. **Fresh dump** of `comment-mongo`: `~/Backups/coral-talk/talk-pre-deploy-2026-09-29.archive.gz`.
+3. **Production** (`comment-talk`): `/api/version` 8.0.4 → 9.11.8. Automated and manual checks
+   (including the Slack pipeline) passed. Counts unchanged: comments 4057, users 2479, stories 14955,
+   commentActions 1647, commentModerationActions 3145. Memory: `comment-talk` 266 MB, 1.9 GB available.
+4. **PR #14 merged** (merge commit `621216cd5`). The push to `main` triggered `docker-image.yml`, which
+   fails at "Set up job" (`stardustventures/caprover-deploy` no longer exists), so nothing auto-deploys.
+
+Known log noise on v9.11, harmless: `failed to set logging project id`, `MaxListenersExceededWarning`
+on Redis, `DEP0152`.
 
 ## Follow-ups (separate from this upgrade)
 
@@ -123,6 +131,11 @@ The build takes ~25 min natively and needs several GB of RAM, so it **cannot be 
   hiding 1,783 comments. Fix by merging stories or changing the embed's `storyURL`/`storyID`.
 - **Slack widget `/api/featured-movements` returns 404** on the deployed worker (2026-09-23).
   The Media for Movements box looks undeployed; see the worker's `HANDOFF-movements-comments-box.md`.
+- **Slack widget contract test is stranded on a feature branch.** Commit `8105a96` in the worker repo
+  (`od-tools/cloudflare-workers/coral-comment-from-slack-widget`: `test/parse-comment.test.ts` +
+  `package.json` test script) exists only on `feature/movements-comments-box`. It guards the worker's
+  parsing of Coral's Slack messages, unrelated to the movements box. Cherry-pick it onto the worker's
+  main (shelved 2026-09-29).
 - **MongoDB 4.2 is EOL (April 2023).** Coral now targets MongoDB 8. Upgrade path is stepwise:
   4.2 → 4.4 → 5.0 → 6.0 → 7.0 → 8.0, bumping `featureCompatibilityVersion` at each step.
   Rehearse locally against the dump first.
@@ -130,6 +143,10 @@ The build takes ~25 min natively and needs several GB of RAM, so it **cannot be 
 - **No swap on the droplet.** A memory spike would get a process OOM-killed instead of slowed down.
   Add a 1–2 GB swap file:
   `fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile && echo '/swapfile none swap sw 0 0' >> /etc/fstab`
+- **`docker-image.yml` fails on every push to `main`** (dead `stardustventures/caprover-deploy` action).
+  Delete it, or make `od-build-image.yml` also run on `main`. `build-test-deploy.yml` is also stale.
+- **Old `comment-talk` container crashed twice around 2026-09-23** (`task: non-zero exit (1)`,
+  restarted by Swarm). If v9.11 crashes too, check `docker service ps srv-captain--comment-talk`.
 - **CapRover dashboard exposed on port 3000** over plain HTTP. Consider blocking it with a firewall.
 
 ## Server upgrade: OS, Docker, CapRover (planned week of 2026-09-28)
