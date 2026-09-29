@@ -124,11 +124,20 @@ on Redis, `DEP0152`.
 
 ## Follow-ups (separate from this upgrade)
 
-- **~1,800 comments hidden since the Ghost migration (April 2026).**
+- **TOP PRIORITY NEXT SESSION: comments hidden since the Ghost migration (April 2026).**
   The embed passes `storyURL` as `/en/<slug>/`, but older stories are stored as
-  `/en/<section>/<slug>/`. Coral creates a new empty story for each new URL
-  (8,197 stories created in April 2026). 784 of 836 older commented stories are shadowed,
-  hiding 1,783 comments. Fix by merging stories or changing the embed's `storyURL`/`storyID`.
+  `/en/<section>/<slug>/`. Coral creates a new empty story for each new URL, so the old story and its
+  comments are never shown. The comments are still in the DB.
+  - 2026-09-23 (broad count): 784 of 836 older commented stories shadowed, 1,783 comments.
+  - 2026-09-29 (approved comments only, old story whose `/en/<slug>/` twin already exists):
+    523 stories, 1,311 approved comments. Grows as older articles get visited.
+  - Largest: 5050/nhs-pulls-trans-conference-after-speakers-links-exposed (55),
+    oureconomy/conspiracy-theories-aside-there-something-fishy-about-great-reset (47),
+    opendemocracyuk/why-is-support-for-nuclear-power-noisiest-… (34),
+    north-africa-west-asia/the-us-is-tying-the-hands-of-a-un-agency-for-palestine-refugees (28),
+    ournhs/weve-won-our-lawsuit-over-matt-hancocks-23m-nhs-data-deal-with-palantir (24).
+  - Fix options: (a) one-off script merging each old story into its new twin (move comments,
+    recount), rehearsed on a dump locally first; (b) change the site embed to pass a stable `storyID`.
 - **Slack widget `/api/featured-movements` returns 404** on the deployed worker (2026-09-23).
   The Media for Movements box looks undeployed; see the worker's `HANDOFF-movements-comments-box.md`.
 - **Slack widget contract test is stranded on a feature branch.** Commit `8105a96` in the worker repo
