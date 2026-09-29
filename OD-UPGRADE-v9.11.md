@@ -139,7 +139,7 @@ on Redis, `DEP0152`.
 - **MongoDB 4.2 is EOL (April 2023).** Coral now targets MongoDB 8. Upgrade path is stepwise:
   4.2 → 4.4 → 5.0 → 6.0 → 7.0 → 8.0, bumping `featureCompatibilityVersion` at each step.
   Rehearse locally against the dump first.
-- **Server follow-ups from 2026-09-29:** SSH allows root password login (`PermitRootLogin yes`,
+- **Server follow-ups from 2026-09-29:** ~~SSH root password login~~ done 2026-09-29 (keys only; was `PermitRootLogin yes`,
   `PasswordAuthentication yes`) and bots are trying it — switch to keys only. `apt autoremove` the ~82
   18.04/20.04 leftovers. Decide later whether to unhold Docker for 29.x (check CapRover support first).
 - **No swap on the droplet.** A memory spike would get a process OOM-killed instead of slowed down.
