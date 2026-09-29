@@ -139,7 +139,9 @@ on Redis, `DEP0152`.
 - **MongoDB 4.2 is EOL (April 2023).** Coral now targets MongoDB 8. Upgrade path is stepwise:
   4.2 → 4.4 → 5.0 → 6.0 → 7.0 → 8.0, bumping `featureCompatibilityVersion` at each step.
   Rehearse locally against the dump first.
-- **OS / Docker / CapRover upgrade:** planned for the week of 2026-09-28. See the section below.
+- **Server follow-ups from 2026-09-29:** SSH allows root password login (`PermitRootLogin yes`,
+  `PasswordAuthentication yes`) and bots are trying it — switch to keys only. `apt autoremove` the ~82
+  18.04/20.04 leftovers. Decide later whether to unhold Docker for 29.x (check CapRover support first).
 - **No swap on the droplet.** A memory spike would get a process OOM-killed instead of slowed down.
   Add a 1–2 GB swap file:
   `fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile && echo '/swapfile none swap sw 0 0' >> /etc/fstab`
@@ -149,7 +151,7 @@ on Redis, `DEP0152`.
   restarted by Swarm). If v9.11 crashes too, check `docker service ps srv-captain--comment-talk`.
 - **CapRover dashboard exposed on port 3000** over plain HTTP. Consider blocking it with a firewall.
 
-## Server upgrade: OS, Docker, CapRover (planned week of 2026-09-28)
+## Server upgrade: OS, Docker, CapRover (done 2026-09-29)
 
 ### Current state (2026-09-23)
 
@@ -195,6 +197,38 @@ Do this **after** Coral v9.11 is live and stable, and **before** the MongoDB upg
 **Optional rehearsal:** create a droplet from the snapshot and run steps 2–5 on it first. It gets a
 new IP, which Docker swarm still associates with the old one, so its swarm may need resetting
 before CapRover starts. It's only a practice box, so that's acceptable.
+
+### Results (2026-09-29)
+
+Now running: **Ubuntu 22.04.5** (kernel 5.15), **Docker 28.5.2** + containerd.io 1.7.29, **CapRover 1.15.4**
+(it also moved itself to nginx 1.31 and certbot v2.11.0). All apps 1/1, Coral checks pass, SSL certs valid,
+data unchanged (4059 comments, 2479 users). Memory after restart: ~2.1 GB used, ~1.5 GB available.
+
+Backups taken first: `~/Backups/coral-talk/{prod,staging}-pre-server-2026-09-29-1723.archive.gz`,
+`captain-pre-server-2026-09-29-1723.tar.gz`, `captain-pre-caprover-2026-09-29-*.tar.gz`, and a DO snapshot
+(droplet powered off).
+
+What actually happened, and what to do differently next time:
+
+1. **First reboot in 1,272 days.** Some services exit once at boot (Mongo not ready yet) and Swarm
+   restarts them. Coral answers ~1 minute after boot.
+2. **Docker hold blocks `do-release-upgrade`** ("Please install all available updates"): held packages
+   with a newer candidate count as pending. Fix: comment out `/etc/apt/sources.list.d/docker.list`, `apt update`.
+3. **DigitalOcean's mirror no longer carries focal**, so the upgrader disabled every
+   `mirrors.digitalocean.com` entry ("no Release file") and failed on `ubuntu-minimal`. Fix: point
+   `sources.list` at `archive.ubuntu.com` (old copy in `/root/sources.list.pre-archive`).
+4. Prompts: LXD snap track → `4.0`; `/boot/grub/menu.lst` modified → keep local; remove 82 obsolete
+   packages → **No** (would likely remove Docker). Still to clean up with `apt autoremove`.
+5. **SSH connection resets after the 20.04 reboot for ~1 h** while sshd itself was fine (other IPs
+   reached it). Most likely throttling triggered by polling SSH every 5 s. Don't poll; wait, try once.
+   The DO **Recovery Console** (root password) worked as the way in.
+6. **22.04 uses cgroup v2; Docker 19.03 can't start any container on it** ("cgroup mountpoint does not
+   exist"). ~10 min comments outage until Docker was upgraded. Next time: upgrade Docker immediately
+   after the 22.04 reboot (or before, on 20.04).
+7. Docker installed from the jammy repo (`/etc/apt/keyrings/docker.asc`), pinned to **28.x** and held:
+   Docker 29 raises the minimum API version to 1.44, which older clients may not speak.
+8. CapRover: `docker service update --image caprover/caprover:1.15.4 captain-captain` (rollback: same
+   with `1.10.1`). Apps kept running.
 
 ## Local test environment
 
