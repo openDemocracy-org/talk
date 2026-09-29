@@ -1,0 +1,72 @@
+$commentTimestampColor: var(--palette-grey-500);
+
+.root {
+  flex: 1;
+  overflow: hidden;
+}
+
+.highlight {
+  background-color: var(--palette-primary-100);
+  padding: var(--mini-unit);
+}
+.subBar {
+  margin-bottom: calc(0.5 * var(--mini-unit));
+}
+.footer:not(:empty) {
+  margin-top: var(--mini-unit);
+}
+
+.featuredStarBorder {
+  border-radius: 50%;
+  border: 4px solid var(--palette-primary-200);
+  background-color: var(--palette-primary-200);
+  color: var(--palette-primary-600);
+  span {
+    display: flex;
+  }
+}
+
+.topCommenterTooltipHeader {
+  align-items: center;
+  text-transform: uppercase;
+}
+
+.topCommenterTooltipHeaderIcon {
+  margin-right: var(--spacing-1);
+}
+
+.timestamp {
+  font-family: var(--font-family-primary);
+  font-style: normal;
+  font-weight: var(--font-weight-primary-semi-bold);
+  font-size: var(--font-size-2);
+  color: $commentTimestampColor;
+
+  margin-right: var(--spacing-1);
+}
+
+.tags {
+  margin-right: var(--spacing-1);
+}
+
+.badges {
+  margin-right: var(--spacing-1);
+}
+
+.username {
+  margin-right: var(--spacing-2);
+}
+
+.usernameFullRow {
+  flex-basis: 100%;
+  max-width: 190px;
+  margin-right: 100%;
+}
+
+.innerTopBar {
+  min-height: 25px;
+}
+
+.plantIcon {
+  margin-left: -5px !important;
+}

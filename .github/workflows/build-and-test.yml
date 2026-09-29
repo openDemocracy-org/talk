@@ -3,106 +3,218 @@ name: Build and Test
 on:
   workflow_dispatch:
   push:
+  merge_group:
 
 env:
-  IMAGE_REPOSITORY: 'gcr.io/the-coral-project/coral'
+  IMAGE_REPOSITORY: "us-east1-docker.pkg.dev/the-coral-project/coral/talk"
+  IMAGE_CACHE_REPOSITORY: "coralproject/ci"
+  DOCKERHUB_USERNAME: "coralproject"
 
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
   build-and-test:
-    name: Build and Test
-    runs-on: ubuntu-22.04
+    name: Test
+    runs-on: coral-ci-arm
     steps:
-      -
-        name: Checkout
-        uses: actions/checkout@v2
-      -
-        uses: webfactory/ssh-agent@v0.7.0
+      - name: Checkout
+        uses: actions/checkout@v4
+      - uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.REPO_PATCHED_DEPLOY_KEY }}
-      -
-        name: Login to GCR
-        uses: docker/login-action@v2
+      - name: Setup Node18.x
+        uses: actions/setup-node@v4
         with:
-          registry: gcr.io
-          username: _json_key
-          password: ${{ secrets.GCR_JSON_KEY }}
-      -
-        name: Define SHORT_SHA with commit short sha
-        run: echo "SHORT_SHA=`echo ${GITHUB_SHA} | cut -c1-8`" >> $GITHUB_ENV
-      -
-        name: Setup Node14.x
-        uses: actions/setup-node@v3
-        with:
-          node-version: '14.x'
-      -
-        name: Install npm 8
-        run: npm i -g npm@8.0.0 --registry=https://registry.npmjs.org
-      -
-        name: npm Lockfile Version
-        uses: mansona/npm-lockfile-version@v1
-        with:
-          version: 2
-      -
-        name: Cache Dependencies
-        id: cache
-        uses: actions/cache@v3
-        with:
-          path: ./node_modules
-          key: modules-${{ hashFiles('package-lock.json') }}
-          restore-keys: npm-
-      -
-        name: npm ci
-        run: npm ci
-      -
-        name: Generate schemas and types
-        run: npm run generate
-      -
-        name: Lint Source Code
-        run: npm run lint
-      -
-        name: Lint Markdown
+          node-version: "18.16.x"
+      - name: Install pnpm 8
+        run: npm install -g pnpm@8.14.3 --registry=https://registry.npmjs.org
+      # -
+      #   name: npm Lockfile Version (client)
+      #   uses: mansona/npm-lockfile-version@v1
+      #   with:
+      #     entryPoint: ./client
+      #     version: 2
+      # -
+      #   name: npm Lockfile Version (common)
+      #   uses: mansona/npm-lockfile-version@v1
+      #   with:
+      #     entryPoint: ./common
+      #     version: 2
+      # -
+      #   name: npm Lockfile Version (server)
+      #   uses: mansona/npm-lockfile-version@v1
+      #   with:
+      #     entryPoint: ./server
+      #     version: 2
+      - name: pnpm ci
+        run: sh scripts/pnpm-ci.sh
+      - name: Generate schemas and types
+        run: sh scripts/generate.sh
+      - name: Lint Source Code
+        run: sh scripts/lint.sh
+      - name: Lint Versions
         run: |
-          npm run doctoc
-          git diff --exit-code
-      -
-        name: Lint Versions
-        run: npx @coralproject/package-version-lint
-      -
-        name: Run Server Unit Tests
-        run: npm run test:server -- --ci --runInBand --reporters=default --reporters=jest-junit
-      -
-        name: Run Client Stream Unit Tests
-        run: npm run test:client:stream -- --ci --runInBand --reporters=default --reporters=jest-junit
-      -
-        name: Run Client Admin Unit Tests
-        run: npm run test:client:admin -- --ci --runInBand --reporters=default --reporters=jest-junit
-      -
-        name: Run Client Other Unit Tests
-        run: npm run test:client:other -- --ci --runInBand --reporters=default --reporters=jest-junit
-      -
-        name: Build
-        run: npm run build
-      -
-        name: Verify Bundle Size
-        run: ./node_modules/.bin/bundlesize --enable-github-checks
-# Build tag push the image after a merge to develop
-      -
-        name: Build, Tag, Push
-        uses: docker/build-push-action@v3
+          cd client
+          npx @coralproject/package-version-lint
+      - name: Run Server Unit Tests
+        run: cd server && pnpm run test:server -- --ci --reporters=default --reporters=jest-junit
+      - name: Run Client Stream Unit Tests
+        run: cd client && npm run test:client:stream -- --ci --reporters=default --reporters=jest-junit
+      - name: Run Client Admin Unit Tests
+        run: cd client && npm run test:client:admin -- --ci --reporters=default --reporters=jest-junit
+      - name: Run Client Other Unit Tests
+        run: cd client && npm run test:client:other -- --ci --reporters=default --reporters=jest-junit
+      - name: Build
+        env:
+          NODE_OPTIONS: "--max-old-space-size=14336"
+        run: sh scripts/build.sh
+      - name: Verify Bundle Size
+        run: cd client && ./node_modules/.bin/bundlesize --enable-github-checks
+
+  build-amd64:
+    name: Build amd64
+    runs-on: coral-ci
+    if: github.ref == 'refs/heads/develop' || startsWith( github.ref, 'refs/heads/release-')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            image=moby/buildkit:buildx-stable-1
+      - uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.REPO_PATCHED_DEPLOY_KEY }}
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: the-coral-project
+          workload_identity_provider: projects/418768622481/locations/global/workloadIdentityPools/github-actions/providers/github
+          service_account: github-actions@the-coral-project.iam.gserviceaccount.com
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+      - name: Configure Docker GAR
+        run: |
+          gcloud auth configure-docker us-east1-docker.pkg.dev --quiet
+      - name: Define SHORT_SHA with commit short sha
+        run: echo "SHORT_SHA=`echo ${GITHUB_SHA} | cut -c1-8`" >> $GITHUB_ENV
+      # Build tag push the image after a merge to develop
+      - name: Build and Push (develop)
         if: github.ref == 'refs/heads/develop'
-        with:
-          push: true
-          tags: ${{ env.IMAGE_REPOSITORY }}:develop-latest
-          build-args: |
-              REVISION_HASH=${GITHUB_SHA}
-# Build tag push the release candidate image when the branch name begins with release-
-      -
-        name: Build, Tag, Push RC
-        uses: docker/build-push-action@v3
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            --build-arg REVISION_HASH=${GITHUB_SHA} \
+            --tag ${{ env.IMAGE_REPOSITORY }}:develop-latest-amd64 \
+            --push \
+            --provenance=false \
+            --sbom=false \
+            .
+      # Build tag push the release candidate image when the branch name begins with release-
+      - name: Build and Push (release)
         if: startsWith( github.ref, 'refs/heads/release-')
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            --build-arg REVISION_HASH=${GITHUB_SHA} \
+            --tag ${{ env.IMAGE_REPOSITORY }}:${{ github.ref_name }}-${{ env.SHORT_SHA }}-amd64 \
+            --push \
+            --provenance=false \
+            --sbom=false \
+            .
+  build-arm64:
+    name: Build arm64
+    runs-on: coral-ci-arm
+    if: github.ref == 'refs/heads/develop' || startsWith( github.ref, 'refs/heads/release-')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
         with:
-          push: true
-          tags: ${{ env.IMAGE_REPOSITORY }}:${{ github.ref_name }}-${{ env.SHORT_SHA }}
-          build-args: |
-              REVISION_HASH=${GITHUB_SHA}
+          driver-opts: |
+            image=moby/buildkit:buildx-stable-1
+      - uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.REPO_PATCHED_DEPLOY_KEY }}
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: the-coral-project
+          workload_identity_provider: projects/418768622481/locations/global/workloadIdentityPools/github-actions/providers/github
+          service_account: github-actions@the-coral-project.iam.gserviceaccount.com
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+      - name: Configure Docker GAR
+        run: |
+          gcloud auth configure-docker us-east1-docker.pkg.dev --quiet
+      - name: Define SHORT_SHA with commit short sha
+        run: echo "SHORT_SHA=`echo ${GITHUB_SHA} | cut -c1-8`" >> $GITHUB_ENV
+      # Build for develop branch using native docker buildx
+      - name: Build and Push (develop)
+        if: github.ref == 'refs/heads/develop'
+        run: |
+          docker buildx build \
+            --platform linux/arm64 \
+            --build-arg REVISION_HASH=${GITHUB_SHA} \
+            --tag ${{ env.IMAGE_REPOSITORY }}:develop-latest-arm64 \
+            --push \
+            --provenance=false \
+            --sbom=false \
+            .
+      # Build tag push the release candidate image when the branch name begins with release-
+      - name: Build and Push (release)
+        if: startsWith( github.ref, 'refs/heads/release-')
+        run: |
+          docker buildx build \
+            --platform linux/arm64 \
+            --build-arg REVISION_HASH=${GITHUB_SHA} \
+            --tag ${{ env.IMAGE_REPOSITORY }}:${{ github.ref_name }}-${{ env.SHORT_SHA }}-arm64 \
+            --push \
+            --provenance=false \
+            --sbom=false \
+            .
+  create-manifest:
+      name: Create Manifest
+      needs: [build-arm64, build-amd64]
+      runs-on: ubuntu-24.04
+      if: github.ref == 'refs/heads/develop' || startsWith( github.ref, 'refs/heads/release-')
+      env:
+        IMAGE_REPOSITORY: "us-east1-docker.pkg.dev/the-coral-project/coral/talk"
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v4
+        - name: Define SHORT_SHA with commit short sha
+          run: echo "SHORT_SHA=`echo ${GITHUB_SHA} | cut -c1-8`" >> $GITHUB_ENV
+        - name: Authenticate to Google Cloud
+          uses: google-github-actions/auth@v2
+          with:
+            project_id: the-coral-project
+            workload_identity_provider: projects/418768622481/locations/global/workloadIdentityPools/github-actions/providers/github
+            service_account: github-actions@the-coral-project.iam.gserviceaccount.com
+        - name: Configure Docker GAR
+          run: |
+            gcloud auth configure-docker us-east1-docker.pkg.dev --quiet
+        - name: Create and Push Manifest for develop branch
+          if: github.ref == 'refs/heads/develop'
+          run: |
+            docker manifest create ${{ env.IMAGE_REPOSITORY }}:develop-latest \
+              --amend ${{ env.IMAGE_REPOSITORY }}:develop-latest-amd64 \
+              --amend ${{ env.IMAGE_REPOSITORY }}:develop-latest-arm64
+            docker manifest push ${{ env.IMAGE_REPOSITORY }}:develop-latest
+        - name: Create and Push Manifest for release branches
+          if: startsWith( github.ref, 'refs/heads/release-')
+          run: |
+            docker manifest create ${{ env.IMAGE_REPOSITORY }}:${{ github.ref_name }}-${{ env.SHORT_SHA }} \
+              --amend ${{ env.IMAGE_REPOSITORY }}:${{ github.ref_name }}-${{ env.SHORT_SHA }}-amd64 \
+              --amend ${{ env.IMAGE_REPOSITORY }}:${{ github.ref_name }}-${{ env.SHORT_SHA }}-arm64
+            docker manifest push ${{ env.IMAGE_REPOSITORY }}:${{ github.ref_name }}-${{ env.SHORT_SHA }}

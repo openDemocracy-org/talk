@@ -1,0 +1,7 @@
+.icon {
+  padding-right: var(--spacing-1);
+}
+
+.icon svg {
+  vertical-align: middle;
+}

@@ -14,14 +14,17 @@ jobs:
     - name: Build the Docker image
       run: docker build . --file Dockerfile --tag od-custom-talk:$(date +%s)
     - name: CapRover Image Deploy
+      # Only deploy on a real push to main (a merge) — not on pull_request
+      # events, which only build/validate the image.
+      if: github.event_name == 'push'
       # You may pin to the exact commit or the version.
       # uses: stardustventures/caprover-deploy@8b3cbaf7ac13ea9276bc2322f44f1c1638d4c5ce
       uses: stardustventures/caprover-deploy@v4
       with:
         # CapRover admin panel URL. Ex. https://captain.root.domain.com
-        server: https://captain.staging-caprover.opendemocracy.net
+        server: https://captain.comment.opendemocracy.net
         # CapRover admin password. Use $\{{ secrets.CAPROVER_PASSWORD }} for better security.
-        password: ${{ secrets.CAPROVER_STAGING_PASSWORD }}
+        password: ${{ secrets.CAPROVER_PASSWORD }}
         # Application name on the CapRover server. Must exists.
         appname: comment-talk
         # Container image registry url

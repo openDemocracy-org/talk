@@ -11,16 +11,16 @@ reimagines moderation, comment display, and conversation. Use Coral to add
 smarter, safer discussions to your site without giving away your data.
 
 More than 500 news sites in 28 countries trust Coral to power their on-site
-communities, including The Washington Post, The Financial Times, Wired, USA Today, and Foreign Policy. [Read more about Coral here](https://coralproject.net/).
+communities, including The Washington Post, The Financial Times, The Hindu, and Foreign Policy. [Read more about Coral here](https://coralproject.net/).
 
 Built with ❤️ by Coral by [Vox Media](https://product.voxmedia.com/).
 
 ## Requirements
 
-- MongoDB ^4.2
+- MongoDB ^8.0.3
 - Redis ^3.2
-- NodeJS ^14.18
-- NPM ^8.0
+- NodeJS ^18.16.0
+- PNPM ^8.0
 
 ## Running
 
@@ -88,13 +88,14 @@ git clone https://github.com/coralproject/talk.git
 cd talk
 
 # Install dependencies.
-npm install
+sh scripts/pnpm-ci.sh
+sh scripts/generate.sh
 
 # Build the application dependencies, this may take some time.
-npm run build
+sh build.sh
 ```
 
-This should output all the compiled application code to `./dist`.
+This will build the application code into `dist/` folders under the various sub-directories of Coral. Examples of this are `server/dist`, `client/dist`, `common/dist`.
 
 Running Coral with default settings assumes that you have:
 
@@ -112,7 +113,8 @@ docker run -d -p 6379:6379 --restart always --name redis redis:3.2
 Then start Coral with:
 
 ```bash
-npm run start:development
+cd server
+pnpm run start:development
 ```
 
 Then head on over to http://localhost:3000 to install Coral!
@@ -126,7 +128,7 @@ the following from your `talk` directory to do this:
 SIGNING_SECRET="$(openssl rand -base64 48)"
 
 # Add a randomly generated secret to your .env file.
-cat >> .env <<EOF
+cat >> server/.env <<EOF
 SIGNING_SECRET=${SIGNING_SECRET}
 EOF
 ```
@@ -135,5 +137,6 @@ You can then run Coral with the production command instead:
 
 ```bash
 # Start the server in production mode.
-npm run start
+cd server
+pnpm run start
 ```
