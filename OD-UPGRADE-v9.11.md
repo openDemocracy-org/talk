@@ -142,14 +142,9 @@ on Redis, `DEP0152`.
 - **Server follow-ups from 2026-09-29:** ~~SSH root password login~~ done 2026-09-29 (keys only; was `PermitRootLogin yes`,
   `PasswordAuthentication yes`) and bots are trying it — switch to keys only. `apt autoremove` the ~82
   18.04/20.04 leftovers. Decide later whether to unhold Docker for 29.x (check CapRover support first).
-- **No swap on the droplet.** A memory spike would get a process OOM-killed instead of slowed down.
-  Add a 1–2 GB swap file:
-  `fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile && echo '/swapfile none swap sw 0 0' >> /etc/fstab`
-- **`docker-image.yml` fails on every push to `main`** (dead `stardustventures/caprover-deploy` action).
-  Delete it, or make `od-build-image.yml` also run on `main`. `build-test-deploy.yml` is also stale.
-- **Old `comment-talk` container crashed twice around 2026-09-23** (`task: non-zero exit (1)`,
-  restarted by Swarm). If v9.11 crashes too, check `docker service ps srv-captain--comment-talk`.
-- **CapRover dashboard exposed on port 3000** over plain HTTP. Consider blocking it with a firewall.
+- ~~No swap on the droplet~~ Done 2026-09-29: 2 GB `/swapfile`, `vm.swappiness=10`. `apt autoremove` also done.
+- **CapRover dashboard exposed on port 3000** over plain HTTP (Swarm ports 2377/7946 are open too). Use a
+  DigitalOcean Cloud Firewall allowing only TCP 22/80/443 + ICMP; `ufw` won't work because Docker bypasses it.
 
 ## Server upgrade: OS, Docker, CapRover (done 2026-09-29)
 
