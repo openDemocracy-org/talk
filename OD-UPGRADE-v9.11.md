@@ -234,6 +234,17 @@ What actually happened, and what to do differently next time:
 8. CapRover: `docker service update --image caprover/caprover:1.15.4 captain-captain` (rollback: same
    with `1.10.1`). Apps kept running.
 
+### CVE-2026-111497 (Node.js Brotli RCE, disclosed 2026-10-21)
+
+Fixed in Node 22.23.4 / 24.22.1 / 26.12.1; Node ≤20 gets no fix. Node versions on the droplet:
+
+- **CapRover:** 1.15.4 ran Node 22.23.2. **Upgraded to 1.15.5 (Node 22.23.4) on 2026-10-26**
+  (`docker service update --image caprover/caprover:1.15.5 captain-captain`, after a DO backup).
+  All services 1/1.
+- **Coral** (`comment-talk`, `staging-talk-talk`): Node 18.20.8. Moving to Node 22 on branch `node22`.
+- **`comment-x`, `staging-comment-x`, `comment-fake-site`, `staging-fake-site`:** Node 12.22.1
+  (`~/Code/archive/gfw-comment-incentives`, `FROM node:12`). To do: rebuild on Node 22, retire the fake sites if unused.
+
 ## Local test environment
 
 The upgrade branch was checked out in a temporary worktree; if that directory is gone, run

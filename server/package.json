@@ -12,7 +12,7 @@
     "url": "git://github.com/coralproject/talk.git"
   },
   "engines": {
-    "node": "^18.16.0",
+    "node": "^22.23.4",
     "pnpm": "8.14.3"
   },
   "bugs": "https://github.com/coralproject/talk/issues",
@@ -57,7 +57,6 @@
     "@coralproject/bunyan-prettystream": "^0.1.4",
     "@fluent/bundle": "^0.15.1",
     "@fluent/dom": "^0.7.0",
-    "@google-cloud/profiler": "^5.0.3",
     "@graphql-tools/schema": "^6.2.4",
     "@graphql-tools/utils": "^6.2.4",
     "@metascraper/helpers": "^5.22.5",
@@ -141,7 +140,7 @@
     "postcss": "^8.3.5",
     "prom-client": "^12.0.0",
     "proxy-agent": "^6.3.1",
-    "re2": "^1.20.9",
+    "re2": "^1.21.4",
     "source-map-support": "^0.5.16",
     "stack-utils": "^2.0.1",
     "striptags": "^3.2.0",

@@ -27,7 +27,7 @@ jobs:
       - name: Setup Node18.x
         uses: actions/setup-node@v4
         with:
-          node-version: "18.16.x"
+          node-version: "22.23.x"
       - name: Install pnpm 8
         run: npm install -g pnpm@8.14.3 --registry=https://registry.npmjs.org
       # -

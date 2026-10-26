@@ -1,4 +1,3 @@
-import * as profiler from "@google-cloud/profiler";
 import express, { Express } from "express";
 import { GraphQLSchema } from "graphql";
 import { RedisPubSub } from "graphql-redis-subscriptions";
@@ -218,15 +217,6 @@ class Server {
       throw new Error("server has already connected");
     }
     this.connected = true;
-
-    // Start the cloud profiler if enabled.
-    if (this.config.get("google_cloud_profiler")) {
-      await profiler.start({
-        serviceContext: this.config.get(
-          "google_cloud_profiler_service_context"
-        ),
-      });
-    }
 
     // Load the translations.
     await this.i18n.load();
