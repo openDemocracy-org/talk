@@ -241,7 +241,20 @@ Fixed in Node 22.23.4 / 24.22.1 / 26.12.1; Node ≤20 gets no fix. Node versions
 - **CapRover:** 1.15.4 ran Node 22.23.2. **Upgraded to 1.15.5 (Node 22.23.4) on 2026-10-26**
   (`docker service update --image caprover/caprover:1.15.5 captain-captain`, after a DO backup).
   All services 1/1.
-- **Coral** (`comment-talk`, `staging-talk-talk`): Node 18.20.8. Moving to Node 22 on branch `node22`.
+- **Coral** (`comment-talk`, `staging-talk-talk`): was Node 18.20.8 (upstream v9.11.8 still targets 18).
+  **Now Node 22.23.4: `opendemocracy/coral-talk:v9.11.8-node22-cb4badf`** (amd64, `sha256:a1735122…`),
+  staging 2026-10-26, prod 2026-10-27. Rollback: redeploy `opendemocracy/coral-talk:v9.11.8-6f5eba7`.
+  Changes on top of upstream (commit `cb4badf95`):
+  - `node:22.23.4-alpine`, `engines` `^22.23.4`, CI `22.23.x`.
+  - re2 1.20.9 → 1.21.4 in `client/` and `server/` (1.20.9's `nan` doesn't compile on Node 22). Lockfiles
+    edited by hand, including `url-regex-safe`'s re2 reference: `pnpm update` / `install --lockfile-only`
+    re-resolved hundreds of unrelated entries. node-gyp left at 10.0.1 (build-only).
+  - `@google-cloud/profiler` removed (its `pprof@3.2.0` doesn't compile on Node 22; `GOOGLE_CLOUD_PROFILER`
+    unset in prod and staging). Re-apply both changes when moving to a newer upstream Coral.
+  Checks: local test on a prod data copy (comment posting, banned word → `REJECTED`); staging browser test
+  (staging's word lists were empty, so "Bitcoin" was added there to test); prod all services 1/1, no
+  non-404 errors after deploy. Coral logs every 404 at error level, so bot scans show up as hundreds of
+  `NOT_FOUND` errors.
 - **`comment-x`, `staging-comment-x`, `comment-fake-site`, `staging-fake-site`:** Node 12.22.1
   (`~/Code/archive/gfw-comment-incentives`, `FROM node:12`). To do: rebuild on Node 22, retire the fake sites if unused.
 
