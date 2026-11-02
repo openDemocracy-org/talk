@@ -280,8 +280,22 @@ Neither is fixed upstream (Coral `develop` unchanged; no release since v9.11.8).
 
 Local test (image `coral-talk:node22-fix-test`, prod data copy): all crash requests now return 400 /
 `USER_NOT_ENTITLED` with 0 restarts; commenter comment `NONE`, "Bitcoin" comment `REJECTED`, same as before.
-To do: amd64 image → staging → prod; email coralsupport@voxmedia.com privately (their SECURITY.md also allows a
-public issue, but that would publish the crash recipe).
+Another crash at 14:58 UTC (container removed before its logs could be read).
+
+**Deployed 2026-11-02: `opendemocracy/coral-talk:v9.11.8-node22-8e3441c`** (amd64, `sha256:7aa78495…`), staging
+17:27 UTC, prod 17:46 UTC. Rollback: `v9.11.8-node22-cb4badf`. Both: Node 22.23.4, revision `8e3441c4e`, patched
+graphql installed, health/admin/embed.js 200, embed.js identical to the image, 0 errors after start. Crash
+requests sent: staging, the 3 URL variants → 400, no restart; prod, oembed without `url` → 400 and the GraphQL
+query → `USER_NOT_ENTITLED`, no restart. (Staging can't test the GraphQL case: it rejects raw queries.)
+
+**Prod has `ENABLE_GRAPHIQL=TRUE`** (staging doesn't). It serves `/graphiql`, enables introspection and turns off
+`persistedQueriesRequired`, so anyone can send raw queries; Coral logs a warning against it in production. This is
+what made the GraphQL crash reachable. Nothing found that needs it: 2 of 883 prod queries were non-persisted
+(scanners), and the Slack widget's planned email lookup would use an admin token, which may send raw queries anyway.
+Candidate to remove.
+
+To do: watch for exit-1 restarts for a few days; decide on `ENABLE_GRAPHIQL`; email coralsupport@voxmedia.com
+privately (their SECURITY.md also allows a public issue, but that would publish the crash recipe).
 
 ## Local test environment
 
