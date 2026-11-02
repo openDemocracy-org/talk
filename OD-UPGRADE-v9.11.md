@@ -258,6 +258,31 @@ Fixed in Node 22.23.4 / 24.22.1 / 26.12.1; Node ≤20 gets no fix. Node versions
 - **`comment-x`, `staging-comment-x`, `comment-fake-site`, `staging-fake-site`:** Node 12.22.1
   (`~/Code/archive/gfw-comment-incentives`, `FROM node:12`). To do: rebuild on Node 22, retire the fake sites if unused.
 
+### Crashes from unauthenticated requests (found 2026-11-02)
+
+Prod Coral exited with code 1 at least 4 times between 2026-11-01 17:40 and 2026-11-02 09:24 UTC; Swarm restarted it
+each time (~1 min without comments per crash). Each crash can be triggered by a single request that needs no login.
+Coral's `server/src/index.ts` deliberately rethrows any unhandled promise rejection, so either bug kills the process.
+Neither is fixed upstream (Coral `develop` unchanged; no release since v9.11.8).
+
+1. **`TypeError: Invalid URL`**: `GET /api/services/oembed` or `/api/comment/commentEmbed.js` without `commentID`
+   and with a missing/bad `url` makes `commentEmbedWhitelisted.ts` call `new URL(undefined)` inside async Express 4
+   middleware. Fix: try/catch, respond 400.
+2. **`UserForbiddenError: USER_NOT_ENTITLED`** (seen after a leakix.net scan): graphql-js bug
+   [#3528](https://github.com/graphql/graphql-js/issues/3528). When one field returns a rejecting promise
+   (`activeStories`, async `@rate`) and a later sibling throws synchronously (`users`, `@auth`), graphql drops the
+   promise. Fixed upstream in graphql 15.9.0 / 16.7.0 (#3706, #3708), never in 14.x; Coral pins 14.6.0 with Apollo
+   Server 2. Fix: the #3708 change applied to 14.6.0 as `server/patches/graphql@14.6.0.patch` (`pnpm patch`, made
+   with pnpm 8.14.3). Upgrading graphql instead would mean upgrading Apollo too.
+
+`pnpm patch-commit` also pruned ~95 orphaned lockfile entries left by the `@google-cloud/profiler` removal in
+`cb4badf95`; no packages were added or upgraded. Re-apply both fixes when moving to a newer upstream Coral.
+
+Local test (image `coral-talk:node22-fix-test`, prod data copy): all crash requests now return 400 /
+`USER_NOT_ENTITLED` with 0 restarts; commenter comment `NONE`, "Bitcoin" comment `REJECTED`, same as before.
+To do: amd64 image → staging → prod; email coralsupport@voxmedia.com privately (their SECURITY.md also allows a
+public issue, but that would publish the crash recipe).
+
 ## Local test environment
 
 The upgrade branch was checked out in a temporary worktree; if that directory is gone, run

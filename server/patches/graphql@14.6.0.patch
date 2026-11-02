@@ -1,0 +1,92 @@
+diff --git a/execution/execute.js b/execution/execute.js
+index 4e734745be4c6ce4a98cd68387eb01bb8484c69f..cd88c5c223f5f74398e67e9dfe0b88d744a3314a 100644
+--- a/execution/execute.js
++++ b/execution/execute.js
+@@ -268,19 +268,32 @@ function executeFields(exeContext, parentType, sourceValue, path, fields) {
+   var results = Object.create(null);
+   var containsPromise = false;
+ 
+-  for (var _i4 = 0, _Object$keys2 = Object.keys(fields); _i4 < _Object$keys2.length; _i4++) {
+-    var responseName = _Object$keys2[_i4];
+-    var fieldNodes = fields[responseName];
+-    var fieldPath = (0, _Path.addPath)(path, responseName);
+-    var result = resolveField(exeContext, parentType, sourceValue, fieldNodes, fieldPath);
++  // Patched: backport of graphql-js #3706/#3708 (fixed in 15.9.0/16.7.0). If a
++  // field throws synchronously after another returned a promise, handle that
++  // promise too, so its rejection can't become an unhandled rejection.
++  try {
++    for (var _i4 = 0, _Object$keys2 = Object.keys(fields); _i4 < _Object$keys2.length; _i4++) {
++      var responseName = _Object$keys2[_i4];
++      var fieldNodes = fields[responseName];
++      var fieldPath = (0, _Path.addPath)(path, responseName);
++      var result = resolveField(exeContext, parentType, sourceValue, fieldNodes, fieldPath);
+ 
+-    if (result !== undefined) {
+-      results[responseName] = result;
++      if (result !== undefined) {
++        results[responseName] = result;
+ 
+-      if (!containsPromise && (0, _isPromise.default)(result)) {
+-        containsPromise = true;
++        if (!containsPromise && (0, _isPromise.default)(result)) {
++          containsPromise = true;
++        }
+       }
+     }
++  } catch (error) {
++    if (containsPromise) {
++      return (0, _promiseForObject.default)(results).finally(function () {
++        throw error;
++      });
++    }
++
++    throw error;
+   } // If there are no promises, we can just return the object
+ 
+ 
+diff --git a/execution/execute.mjs b/execution/execute.mjs
+index 1a893abf9d46d874c81d9964b78cc2493915fbda..9759a1ccc30db31d48a05b26e62e687041058990 100644
+--- a/execution/execute.mjs
++++ b/execution/execute.mjs
+@@ -255,19 +255,32 @@ function executeFields(exeContext, parentType, sourceValue, path, fields) {
+   var results = Object.create(null);
+   var containsPromise = false;
+ 
+-  for (var _i4 = 0, _Object$keys2 = Object.keys(fields); _i4 < _Object$keys2.length; _i4++) {
+-    var responseName = _Object$keys2[_i4];
+-    var fieldNodes = fields[responseName];
+-    var fieldPath = addPath(path, responseName);
+-    var result = resolveField(exeContext, parentType, sourceValue, fieldNodes, fieldPath);
++  // Patched: backport of graphql-js #3706/#3708 (fixed in 15.9.0/16.7.0). If a
++  // field throws synchronously after another returned a promise, handle that
++  // promise too, so its rejection can't become an unhandled rejection.
++  try {
++    for (var _i4 = 0, _Object$keys2 = Object.keys(fields); _i4 < _Object$keys2.length; _i4++) {
++      var responseName = _Object$keys2[_i4];
++      var fieldNodes = fields[responseName];
++      var fieldPath = addPath(path, responseName);
++      var result = resolveField(exeContext, parentType, sourceValue, fieldNodes, fieldPath);
+ 
+-    if (result !== undefined) {
+-      results[responseName] = result;
++      if (result !== undefined) {
++        results[responseName] = result;
+ 
+-      if (!containsPromise && isPromise(result)) {
+-        containsPromise = true;
++        if (!containsPromise && isPromise(result)) {
++          containsPromise = true;
++        }
+       }
+     }
++  } catch (error) {
++    if (containsPromise) {
++      return promiseForObject(results).finally(function () {
++        throw error;
++      });
++    }
++
++    throw error;
+   } // If there are no promises, we can just return the object
+ 
+ 

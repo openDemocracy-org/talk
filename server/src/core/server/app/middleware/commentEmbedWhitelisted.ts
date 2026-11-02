@@ -16,9 +16,17 @@ export const commentEmbedWhitelisted =
 
     // For the Oembed endpoint, will need to get commentID from the url
     if (!commentID) {
+      // A missing or malformed `url` makes `new URL` throw. Inside this async
+      // middleware that becomes an unhandled rejection, which crashes the
+      // server (see src/index.ts), so reject the request instead.
       const url: string = req.query.url;
-      const urlToParse = new URL(url);
-      commentID = urlToParse.searchParams.get("commentID");
+      try {
+        const urlToParse = new URL(url);
+        commentID = urlToParse.searchParams.get("commentID");
+      } catch {
+        res.sendStatus(400);
+        return;
+      }
     }
 
     const { tenant } = req.coral;
