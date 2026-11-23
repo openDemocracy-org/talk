@@ -297,6 +297,16 @@ Candidate to remove.
 To do: watch for exit-1 restarts for a few days; decide on `ENABLE_GRAPHIQL`; email coralsupport@voxmedia.com
 privately (their SECURITY.md also allows a public issue, but that would publish the crash recipe).
 
+**Checked 2026-11-23:** prod has run one task on `v9.11.8-node22-8e3441c` since the 11-02 deploy with no
+restarts (`docker service ps srv-captain--comment-talk`); the exit-1 failures are all on the earlier `cb4badf`
+image. Coral support was emailed 2026-11-02 and replied; they released **v9.11.9** (2026-11-06). It fixes the
+oembed crash (400 on missing/non-string `url`), plus the response cache throwing on unparseable URLs (bare IP
+hosts) and csp/installed/client-route/oembed failures not reaching the error handler — the cache one we had not
+patched. It does **not** fix the graphql 14.6.0 crash (still `graphql ^14.6.0`, no patch) and is still Node 18,
+so our graphql patch and Node 22 changes stay. Merging v9.11.9 on branch `upgrade-v9.11.9`: the only conflict
+was `commentEmbedWhitelisted.ts`, resolved to upstream's version (replaces our try/catch). Still open: decide on
+`ENABLE_GRAPHIQL`.
+
 ## Local test environment
 
 The upgrade branch was checked out in a temporary worktree; if that directory is gone, run
