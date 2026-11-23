@@ -307,6 +307,22 @@ so our graphql patch and Node 22 changes stay. Merging v9.11.9 on branch `upgrad
 was `commentEmbedWhitelisted.ts`, resolved to upstream's version (replaces our try/catch). Still open: decide on
 `ENABLE_GRAPHIQL`.
 
+**Deployed 2026-11-23: `opendemocracy/coral-talk:v9.11.9-node22-ffa74fa`** (amd64, registry digest
+`sha256:94ad5ca56e1d…`), staging then prod. Rollback: `v9.11.8-node22-8e3441c`. Checks:
+
+- Server tests: 38 suites / 187 tests pass, including upstream's new `cache.spec.ts` and
+  `commentEmbedWhitelisted.spec.ts` (run with `node scripts/testServer.js`; bare `npx jest` can't parse TS).
+- Local (arm64 build): Coral 9.11.9 on Node 22.23.4, server uses the patched graphql. Crash requests → oembed 400,
+  GraphQL `USER_NOT_ENTITLED`, 0 restarts. The cache bug is not reachable here: with `JSONP_RESPONSE_CACHE=true`,
+  a bare-IP `Host` is rejected with `TENANT_NOT_FOUND` before the cache middleware, on both 8e3441c and 9.11.9.
+- Staging: 200s, `embed.js` identical to the image, oembed crash request → 400 with no restart; browser test on
+  staging-fake-site as a commenter: normal comment published, "Bitcoin" comment rejected.
+- Prod: Node v22.23.4, 200s, `embed.js` identical to the image; oembed → 400, GraphQL → `USER_NOT_ENTITLED`,
+  no restart.
+
+To do: check for exit-1 restarts in a few days; decide on `ENABLE_GRAPHIQL`; optionally tell Coral support that
+v9.11.9 does not cover the graphql 14.6.0 crash (graphql-js #3528).
+
 ## Local test environment
 
 The upgrade branch was checked out in a temporary worktree; if that directory is gone, run
