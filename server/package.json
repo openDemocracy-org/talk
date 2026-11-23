@@ -1,6 +1,6 @@
 {
   "name": "@coralproject/talk",
-  "version": "9.11.8",
+  "version": "9.11.9",
   "author": "The Coral Project",
   "homepage": "https://coralproject.net/",
   "sideEffects": [
@@ -372,6 +372,9 @@
     "rules": [
       "types-are-capitalized"
     ]
+  },
+  "redisMemoryServer": {
+    "disablePostinstall": "1"
   },
   "browsers": [
     ">1%",
